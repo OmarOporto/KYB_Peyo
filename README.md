@@ -1,36 +1,87 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# Servicio KYB
 
-## Getting Started
+Servicio externo de validación de empresas (KYB). Formulario grande por invitación,
+integración AML con DIDIT, y panel de revisión para analistas. Next.js + Supabase.
 
-First, run the development server:
+## Arquitectura
+
+Tres superficies sobre una app Next.js (App Router) + Supabase:
+
+1. **Formulario público** (`/f/[token]`) — acceso por token de invitación, sin cuenta.
+   Autosave y subida de documentos. Todo pasa por Server Actions con el cliente
+   service-role (server-only); el token es el gatekeeper.
+2. **API máquina-a-máquina** (`/api/v1/kyb/...`) — para la app principal. Auth por API key.
+3. **Panel de revisión** (`/admin`) — analistas con Supabase Auth + RLS.
+
+### Flujo
+
+1. App principal → `POST /api/v1/kyb/requests` (API key) → recibe `invitationUrl` + `token`.
+2. Usuario llena `/f/[token]`, sube documentos, envía.
+3. Al enviar se dispara el check AML (mock en local / DIDIT en prod); estado → `under_review`.
+4. App principal → `GET /api/v1/kyb/requests/:id` → estado + resultado + AML.
+5. Analista revisa en `/admin` y aprueba/rechaza.
+
+## Requisitos
+
+- Node 20+ / 22+, npm
+- **Docker Desktop** (para Supabase local)
+
+## Puesta en marcha (local)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+npm install
+cp .env.example .env.local          # completar claves (ver abajo)
+
+npm run db:start                    # levanta Supabase (Docker). Imprime ANON_KEY / SERVICE_ROLE_KEY
+# copiar esas claves a .env.local si difieren
+
+npm run db:reset                    # aplica migraciones + seed (api key de prueba)
+npm run seed:admin                  # crea analista: analyst@kyb.local / password123
+
+npm run dev                         # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Studio de Supabase: http://127.0.0.1:54323
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+### Variables de entorno
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+Ver `.env.example`. Claves relevantes:
 
-## Learn More
+- `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+- `NEXT_PUBLIC_APP_URL` — base para construir el `invitationUrl`
+- `AML_PROVIDER` — `mock` (local) | `didit` (prod)
+- `DIDIT_API_URL`, `DIDIT_API_KEY`, `DIDIT_WEBHOOK_SECRET` — solo con `AML_PROVIDER=didit`
 
-To learn more about Next.js, take a look at the following resources:
+## API
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Crear solicitud:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+curl -X POST http://localhost:3000/api/v1/kyb/requests \
+  -H "Authorization: Bearer kyb_test_key_local_dev" \
+  -H "Content-Type: application/json" \
+  -d '{"external_ref":"emp-123"}'
+```
 
-## Deploy on Vercel
+Consultar estado:
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+```bash
+curl http://localhost:3000/api/v1/kyb/requests/<id> \
+  -H "Authorization: Bearer kyb_test_key_local_dev"
+```
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+> La API key de prueba (`kyb_test_key_local_dev`) se siembra en `supabase/seed.sql`.
+> En producción, genera keys reales (hash sha256 en `api_keys`).
+
+## DIDIT (AML) — por definir
+
+La integración está aislada en `lib/aml/` (`provider.ts`, `didit.ts`, `mock.ts`, `mapping.ts`).
+Falta por confirmar con DIDIT: endpoints, credenciales, formato del webhook y qué campos
+del formulario se envían (`lib/aml/mapping.ts`). El resultado asíncrono llega a
+`POST /api/webhooks/didit` (firma HMAC-SHA256).
+
+## Producción (resumen)
+
+- `supabase link` + `supabase db push` a un proyecto Supabase Cloud.
+- Deploy de la app en Vercel con las env vars de producción.
+- `AML_PROVIDER=didit` + credenciales reales.
