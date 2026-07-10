@@ -36,6 +36,7 @@ export async function logAudit(input: AuditInput) {
 export async function createRequest(
   externalRef: string,
   ttlHours = DEFAULT_TTL_HOURS,
+  formId?: string | null,
 ): Promise<{
   id: string;
   token: string;
@@ -54,6 +55,7 @@ export async function createRequest(
       token_expires_at: expiresAt,
       form_version: FORM_VERSION,
       status: "created",
+      form_id: formId ?? null,
     })
     .select("id")
     .single();

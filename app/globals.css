@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Las utilidades `dark:` responden a la clase .dark (toggle de next-themes),
+   no al media query del SO. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 /* ============================================================
    Tokens de diseño (identidad Peyo). Semánticos por CSS vars;
    cambian en modo oscuro. Se mapean a utilidades en @theme inline.
@@ -10,6 +14,7 @@
   --background: #f8fafc; /* slate-50  */
   --surface: #ffffff;
   --surface-2: #f1f5f9; /* slate-100 */
+  --surface-card: #e8edf5; /* card elevado: algo más oscuro que el fondo (modo claro) */
   --foreground: #0f172a; /* slate-900 (navy) */
   --muted: #64748b; /* slate-500 */
   --border: #e2e8f0; /* slate-200 */
@@ -29,6 +34,7 @@
   --background: #0b1220;
   --surface: #111c33;
   --surface-2: #16223c;
+  --surface-card: #1b2946; /* card elevado: más claro que surface/fondo (modo oscuro) */
   --foreground: #e2e8f0;
   --muted: #94a3b8; /* slate-400 */
   --border: #25324a;
@@ -41,6 +47,7 @@
   --color-background: var(--background);
   --color-surface: var(--surface);
   --color-surface-2: var(--surface-2);
+  --color-surface-card: var(--surface-card);
   --color-foreground: var(--foreground);
   --color-muted: var(--muted);
   --color-border: var(--border);

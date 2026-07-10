@@ -11,6 +11,9 @@ import {
 } from "@/lib/kyb/service";
 import { createServiceClient } from "@/lib/supabase/service";
 import { kybSubmitSchema } from "@/lib/forms/schema";
+import { getFormForRequest } from "@/lib/forms/store";
+import { allVisibleFields } from "@/lib/forms/logic";
+import { buildZod } from "@/lib/forms/validation";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
 
@@ -98,5 +101,26 @@ export async function submitAction(
   }
 
   await submitRequest(r.req.id, parsed.data);
+  return { ok: true };
+}
+
+/** Envío del formulario dinámico (valida contra la definición asignada). */
+export async function submitFormAction(
+  token: string,
+  answers: Record<string, unknown>,
+): Promise<ActionResult> {
+  const r = await resolveOpen(token);
+  if (!r.ok) return { ok: false, error: r.error };
+
+  const formId = (r.req as { form_id?: string | null }).form_id ?? null;
+  const form = await getFormForRequest(formId);
+  if (form) {
+    const schema = buildZod(allVisibleFields(form.definition, answers));
+    if (!schema.safeParse(answers).success) {
+      return { ok: false, error: "Faltan campos requeridos o hay valores inválidos." };
+    }
+  }
+
+  await submitRequest(r.req.id, answers);
   return { ok: true };
 }

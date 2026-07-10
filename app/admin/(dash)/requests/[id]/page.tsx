@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
@@ -9,6 +9,9 @@ import { DocLink } from "@/components/admin/DocLink";
 import { decideAction } from "@/app/admin/actions";
 import { isTerminal } from "@/lib/kyb/service";
 import type { KybStatus } from "@/lib/kyb/types";
+import { getFormForRequest } from "@/lib/forms/store";
+import { resolveText } from "@/lib/forms/definition";
+import { renderAnswer } from "@/lib/forms/answers";
 
 export const dynamic = "force-dynamic";
 
@@ -43,6 +46,10 @@ export default async function RequestDetail({
 
   const formData = (formRow?.data as Record<string, unknown>) ?? {};
   const closed = isTerminal(request.status as KybStatus);
+  const locale = await getLocale();
+  const form = await getFormForRequest(
+    (request as { form_id?: string | null }).form_id,
+  );
 
   return (
     <main className="mx-auto w-full max-w-3xl p-6">
@@ -95,18 +102,46 @@ export default async function RequestDetail({
 
       {/* Formulario */}
       <Section title={t("form")}>
-        <Card className="p-4">
-          <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-            {Object.entries(formData).map(([k, v]) => (
-              <div key={k} className="border-b border-border pb-1">
-                <dt className="text-muted">{k}</dt>
-                <dd className="break-words text-foreground">
-                  {typeof v === "object" ? JSON.stringify(v) : String(v)}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        </Card>
+        {form ? (
+          <div className="space-y-4">
+            {form.definition.sections.map((s, si) => {
+              const fields = s.fields.filter((f) => f.type !== "note");
+              if (fields.length === 0) return null;
+              return (
+                <Card key={si} className="p-4">
+                  <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
+                    {resolveText(s.title, locale)}
+                  </h3>
+                  <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                    {fields.map((f) => (
+                      <div key={f.id} className="border-b border-border pb-1">
+                        <dt className="text-muted">
+                          {resolveText(f.label, locale) || f.key}
+                        </dt>
+                        <dd className="break-words text-foreground">
+                          {renderAnswer(f, formData[f.key], locale)}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                </Card>
+              );
+            })}
+          </div>
+        ) : (
+          <Card className="p-4">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+              {Object.entries(formData).map(([k, v]) => (
+                <div key={k} className="border-b border-border pb-1">
+                  <dt className="text-muted">{k}</dt>
+                  <dd className="break-words text-foreground">
+                    {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                  </dd>
+                </div>
+              ))}
+            </dl>
+          </Card>
+        )}
       </Section>
 
       {/* Decisión */}

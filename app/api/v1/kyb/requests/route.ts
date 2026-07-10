@@ -8,6 +8,7 @@ export const runtime = "nodejs";
 const bodySchema = z.object({
   external_ref: z.string().min(1, "external_ref es requerido"),
   ttl_hours: z.number().int().positive().optional(),
+  form_id: z.string().uuid().optional(),
 });
 
 /**
@@ -38,6 +39,7 @@ export async function POST(req: NextRequest) {
   const result = await createRequest(
     parsed.data.external_ref,
     parsed.data.ttl_hours,
+    parsed.data.form_id,
   );
 
   return NextResponse.json(

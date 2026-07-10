@@ -1,9 +1,11 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { getRequestByToken } from "@/lib/kyb/service";
 import { createServiceClient } from "@/lib/supabase/service";
+import { getFormForRequest } from "@/lib/forms/store";
 import { emptyForm } from "@/lib/forms/schema";
 import { AppHeader } from "@/components/AppHeader";
 import { Card } from "@/components/ui/Card";
+import { ApplicantForm } from "./ApplicantForm";
 import KybForm from "./KybForm";
 
 export const dynamic = "force-dynamic";
@@ -57,15 +59,33 @@ export default async function FormPage({
       .order("uploaded_at", { ascending: true }),
   ]);
 
-  const draft = {
-    ...emptyForm,
-    ...((draftRow?.data as Record<string, unknown>) ?? {}),
-  };
+  const savedData = (draftRow?.data as Record<string, unknown>) ?? {};
+
+  // Formulario dinámico si hay uno asignado/publicado; si no, fallback al legacy.
+  const form = await getFormForRequest(
+    (req as { form_id?: string | null }).form_id,
+  );
+  if (form) {
+    const locale = await getLocale();
+    return (
+      <>
+        <AppHeader />
+        <main className="mx-auto w-full max-w-2xl flex-1 p-6">
+          <ApplicantForm
+            token={token}
+            definition={form.definition}
+            locale={locale}
+            initialAnswers={savedData}
+          />
+        </main>
+      </>
+    );
+  }
 
   return (
     <KybForm
       token={token}
-      initialData={draft}
+      initialData={{ ...emptyForm, ...savedData }}
       initialDocs={docs ?? []}
     />
   );

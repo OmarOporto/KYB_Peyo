@@ -15,7 +15,7 @@ export function Sidebar({ email }: { email: string }) {
 
   const items = [
     { href: "/admin", label: t("requests"), icon: <ListIcon />, exact: true },
-    { href: "/admin/templates", label: t("templates"), icon: <TemplateIcon />, exact: false },
+    { href: "/admin/forms", label: t("forms"), icon: <TemplateIcon />, exact: false },
     { href: "/admin/didit", label: t("didit"), icon: <FormIcon />, exact: false },
   ];
 

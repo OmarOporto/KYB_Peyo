@@ -8,56 +8,41 @@ import {
   retrieveQuestionnaireRaw,
   normalizeQuestionnaire,
 } from "@/lib/didit/questionnaires";
+import { fromDidit } from "@/lib/forms/convert";
+import { resolveText } from "@/lib/forms/definition";
 
-/** Importa un workflow completo de DIDIT como una plantilla y redirige a su preview. */
-export async function importWorkflow(uuid: string) {
-  await requireAnalyst();
-
-  const form = await assembleWorkflow(uuid);
-
+async function createFormFromDidit(
+  sourceRef: string,
+  definition: ReturnType<typeof fromDidit>,
+) {
   const supabase = createServiceClient();
   const { data, error } = await supabase
-    .from("form_templates")
-    .upsert(
-      {
-        source: "didit-workflow",
-        source_ref: uuid,
-        name: form.source.label ?? `DIDIT workflow ${uuid.slice(0, 8)}`,
-        definition: form,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "source,source_ref" },
-    )
+    .from("forms")
+    .insert({
+      name: resolveText(definition.title, "es") || "Formulario DIDIT",
+      status: "draft",
+      source: "didit",
+      source_ref: sourceRef,
+      definition,
+    })
     .select("id")
     .single();
-
   if (error) throw new Error(error.message);
-  redirect(`/admin/templates/${data.id}`);
+  return data.id as string;
 }
 
-/** Importa un questionnaire suelto de DIDIT como plantilla. */
+/** Importa un workflow completo de DIDIT como formulario editable. */
+export async function importWorkflow(uuid: string) {
+  await requireAnalyst();
+  const form = await assembleWorkflow(uuid);
+  const id = await createFormFromDidit(uuid, fromDidit(form));
+  redirect(`/admin/forms/${id}/edit`);
+}
+
+/** Importa un questionnaire suelto de DIDIT como formulario editable. */
 export async function importQuestionnaire(uuid: string) {
   await requireAnalyst();
-
   const raw = await retrieveQuestionnaireRaw(uuid);
-  const normalized = normalizeQuestionnaire(raw);
-
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("form_templates")
-    .upsert(
-      {
-        source: "didit-questionnaire",
-        source_ref: uuid,
-        name: normalized.source.title ?? `DIDIT ${uuid.slice(0, 8)}`,
-        definition: normalized,
-        updated_at: new Date().toISOString(),
-      },
-      { onConflict: "source,source_ref" },
-    )
-    .select("id")
-    .single();
-
-  if (error) throw new Error(error.message);
-  redirect(`/admin/templates/${data.id}`);
+  const id = await createFormFromDidit(uuid, fromDidit(normalizeQuestionnaire(raw)));
+  redirect(`/admin/forms/${id}/edit`);
 }
