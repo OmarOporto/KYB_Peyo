@@ -1,16 +1,26 @@
+import { getTranslations } from "next-intl/server";
 import { getRequestByToken } from "@/lib/kyb/service";
 import { createServiceClient } from "@/lib/supabase/service";
 import { emptyForm } from "@/lib/forms/schema";
+import { AppHeader } from "@/components/AppHeader";
+import { Card } from "@/components/ui/Card";
 import KybForm from "./KybForm";
 
 export const dynamic = "force-dynamic";
 
 function Notice({ title, body }: { title: string; body: string }) {
   return (
-    <main className="mx-auto flex min-h-screen max-w-lg flex-col items-center justify-center gap-3 p-8 text-center">
-      <h1 className="text-2xl font-semibold">{title}</h1>
-      <p className="text-gray-500">{body}</p>
-    </main>
+    <>
+      <AppHeader />
+      <main className="mx-auto flex w-full max-w-lg flex-1 flex-col items-center justify-center p-8">
+        <Card className="w-full p-8 text-center">
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            {title}
+          </h1>
+          <p className="mt-2 text-muted">{body}</p>
+        </Card>
+      </main>
+    </>
   );
 }
 
@@ -20,31 +30,17 @@ export default async function FormPage({
   params: Promise<{ token: string }>;
 }) {
   const { token } = await params;
+  const t = await getTranslations("form");
   const req = await getRequestByToken(token);
 
   if (!req) {
-    return (
-      <Notice
-        title="Invitación inválida"
-        body="El enlace no es válido. Verifica con quien te lo compartió."
-      />
-    );
+    return <Notice title={t("invalidTitle")} body={t("invalidBody")} />;
   }
   if (req.status === "expired") {
-    return (
-      <Notice
-        title="Invitación expirada"
-        body="Este enlace ya no está disponible. Solicita uno nuevo."
-      />
-    );
+    return <Notice title={t("expiredTitle")} body={t("expiredBody")} />;
   }
   if (["submitted", "under_review", "approved", "rejected"].includes(req.status)) {
-    return (
-      <Notice
-        title="Formulario recibido"
-        body="Tu información ya fue enviada y está en revisión. ¡Gracias!"
-      />
-    );
+    return <Notice title={t("receivedTitle")} body={t("receivedBody")} />;
   }
 
   const supabase = createServiceClient();

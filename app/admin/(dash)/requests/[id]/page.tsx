@@ -1,10 +1,12 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { requireAnalyst } from "@/lib/auth/admin";
+import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { StatusBadge } from "../../StatusBadge";
-import { DocLink } from "../../DocLink";
-import { decideAction } from "../../actions";
+import { Card } from "@/components/ui/Card";
+import { Button } from "@/components/ui/Button";
+import { StatusBadge } from "@/components/admin/StatusBadge";
+import { DocLink } from "@/components/admin/DocLink";
+import { decideAction } from "@/app/admin/actions";
 import { isTerminal } from "@/lib/kyb/service";
 import type { KybStatus } from "@/lib/kyb/types";
 
@@ -15,7 +17,7 @@ export default async function RequestDetail({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  await requireAnalyst();
+  const t = await getTranslations("admin");
   const { id } = await params;
   const supabase = await createServerSupabase();
 
@@ -43,84 +45,87 @@ export default async function RequestDetail({
   const closed = isTerminal(request.status as KybStatus);
 
   return (
-    <main className="mx-auto max-w-3xl p-6">
-      <Link href="/admin" className="text-sm text-blue-600 hover:underline">
-        ← Volver
+    <main className="mx-auto w-full max-w-3xl p-6">
+      <Link href="/admin" className="text-sm text-brand hover:underline">
+        ← {t("back")}
       </Link>
 
       <header className="mt-3 mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">{request.external_ref}</h1>
-          <p className="text-sm text-gray-500">ID: {request.id}</p>
+          <h1 className="font-display text-2xl font-bold text-foreground">
+            {request.external_ref}
+          </h1>
+          <p className="text-sm text-muted">ID: {request.id}</p>
         </div>
         <StatusBadge status={request.status} />
       </header>
 
       {/* AML */}
-      <Section title="Resultado AML (DIDIT)">
+      <Section title={t("amlResult")}>
         {(aml ?? []).length === 0 && (
-          <p className="text-sm text-gray-400">Sin checks todavía.</p>
+          <p className="text-sm text-muted">{t("noChecks")}</p>
         )}
         {(aml ?? []).map((c, i) => (
-          <div key={i} className="mb-2 rounded border border-gray-200 p-3 text-sm">
+          <Card key={i} className="mb-2 p-3 text-sm">
             <div className="mb-1 flex items-center gap-2">
-              <span className="font-medium">{c.provider}</span>
+              <span className="font-medium text-foreground">{c.provider}</span>
               <StatusBadge status={amlToBadge(c.status)} />
             </div>
-            <pre className="overflow-x-auto whitespace-pre-wrap break-words text-xs text-gray-600">
+            <pre className="overflow-x-auto rounded-lg bg-surface-2 p-2 text-xs whitespace-pre-wrap break-words text-muted">
               {JSON.stringify(c.result, null, 2)}
             </pre>
-          </div>
+          </Card>
         ))}
       </Section>
 
       {/* Documentos */}
-      <Section title="Documentos">
+      <Section title={t("documents")}>
         {(docs ?? []).length === 0 && (
-          <p className="text-sm text-gray-400">Sin documentos.</p>
+          <p className="text-sm text-muted">{t("noDocuments")}</p>
         )}
         <ul className="space-y-1 text-sm">
           {(docs ?? []).map((d) => (
             <li key={d.id}>
               <DocLink path={d.storage_path} filename={d.filename} />{" "}
-              <span className="text-gray-400">({d.doc_type})</span>
+              <span className="text-muted">({d.doc_type})</span>
             </li>
           ))}
         </ul>
       </Section>
 
       {/* Formulario */}
-      <Section title="Formulario">
-        <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-          {Object.entries(formData).map(([k, v]) => (
-            <div key={k} className="border-b border-gray-100 pb-1">
-              <dt className="text-gray-400">{k}</dt>
-              <dd className="break-words">
-                {typeof v === "object" ? JSON.stringify(v) : String(v)}
-              </dd>
-            </div>
-          ))}
-        </dl>
+      <Section title={t("form")}>
+        <Card className="p-4">
+          <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            {Object.entries(formData).map(([k, v]) => (
+              <div key={k} className="border-b border-border pb-1">
+                <dt className="text-muted">{k}</dt>
+                <dd className="break-words text-foreground">
+                  {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                </dd>
+              </div>
+            ))}
+          </dl>
+        </Card>
       </Section>
 
       {/* Decisión */}
       {!closed && (
         <div className="mt-6 flex gap-3">
           <form action={decideAction.bind(null, id, "approved")}>
-            <button className="rounded bg-green-600 px-5 py-2 text-sm font-medium text-white">
-              Aprobar
-            </button>
+            <Button variant="success">{t("approve")}</Button>
           </form>
           <form action={decideAction.bind(null, id, "rejected")}>
-            <button className="rounded bg-red-600 px-5 py-2 text-sm font-medium text-white">
-              Rechazar
-            </button>
+            <Button variant="danger">{t("reject")}</Button>
           </form>
         </div>
       )}
       {closed && (
-        <p className="mt-6 text-sm text-gray-500">
-          Decisión: <strong>{request.decision ?? request.status}</strong>
+        <p className="mt-6 text-sm text-muted">
+          {t("decision")}:{" "}
+          <strong className="text-foreground">
+            {request.decision ?? request.status}
+          </strong>
         </p>
       )}
     </main>
@@ -146,7 +151,7 @@ function Section({
 }) {
   return (
     <section className="mb-6">
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-gray-500">
+      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
         {title}
       </h2>
       {children}

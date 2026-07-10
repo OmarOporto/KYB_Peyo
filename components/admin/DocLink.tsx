@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { getDocUrlAction } from "./actions";
+import { getDocUrlAction } from "@/app/admin/actions";
 
 export function DocLink({
   path,
@@ -23,9 +23,9 @@ export function DocLink({
     <button
       onClick={open}
       disabled={loading}
-      className="text-blue-600 hover:underline disabled:opacity-50"
+      className="text-brand hover:underline disabled:opacity-50"
     >
-      {loading ? "Generando…" : filename}
+      {loading ? "…" : filename}
     </button>
   );
 }
