@@ -73,30 +73,6 @@ function section(
 // ---------- catálogos reutilizables ----------
 const DOC_FILE = { accept: ["application/pdf", "image/*"], multiple: false, maxSizeMB: 15 };
 
-// Lista curada de países (ISO 3166-1 alpha-3). El admin puede
-// agregar/quitar opciones en el builder.
-const COUNTRY_OPTIONS: FormOption[] = [
-  opt("USA", "Estados Unidos", "United States"),
-  opt("MEX", "México", "Mexico"),
-  opt("CAN", "Canadá", "Canada"),
-  opt("GTM", "Guatemala", "Guatemala"),
-  opt("SLV", "El Salvador", "El Salvador"),
-  opt("HND", "Honduras", "Honduras"),
-  opt("NIC", "Nicaragua", "Nicaragua"),
-  opt("CRI", "Costa Rica", "Costa Rica"),
-  opt("PAN", "Panamá", "Panama"),
-  opt("DOM", "República Dominicana", "Dominican Republic"),
-  opt("COL", "Colombia", "Colombia"),
-  opt("PER", "Perú", "Peru"),
-  opt("ECU", "Ecuador", "Ecuador"),
-  opt("CHL", "Chile", "Chile"),
-  opt("ARG", "Argentina", "Argentina"),
-  opt("BRA", "Brasil", "Brazil"),
-  opt("URY", "Uruguay", "Uruguay"),
-  opt("ESP", "España", "Spain"),
-  opt("GBR", "Reino Unido", "United Kingdom"),
-];
-
 const BUSINESS_TYPE_OPTIONS: FormOption[] = [
   opt("cooperative", "Cooperativa", "Cooperative"),
   opt("corporation", "Sociedad anónima (corporation)", "Corporation"),
@@ -184,7 +160,7 @@ function addressFields(
     field({ key: `${prefix}.city`, type: "short_text", label: { es: "Ciudad", en: "City" }, required, visibleIf }),
     field({ key: `${prefix}.subdivision`, type: "short_text", label: { es: "Estado / Provincia", en: "State / Subdivision" }, help: { es: "ISO 3166-2 sin prefijo de país (ej. CA, NY). Requerido para EE. UU.", en: "ISO 3166-2 without country prefix (e.g. CA, NY). Required for the US." }, visibleIf }),
     field({ key: `${prefix}.postal_code`, type: "short_text", label: { es: "Código postal", en: "Postal code" }, visibleIf }),
-    field({ key: `${prefix}.country`, type: "dropdown", label: { es: "País", en: "Country" }, required, options: COUNTRY_OPTIONS, help: { es: "Código ISO 3166-1 alpha-3.", en: "ISO 3166-1 alpha-3 code." }, visibleIf }),
+    field({ key: `${prefix}.country`, type: "country", label: { es: "País", en: "Country" }, required, visibleIf }),
   ];
 }
 
@@ -203,7 +179,7 @@ function uboFields(i: number): Field[] {
     field({ key: `${p}.title`, type: "short_text", label: { es: "Cargo / Título", en: "Title" }, visibleIf: { field: `${p}.has_control`, op: "eq", value: true } }),
     field({ key: `${p}.is_signer`, type: "boolean", label: { es: "¿Es firmante autorizado?", en: "Is an authorized signer?" } }),
     field({ key: `${p}.identifying_information.0.type`, type: "dropdown", label: { es: "Tipo de identificación", en: "ID type" }, options: PERSON_ID_TYPE_OPTIONS, required: true }),
-    field({ key: `${p}.identifying_information.0.issuing_country`, type: "dropdown", label: { es: "País emisor", en: "Issuing country" }, options: COUNTRY_OPTIONS, required: true }),
+    field({ key: `${p}.identifying_information.0.issuing_country`, type: "country", label: { es: "País emisor", en: "Issuing country" }, required: true }),
     field({ key: `${p}.identifying_information.0.number`, type: "short_text", label: { es: "Número de identificación / SSN", en: "ID number / SSN" }, required: true }),
   ];
 }
@@ -266,7 +242,7 @@ const sections: Section[] = [
     { es: "Identificación fiscal", en: "Tax identification" },
     [
       field({ key: "identifying_information.0.type", type: "dropdown", label: { es: "Tipo de identificación fiscal", en: "Tax ID type" }, options: BUSINESS_TAX_TYPE_OPTIONS, required: true }),
-      field({ key: "identifying_information.0.issuing_country", type: "dropdown", label: { es: "País emisor", en: "Issuing country" }, options: COUNTRY_OPTIONS, required: true }),
+      field({ key: "identifying_information.0.issuing_country", type: "country", label: { es: "País emisor", en: "Issuing country" }, required: true }),
       field({ key: "identifying_information.0.number", type: "short_text", label: { es: "Número (EIN / RFC / registro)", en: "Number (EIN / TIN / registration)" }, required: true }),
       field({ key: "has_foreign_tax_registration", type: "boolean", label: { es: "¿Tiene registro fiscal en el extranjero?", en: "Has foreign tax registration?" } }),
     ],

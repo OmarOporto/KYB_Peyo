@@ -180,57 +180,94 @@ export async function dispatchDiditReviews(input: {
   }
 
   const idFields = byFeature("id_verification");
+  const fieldByKey = new Map<string, Field>();
+  sections.forEach((s) => s.fields.forEach((f) => fieldByKey.set(f.key, f)));
 
-  // --- id_verification: front + back en UNA llamada ---
-  if (idFields.length) {
-    const backField = idFields.find((t) => /back|reverso/i.test(t.field.key));
-    const frontField = idFields.find((t) => t !== backField) ?? idFields[0];
-    await run("id_verification", frontField.field.key, async () => {
-      const front = firstFileRef(answers, frontField.field.key);
-      if (!front) throw new Error("Falta la imagen del documento (frente)");
-      const fd = new FormData();
-      fd.append("front_image", await downloadBlob(front.path), front.filename);
-      if (backField) {
-        const back = firstFileRef(answers, backField.field.key);
-        if (back) fd.append("back_image", await downloadBlob(back.path), back.filename);
-      }
-      fd.append("vendor_data", externalRef);
-      const json = await postMultipart("/v3/id-verification/", fd);
-      const node = (json.id_verification ?? {}) as Record<string, unknown>;
-      return {
-        status: mapDiditStatus(node.status),
-        score: null,
-        externalRef: (json.request_id as string) || null,
-        result: json,
-      };
-    });
+  // Documento (frente/reverso) a partir de los refKeys de un face_match.
+  const docFromRefKeys = (refKeys: string[] | undefined): { frontKey?: string; backKey?: string } => {
+    if (!refKeys?.length) return {};
+    const backKey = refKeys.find((k) => /back|reverso/i.test(k));
+    const frontKey = refKeys.find((k) => k !== backKey) ?? refKeys[0];
+    return { frontKey, backKey };
+  };
+  const isIdVerification = (key: string | undefined): boolean => {
+    const rev = key ? fieldByKey.get(key)?.review : undefined;
+    return rev?.provider === "didit" && rev.feature === "id_verification";
+  };
+
+  // Una llamada id_verification para un documento (frente + reverso opcional).
+  const idVerificationCall = async (frontKey: string, backKey?: string): Promise<TaskResult> => {
+    const front = firstFileRef(answers, frontKey);
+    if (!front) throw new Error("Falta la imagen del documento (frente)");
+    const fd = new FormData();
+    fd.append("front_image", await downloadBlob(front.path), front.filename);
+    if (backKey) {
+      const back = firstFileRef(answers, backKey);
+      if (back) fd.append("back_image", await downloadBlob(back.path), back.filename);
+    }
+    fd.append("vendor_data", externalRef);
+    const json = await postMultipart("/v3/id-verification/", fd);
+    const node = (json.id_verification ?? {}) as Record<string, unknown>;
+    return {
+      status: mapDiditStatus(node.status),
+      score: null,
+      externalRef: (json.request_id as string) || null,
+      result: json,
+    };
+  };
+
+  // --- id_verification (opt-in, POR documento) ---
+  const consumed = new Set<string>();
+  // (a) Documento enlazado a un face_match cuyo frente esté etiquetado id_verification.
+  for (const t of byFeature("face_match")) {
+    const { frontKey, backKey } = docFromRefKeys(t.field.review?.refKeys);
+    if (!frontKey || consumed.has(frontKey) || !isIdVerification(frontKey)) continue;
+    consumed.add(frontKey);
+    if (backKey) consumed.add(backKey);
+    await run("id_verification", frontKey, () => idVerificationCall(frontKey, backKey));
+  }
+  // (b) id_verification no consumido → agrupado por sección (un documento por sección).
+  const idBySection = new Map<number, TaggedField[]>();
+  for (const t of idFields) {
+    if (consumed.has(t.field.key)) continue;
+    const arr = idBySection.get(t.si) ?? [];
+    arr.push(t);
+    idBySection.set(t.si, arr);
+  }
+  for (const group of idBySection.values()) {
+    const backField = group.find((g) => /back|reverso/i.test(g.field.key));
+    const frontField = group.find((g) => g !== backField) ?? group[0];
+    await run("id_verification", frontField.field.key, () =>
+      idVerificationCall(frontField.field.key, backField?.field.key),
+    );
   }
 
-  // --- face_match: selfie (user_image) + documento frente (ref_image) ---
+  // --- face_match: selfie (user_image) + frente del documento enlazado (ref_image) ---
   for (const t of byFeature("face_match")) {
     await run("face_match", t.field.key, async () => {
       const selfie = firstFileRef(answers, t.field.key);
       if (!selfie) throw new Error("Falta la selfie");
-      // Referencia (ref_image): el FRENTE de un documento. Puede venir de un campo
-      // id_verification (caso KYC: comparte el documento) o de un campo de imagen SIN
-      // etiqueta DIDIT (caso "solo face match", sin correr id_verification). Se excluye
-      // la propia selfie y el reverso; el frente es obligatorio. Prioriza: misma sección
-      // que la selfie, y documento id_verification; si no, busca en todo el formulario
-      // (funciona entre secciones).
-      const refScore = (c: TaggedField) =>
-        (c.si === t.si ? 0 : 2) + (c.field.review?.feature === "id_verification" ? 0 : 1);
-      const refCandidates = allImageFields
-        .filter((c) => c.field.key !== t.field.key)
-        .filter((c) => {
-          const rev = c.field.review;
-          return !rev || rev.provider !== "didit" || rev.feature === "id_verification";
-        })
-        .filter((c) => !/back|reverso/i.test(c.field.key))
-        .sort((a, b) => refScore(a) - refScore(b));
+      // Referencia = frente del documento enlazado (refKeys). Sin binding → heurística de
+      // respaldo (frente de imagen sin etiqueta o id_verification, misma sección primero).
       let ref: FileRef | null = null;
-      for (const c of refCandidates) {
-        ref = firstFileRef(answers, c.field.key);
-        if (ref) break;
+      const { frontKey } = docFromRefKeys(t.field.review?.refKeys);
+      if (frontKey) {
+        ref = firstFileRef(answers, frontKey);
+      } else {
+        const refScore = (c: TaggedField) =>
+          (c.si === t.si ? 0 : 2) + (c.field.review?.feature === "id_verification" ? 0 : 1);
+        const refCandidates = allImageFields
+          .filter((c) => c.field.key !== t.field.key)
+          .filter((c) => {
+            const rev = c.field.review;
+            return !rev || rev.provider !== "didit" || rev.feature === "id_verification";
+          })
+          .filter((c) => !/back|reverso/i.test(c.field.key))
+          .sort((a, b) => refScore(a) - refScore(b));
+        for (const c of refCandidates) {
+          ref = firstFileRef(answers, c.field.key);
+          if (ref) break;
+        }
       }
       if (!ref) throw new Error("NO_REFERENCE: falta la imagen de referencia (frente del documento)");
       const fd = new FormData();

@@ -109,7 +109,7 @@ const sections: Section[] = [
         type: "selfie",
         label: { es: "Selfie en vivo", en: "Live selfie" },
         required: true,
-        review: didit("face_match"),
+        review: { ...didit("face_match"), refKeys: ["didit_id_front", "didit_id_back"] },
         help: {
           es: "Se compara con el retrato del documento de identidad de esta sección. La misma captura sirve para liveness.",
           en: "Compared against the ID document portrait in this section. The same capture serves for liveness.",

@@ -38,8 +38,13 @@ export async function saveDraftAction(
 ): Promise<ActionResult> {
   const r = await resolveOpen(token);
   if (!r.ok) return { ok: false, error: r.error };
-  await saveDraft(r.req.id, data);
-  return { ok: true };
+  try {
+    await saveDraft(r.req.id, data);
+    return { ok: true };
+  } catch (e) {
+    console.error("[saveDraftAction] falló", e);
+    return { ok: false, error: "No se pudo guardar el borrador." };
+  }
 }
 
 /** Sube un documento a Storage (gated por token) y guarda sus metadatos. */
@@ -61,27 +66,33 @@ export async function uploadDocumentAction(
 
   const safeName = file.name.replace(/[^\w.\-]+/g, "_");
   const path = `${r.req.id}/${docType}/${randomUUID()}-${safeName}`;
-  const buffer = Buffer.from(await file.arrayBuffer());
 
-  const supabase = createServiceClient();
-  const { error } = await supabase.storage
-    .from(DOCUMENTS_BUCKET)
-    .upload(path, buffer, {
-      contentType: file.type || "application/octet-stream",
-      upsert: false,
+  try {
+    const buffer = Buffer.from(await file.arrayBuffer());
+
+    const supabase = createServiceClient();
+    const { error } = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .upload(path, buffer, {
+        contentType: file.type || "application/octet-stream",
+        upsert: false,
+      });
+    if (error) return { ok: false, error: error.message };
+
+    await recordDocument({
+      requestId: r.req.id,
+      docType,
+      storagePath: path,
+      filename: file.name,
+      mime: file.type || null,
+      size: file.size,
     });
-  if (error) return { ok: false, error: error.message };
 
-  await recordDocument({
-    requestId: r.req.id,
-    docType,
-    storagePath: path,
-    filename: file.name,
-    mime: file.type || null,
-    size: file.size,
-  });
-
-  return { ok: true, path, filename: file.name };
+    return { ok: true, path, filename: file.name };
+  } catch (e) {
+    console.error("[uploadDocumentAction] falló", e);
+    return { ok: false, error: "No se pudo subir el archivo." };
+  }
 }
 
 /** Envía el formulario final (valida el esquema completo). */
@@ -100,8 +111,13 @@ export async function submitAction(
     };
   }
 
-  await submitRequest(r.req.id, parsed.data);
-  return { ok: true };
+  try {
+    await submitRequest(r.req.id, parsed.data);
+    return { ok: true };
+  } catch (e) {
+    console.error("[submitAction] falló", e);
+    return { ok: false, error: "No se pudo enviar el formulario. Intenta de nuevo." };
+  }
 }
 
 /** Envío del formulario dinámico (valida contra la definición asignada). */
@@ -121,6 +137,11 @@ export async function submitFormAction(
     }
   }
 
-  await submitRequest(r.req.id, answers);
-  return { ok: true };
+  try {
+    await submitRequest(r.req.id, answers);
+    return { ok: true };
+  } catch (e) {
+    console.error("[submitFormAction] falló", e);
+    return { ok: false, error: "No se pudo enviar el formulario. Intenta de nuevo." };
+  }
 }

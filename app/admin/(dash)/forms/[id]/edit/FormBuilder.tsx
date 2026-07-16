@@ -682,10 +682,12 @@ function SectionCard({
 // ---------- Editor de revisión DIDIT (popover por campo) ----------
 function DiditReviewEditor({
   field,
+  imageFields,
   t,
   onChange,
 }: {
   field: Field;
+  imageFields: { key: string; label: string }[];
   t: TFn;
   onChange: (review: FieldReview | undefined) => void;
 }) {
@@ -741,8 +743,13 @@ function DiditReviewEditor({
                   type="button"
                   disabled={!ok}
                   onClick={() => {
-                    onChange({ provider: "didit", feature: f });
-                    setOpen(false);
+                    const isFace = f === "face_match";
+                    onChange({
+                      provider: "didit",
+                      feature: f,
+                      ...(isFace && field.review?.refKeys ? { refKeys: field.review.refKeys } : {}),
+                    });
+                    if (!isFace) setOpen(false);
                   }}
                   className={`block w-full rounded px-2 py-1 text-left text-xs ${
                     ok ? "hover:bg-surface-2" : "cursor-not-allowed opacity-40"
@@ -758,6 +765,47 @@ function DiditReviewEditor({
                 </button>
               );
             })}
+            {current === "face_match" && (
+              <div className="mt-1 border-t border-border pt-1">
+                <p className="px-1 text-[10px] font-semibold text-muted">{t("diditRefDoc")}</p>
+                <p className="mb-1 px-1 text-[10px] text-muted">{t("diditRefHint")}</p>
+                {imageFields.length === 0 ? (
+                  <p className="px-1 text-[10px] text-muted">—</p>
+                ) : (
+                  imageFields.map((im) => {
+                    const refKeys = field.review?.refKeys ?? [];
+                    const checked = refKeys.includes(im.key);
+                    const atMax = !checked && refKeys.length >= 2;
+                    return (
+                      <label
+                        key={im.key}
+                        className={`flex items-center gap-2 rounded px-1 py-0.5 text-xs ${
+                          atMax ? "opacity-40" : "hover:bg-surface-2"
+                        }`}
+                      >
+                        <input
+                          type="checkbox"
+                          className="accent-brand"
+                          checked={checked}
+                          disabled={atMax}
+                          onChange={() => {
+                            const next = checked
+                              ? refKeys.filter((k) => k !== im.key)
+                              : [...refKeys, im.key];
+                            onChange({
+                              provider: "didit",
+                              feature: "face_match",
+                              ...(next.length ? { refKeys: next } : {}),
+                            });
+                          }}
+                        />
+                        <span className="truncate">{im.label}</span>
+                      </label>
+                    );
+                  })
+                )}
+              </div>
+            )}
           </div>
         </>
       )}
@@ -815,6 +863,9 @@ function FieldCard({
         {field.type !== "note" && (
           <DiditReviewEditor
             field={field}
+            imageFields={allFieldKeys
+              .filter((k) => (k.field.type === "file" || k.field.type === "selfie") && k.key !== field.key)
+              .map((k) => ({ key: k.key, label: k.label }))}
             t={t}
             onChange={(review) =>
               mut((f) => {
@@ -880,6 +931,15 @@ function FieldCard({
           }
         />
       </div>
+
+      {/* Descripción de la pregunta (se muestra bajo el input) */}
+      <textarea
+        className={`${inputCls} mt-2`}
+        rows={2}
+        placeholder={t("fieldDescription")}
+        value={getLoc(field.help, locale)}
+        onChange={(e) => mut((f) => (f.help = setLoc(f.help, locale, e.target.value)))}
+      />
 
       {/* Imagen de ayuda de la pregunta */}
       <ImageUpload

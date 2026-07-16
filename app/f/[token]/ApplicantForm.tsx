@@ -48,6 +48,8 @@ export function ApplicantForm({
         doneBody: t("submittedBody"),
         saving: t("saving"),
         saved: t("draftSaved"),
+        saveError: t("saveError"),
+        submitFailed: t("submitFailed"),
         required: t("errRequired"),
         invalidEmail: t("errEmail"),
         invalidNumber: t("errNumber"),

@@ -42,7 +42,8 @@ export function fieldZod(field: Field, locale = "es"): z.ZodTypeAny {
       return req ? s.min(1, m.required) : s.optional().or(z.literal(""));
     }
     case "single_choice":
-    case "dropdown": {
+    case "dropdown":
+    case "country": {
       const s = z.string();
       return req ? s.min(1, m.required) : s.optional().or(z.literal(""));
     }

@@ -40,7 +40,7 @@ export default async function PublicFormPage({
         <h1 className="mb-4 font-display text-2xl font-bold text-foreground">
           {resolveText(form.definition.title, locale)}
         </h1>
-        <PublicForm definition={form.definition} locale={locale} />
+        <PublicForm formId={form.id} />
       </main>
     </>
   );

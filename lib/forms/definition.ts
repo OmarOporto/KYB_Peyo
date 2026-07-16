@@ -34,6 +34,7 @@ export const FIELD_TYPES = [
   "single_choice",
   "multiple_choice",
   "dropdown",
+  "country",
   "file",
   "selfie",
   "boolean",
@@ -84,6 +85,8 @@ export function isDiditCompatible(feature: DiditFeature, type: FieldType): boole
 export const reviewSchema = z.object({
   provider: z.literal("didit"),
   feature: diditFeatureSchema,
+  // Solo para face_match: keys del documento de referencia (frente + reverso opcional).
+  refKeys: z.array(z.string()).max(2).optional(),
 });
 export type FieldReview = z.infer<typeof reviewSchema>;
 

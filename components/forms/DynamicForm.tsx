@@ -13,6 +13,7 @@ import {
   allVisibleFields,
   type Answers,
 } from "@/lib/forms/logic";
+import { countryOptions } from "@/lib/forms/countries";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -35,6 +36,8 @@ export interface DynamicFormProps {
     doneBody: string;
     saving: string;
     saved: string;
+    saveError?: string;
+    submitFailed?: string;
     required?: string;
     invalidEmail?: string;
     invalidNumber?: string;
@@ -51,6 +54,8 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   doneBody: "Gracias, tu información fue recibida.",
   saving: "Guardando…",
   saved: "Guardado",
+  saveError: "No se pudo guardar",
+  submitFailed: "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.",
   required: "Requerido",
   invalidEmail: "Email inválido",
   invalidNumber: "Número inválido",
@@ -78,7 +83,7 @@ export function DynamicForm({
   const [currentId, setCurrentId] = useState<string>(firstId);
   const [stack, setStack] = useState<string[]>([]);
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved">("idle");
+  const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
@@ -98,8 +103,13 @@ export function DynamicForm({
     if (timer.current) clearTimeout(timer.current);
     setSaveState("saving");
     timer.current = setTimeout(async () => {
-      await onSaveDraft(answers);
-      setSaveState("saved");
+      try {
+        await onSaveDraft(answers);
+        setSaveState("saved");
+      } catch (e) {
+        console.error("[DynamicForm] autosave falló", e);
+        setSaveState("error");
+      }
     }, 1000);
   }, [answers, mode, onSaveDraft]);
 
@@ -192,10 +202,18 @@ export function DynamicForm({
     }
     setSubmitting(true);
     setSubmitError(null);
-    const res = await onSubmit(answers);
-    setSubmitting(false);
-    if (res.ok) setDone(true);
-    else setSubmitError(res.error ?? "Error");
+    try {
+      const res = await onSubmit(answers);
+      if (res.ok) setDone(true);
+      else setSubmitError(res.error ?? L.submitFailed);
+    } catch (e) {
+      // Backstop: si la Server Action lanza (p. ej. el body excede el límite
+      // del framework), esto evita el fallo silencioso sin loading ni error.
+      console.error("[DynamicForm] submit falló", e);
+      setSubmitError(L.submitFailed);
+    } finally {
+      setSubmitting(false);
+    }
   }
 
   const isLast = nextSectionId(definition, currentId, answers) === "SUBMIT";
@@ -226,8 +244,14 @@ export function DynamicForm({
             {resolveText(current.title, locale) || `#${stepIdx + 1}`}
           </span>
           {mode === "live" && (
-            <span className="text-muted">
-              {saveState === "saving" ? L.saving : saveState === "saved" ? L.saved : ""}
+            <span className={saveState === "error" ? "text-danger" : "text-muted"}>
+              {saveState === "saving"
+                ? L.saving
+                : saveState === "saved"
+                  ? L.saved
+                  : saveState === "error"
+                    ? L.saveError
+                    : ""}
             </span>
           )}
         </div>
@@ -337,7 +361,6 @@ function FieldInput({
         {label || "—"}
         {field.required && <span className="text-danger"> *</span>}
       </label>
-      {help && <p className="mb-1 text-xs text-muted">{help}</p>}
       {field.image && (
         <HelpImage
           src={field.image}
@@ -418,8 +441,10 @@ function FieldInput({
             </option>
           ))}
         </select>
+      ) : field.type === "country" ? (
+        <CountryField value={value} onChange={onChange} locale={locale} />
       ) : field.type === "file" ? (
-        <FileField field={field} value={value} onChange={onChange} onUploadFile={onUploadFile} />
+        <FileField field={field} value={value} onChange={onChange} onUploadFile={onUploadFile} locale={locale} />
       ) : field.type === "selfie" ? (
         <SelfieField
           field={field}
@@ -448,6 +473,7 @@ function FieldInput({
         />
       )}
 
+      {help && <p className="mt-1 text-xs text-muted">{help}</p>}
       {error && <p className="mt-1 text-sm text-danger">{error}</p>}
     </div>
   );
@@ -471,21 +497,109 @@ function HelpImage({
   );
 }
 
+// ---------- Selector de país (combobox buscable; valor = ISO alpha-3) ----------
+const COUNTRY_SEARCH = { es: "Buscar país…", en: "Search country…" };
+
+function CountryField({
+  value,
+  onChange,
+  locale,
+}: {
+  value: unknown;
+  onChange: (v: unknown) => void;
+  locale: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const options = useMemo(() => countryOptions(locale), [locale]);
+  const selected = options.find((c) => c.value === value);
+  const q = query.trim().toLowerCase();
+  const filtered = q
+    ? options.filter((c) => c.name.toLowerCase().includes(q) || c.value.toLowerCase().includes(q))
+    : options;
+  const searchPlaceholder = locale === "en" ? COUNTRY_SEARCH.en : COUNTRY_SEARCH.es;
+
+  return (
+    <div className="relative">
+      <button
+        type="button"
+        onClick={() => setOpen((o) => !o)}
+        className={`${inputCls} flex items-center justify-between text-left`}
+      >
+        <span className={selected ? "" : "text-muted"}>
+          {selected ? `${selected.flag} ${selected.name}` : "—"}
+        </span>
+        <span className="text-muted">▾</span>
+      </button>
+      {open && (
+        <>
+          <button
+            type="button"
+            aria-hidden
+            className="fixed inset-0 z-10 cursor-default"
+            onClick={() => setOpen(false)}
+          />
+          <div className="absolute left-0 z-20 mt-1 w-full rounded-lg border border-border bg-surface-card shadow-lg">
+            <input
+              autoFocus
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder={searchPlaceholder}
+              className="w-full border-b border-border bg-transparent px-3 py-2 text-sm outline-none"
+            />
+            <div className="max-h-56 overflow-auto py-1">
+              {filtered.length === 0 ? (
+                <p className="px-3 py-1 text-xs text-muted">—</p>
+              ) : (
+                filtered.map((c) => (
+                  <button
+                    key={c.value}
+                    type="button"
+                    onClick={() => {
+                      onChange(c.value);
+                      setQuery("");
+                      setOpen(false);
+                    }}
+                    className={`flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm hover:bg-surface-2 ${
+                      c.value === value ? "font-semibold text-brand" : "text-foreground"
+                    }`}
+                  >
+                    <span>{c.flag}</span>
+                    <span className="truncate">{c.name}</span>
+                  </button>
+                ))
+              )}
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const FILE_TEXT = {
+  es: { upError: "No se pudo subir el archivo. Intenta de nuevo." },
+  en: { upError: "Could not upload the file. Try again." },
+} as const;
+
 function FileField({
   field,
   value,
   onChange,
   onUploadFile,
+  locale,
 }: {
   field: Field;
   value: unknown;
   onChange: (v: unknown) => void;
   onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  locale: string;
 }) {
   const [busy, setBusy] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const refs = Array.isArray(value) ? (value as FileRef[]) : [];
   const cfg = field.file;
+  const T = locale === "en" ? FILE_TEXT.en : FILE_TEXT.es;
 
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -493,21 +607,31 @@ function FileField({
     setErr(null);
     setBusy(true);
     const added: FileRef[] = [];
-    for (const file of files) {
-      if (cfg?.maxSizeMB && file.size > cfg.maxSizeMB * 1024 * 1024) {
-        setErr(`> ${cfg.maxSizeMB} MB`);
-        continue;
+    try {
+      for (const file of files) {
+        if (cfg?.maxSizeMB && file.size > cfg.maxSizeMB * 1024 * 1024) {
+          setErr(`> ${cfg.maxSizeMB} MB`);
+          continue;
+        }
+        if (onUploadFile) {
+          const ref = await onUploadFile(file, field);
+          if (ref) added.push(ref);
+          // Falla silenciosa antes: si la subida devuelve null, avisar.
+          else setErr(T.upError);
+        } else {
+          added.push({ path: "", filename: file.name });
+        }
       }
-      if (onUploadFile) {
-        const ref = await onUploadFile(file, field);
-        if (ref) added.push(ref);
-      } else {
-        added.push({ path: "", filename: file.name });
-      }
+    } catch (uploadErr) {
+      // Backstop: si la Server Action lanza (p. ej. el archivo excede el límite
+      // de body del framework), mostrar el error en vez de quedar en silencio.
+      console.error("[FileField] subida falló", uploadErr);
+      setErr(T.upError);
+    } finally {
+      setBusy(false);
+      e.target.value = "";
     }
-    setBusy(false);
-    e.target.value = "";
-    onChange(cfg?.multiple ? [...refs, ...added] : added.slice(-1));
+    if (added.length) onChange(cfg?.multiple ? [...refs, ...added] : added.slice(-1));
   }
 
   return (
@@ -666,6 +790,12 @@ function SelfieField({
       } else {
         onChange([{ path: "", filename: file.name }]);
       }
+    } catch (uploadErr) {
+      // Backstop ante un throw de la Server Action (p. ej. límite de body).
+      console.error("[SelfieField] subida falló", uploadErr);
+      setErr(t.upError);
+      revokeThumb();
+      setThumb(null);
     } finally {
       setBusy(false);
     }
