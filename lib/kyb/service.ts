@@ -4,6 +4,8 @@ import { generateToken, hashToken } from "@/lib/tokens";
 import { env } from "@/lib/env";
 import { getAmlProvider } from "@/lib/aml";
 import { buildAmlSubject } from "@/lib/aml/mapping";
+import { dispatchDiditReviews } from "@/lib/didit/verify";
+import { getFormForRequest } from "@/lib/forms/store";
 import { FORM_VERSION } from "@/lib/forms/schema";
 import type { KybDecision, KybRequest, KybStatus } from "@/lib/kyb/types";
 
@@ -226,21 +228,46 @@ export async function submitRequest(
     toStatus: "submitted",
   });
 
-  // Dispara AML.
+  // Dispara verificaciones: DIDIT real (por-feature) o mock.
   try {
-    const provider = getAmlProvider();
-    const result = await provider.submitCheck({
-      requestId,
-      externalRef: req.external_ref,
-      subject: buildAmlSubject(data),
-    });
-    await supabase.from("aml_checks").insert({
-      request_id: requestId,
-      provider: provider.name,
-      external_ref: result.externalRef,
-      status: result.status,
-      result: result.result ?? null,
-    });
+    if (env.amlProvider() === "didit") {
+      const form = await getFormForRequest(req.form_id);
+      if (!form) throw new Error("No se encontró la definición del formulario para las verificaciones");
+      const rows = await dispatchDiditReviews({
+        requestId,
+        externalRef: req.external_ref,
+        definition: form.definition,
+        answers: data,
+      });
+      if (rows.length) {
+        await supabase.from("aml_checks").insert(
+          rows.map((r) => ({
+            request_id: requestId,
+            provider: "didit",
+            feature: r.feature,
+            field_key: r.fieldKey,
+            external_ref: r.externalRef,
+            status: r.status,
+            score: r.score,
+            result: r.result,
+          })),
+        );
+      }
+    } else {
+      const provider = getAmlProvider();
+      const result = await provider.submitCheck({
+        requestId,
+        externalRef: req.external_ref,
+        subject: buildAmlSubject(data),
+      });
+      await supabase.from("aml_checks").insert({
+        request_id: requestId,
+        provider: provider.name,
+        external_ref: result.externalRef,
+        status: result.status,
+        result: result.result ?? null,
+      });
+    }
   } catch (e) {
     await supabase.from("aml_checks").insert({
       request_id: requestId,

@@ -1,13 +1,14 @@
 import "server-only";
-import { env } from "@/lib/env";
 import type { AmlProvider } from "@/lib/aml/provider";
 import { MockAmlProvider } from "@/lib/aml/mock";
-import { DiditAmlProvider } from "@/lib/aml/didit";
 
+/**
+ * Proveedor AML para el path NO-DIDIT (mock/local). El dispatch real de DIDIT
+ * (por-feature, standalone) vive en `lib/didit/verify.ts` y se activa con
+ * `AML_PROVIDER=didit` desde `submitRequest`.
+ */
 export function getAmlProvider(): AmlProvider {
-  return env.amlProvider() === "didit"
-    ? new DiditAmlProvider()
-    : new MockAmlProvider();
+  return new MockAmlProvider();
 }
 
 export * from "@/lib/aml/provider";

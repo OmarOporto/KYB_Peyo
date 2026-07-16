@@ -1,5 +1,6 @@
 "use server";
 
+import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import { requireAnalyst } from "@/lib/auth/admin";
@@ -12,6 +13,9 @@ import {
 import { isGoogleFormExport, fromGoogleForm } from "@/lib/forms/import-google";
 
 type Result = { ok: true; id?: string } | { ok: false; error: string };
+
+const FORM_ASSETS_BUCKET = "form-assets";
+const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
 export async function createForm() {
   await requireAnalyst();
@@ -127,4 +131,40 @@ export async function importFormJson(json: string): Promise<Result> {
     .single();
   if (error) return { ok: false, error: error.message };
   redirect(`/admin/forms/${data.id}/edit`);
+}
+
+/**
+ * Sube una imagen de ayuda (pregunta/opción) al bucket público `form-assets`
+ * y devuelve su URL pública. Solo analistas.
+ */
+export async function uploadFormImageAction(
+  formData: FormData,
+): Promise<{ ok: true; url: string } | { ok: false; error: string }> {
+  await requireAnalyst();
+  const file = formData.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { ok: false, error: "invalid" };
+  }
+  if (!file.type.startsWith("image/")) {
+    return { ok: false, error: "type" };
+  }
+  if (file.size > MAX_IMAGE_BYTES) {
+    return { ok: false, error: "size" };
+  }
+
+  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
+  const path = `help/${randomUUID()}-${safeName}`;
+  const buffer = Buffer.from(await file.arrayBuffer());
+
+  const supabase = createServiceClient();
+  const { error } = await supabase.storage
+    .from(FORM_ASSETS_BUCKET)
+    .upload(path, buffer, {
+      contentType: file.type || "image/*",
+      upsert: false,
+    });
+  if (error) return { ok: false, error: error.message };
+
+  const { data } = supabase.storage.from(FORM_ASSETS_BUCKET).getPublicUrl(path);
+  return { ok: true, url: data.publicUrl };
 }

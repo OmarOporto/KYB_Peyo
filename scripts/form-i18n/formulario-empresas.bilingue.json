@@ -1,0 +1,4340 @@
+{
+  "version": 1,
+  "title": {
+    "es": "FORMULARIO DE REGISTRO PARA EMPRESAS",
+    "en": "COMPANY REGISTRATION FORM"
+  },
+  "locales": [
+    "es",
+    "en"
+  ],
+  "defaultLocale": "es",
+  "sections": [
+    {
+      "id": "section_inicio",
+      "title": {
+        "es": "Inicio",
+        "en": "Start"
+      },
+      "fields": [
+        {
+          "id": "0cdd12b0-fd2c-46a3-85af-d64a1be8d9f3",
+          "key": "q_185650559",
+          "type": "single_choice",
+          "label": {
+            "es": "Por favor, confirme si su empresa o alguno de sus propietarios, directores o funcionarios ha tenido alguna de las siguientes situaciones:",
+            "en": "Please confirm whether your company or any of its owners, directors, or officers has experienced any of the following situations:"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "cuentas bancarias estadounidenses existentes o negadas, auditorías fiscales o regulatorias, acciones legales, sanciones, incautación de bienes",
+              "label": {
+                "es": "cuentas bancarias estadounidenses existentes o negadas, auditorías fiscales o regulatorias, acciones legales, sanciones, incautación de bienes",
+                "en": "existing or denied U.S. bank accounts, tax or regulatory audits, legal actions, sanctions, asset seizures"
+              }
+            },
+            {
+              "value": "o si alguna persona clave se considera una Persona Expuesta Políticamente (PEP).”",
+              "label": {
+                "es": "o si alguna persona clave se considera una Persona Expuesta Políticamente (PEP).”",
+                "en": "or if any key person is considered a Politically Exposed Person (PEP)."
+              }
+            },
+            {
+              "value": "Ninguno",
+              "label": {
+                "es": "Ninguno",
+                "en": "None"
+              }
+            }
+          ]
+        },
+        {
+          "id": "e401a7c1-c7e9-4975-98cc-2bf031b926bf",
+          "key": "q_2029245471",
+          "type": "short_text",
+          "label": {
+            "es": "Nombre de la empresa",
+            "en": "Company name"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Peyo Solutions S.R.L.",
+            "en": "e.g., Peyo Solutions LLC"
+          }
+        },
+        {
+          "id": "d219fe31-e7df-410e-9c03-6b25781ea95b",
+          "key": "q_144568948",
+          "type": "short_text",
+          "label": {
+            "es": "Agregar un numero de celular con Whatsapp para que podamos contactarnos con su empresa",
+            "en": "Add a mobile number with WhatsApp so we can contact your company"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "82c3bb6c-f2cd-4dc8-a432-bdf6ec3f4b94",
+          "key": "q_158317050",
+          "type": "short_text",
+          "label": {
+            "es": "Número de Identificación Tributario (NIT)",
+            "en": "Tax Identification Number (NIT)"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 1023456789",
+            "en": "e.g., 1023456789"
+          }
+        },
+        {
+          "id": "f57707ab-06a4-4e7f-84e6-e09ee37185d7",
+          "key": "q_1020042618",
+          "type": "long_text",
+          "label": {
+            "es": "Dirección de la empresa",
+            "en": "Company address"
+          },
+          "help": {
+            "es": "Escriba la dirección en la que está registrada su empresa.",
+            "en": "Enter the address where your company is registered."
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Av. Ballivián #123, Zona Central, La Paz",
+            "en": "e.g., 123 Ballivián Ave., Central Zone, La Paz"
+          }
+        },
+        {
+          "id": "7a32edfd-afd4-45a0-abfc-a2d765107206",
+          "key": "q_487667076",
+          "type": "single_choice",
+          "label": {
+            "es": "Fuente primaria de fondos",
+            "en": "Primary source of funds"
+          },
+          "help": {
+            "es": "Seleccione una opción a través de la cual la empresa obtiene la mayor parte de su dinero.",
+            "en": "Select the option through which the company obtains most of its money."
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Préstamos comerciales",
+              "label": {
+                "es": "Préstamos comerciales",
+                "en": "Commercial loans"
+              }
+            },
+            {
+              "value": "Subsidios",
+              "label": {
+                "es": "Subsidios",
+                "en": "Subsidies"
+              }
+            },
+            {
+              "value": "Fondos interempresariales",
+              "label": {
+                "es": "Fondos interempresariales",
+                "en": "Intercompany funds"
+              }
+            },
+            {
+              "value": "Ingresos de la inversión",
+              "label": {
+                "es": "Ingresos de la inversión",
+                "en": "Investment income"
+              }
+            },
+            {
+              "value": "Acuerdo legal",
+              "label": {
+                "es": "Acuerdo legal",
+                "en": "Legal settlement"
+              }
+            },
+            {
+              "value": "Capital del propietario",
+              "label": {
+                "es": "Capital del propietario",
+                "en": "Owner's capital"
+              }
+            },
+            {
+              "value": "Pensión/Jubilación",
+              "label": {
+                "es": "Pensión/Jubilación",
+                "en": "Pension/Retirement"
+              }
+            },
+            {
+              "value": "Venta de activos",
+              "label": {
+                "es": "Venta de activos",
+                "en": "Sale of assets"
+              }
+            },
+            {
+              "value": "Venta de bienes y servicios",
+              "label": {
+                "es": "Venta de bienes y servicios",
+                "en": "Sale of goods and services"
+              }
+            },
+            {
+              "value": "Fondos de terceros",
+              "label": {
+                "es": "Fondos de terceros",
+                "en": "Third-party funds"
+              }
+            },
+            {
+              "value": "Reservas del tesoro",
+              "label": {
+                "es": "Reservas del tesoro",
+                "en": "Treasury reserves"
+              }
+            }
+          ]
+        },
+        {
+          "id": "aa96efd4-f823-484f-ac91-7971bf40f406",
+          "key": "q_674906010",
+          "type": "long_text",
+          "label": {
+            "es": "Por favor explique brevemente el origen de sus fondos",
+            "en": "Please briefly explain the origin of your funds"
+          },
+          "help": {
+            "es": "En un párrafo describa como la empresa obtiene dinero, por ejemplo: Venta de bienes y servicios",
+            "en": "In one paragraph, describe how the company earns money, for example: Sale of goods and services"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Venta de bienes y servicios a clientes locales",
+            "en": "e.g., Sale of goods and services to local customers"
+          }
+        },
+        {
+          "id": "97b6a6da-7994-49fa-887a-e7495ab5c7a7",
+          "key": "q_2031073247",
+          "type": "long_text",
+          "label": {
+            "es": "Describa brevemente las actividades principales de su empresa",
+            "en": "Briefly describe your company's main activities"
+          },
+          "help": {
+            "es": "Describa en un párrafo los servicios o bienes que ofrece su empresa, por ejemplo: Comercialización de material de ferretería y maquinaria de construcción.",
+            "en": "In one paragraph, describe the services or goods your company offers, for example: Sale of hardware materials and construction machinery."
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Comercialización de material de ferretería y maquinaria",
+            "en": "e.g., Sale of hardware materials and construction machinery"
+          }
+        },
+        {
+          "id": "899dfd3e-e011-4ba0-8981-2e04343386ae",
+          "key": "q_804954597",
+          "type": "single_choice",
+          "label": {
+            "es": "¿La empresa gana dinero? Y si es así, ¿con esas ganancias logra pagar más de la mitad de sus gastos o solo un 25% aproximadamente?",
+            "en": "Does the company make money? And if so, do those earnings cover more than half of its expenses or only about 25%?"
+          },
+          "help": {
+            "es": "Seleccione la opción que se acerque más al porcentaje de gastos que logra cubrir con sus ingresos, por ejemplo: Si con los ingresos logra cubrir el 100% de sus gastos selecciona el primer inciso, en cambio si con los ingresos solo logra cubrir el 25% de sus gastos debe seleccionar el inciso cuatro.",
+            "en": "Select the option closest to the percentage of expenses you cover with your income, for example: If your income covers 100% of your expenses, choose the first item; if your income covers only 25% of your expenses, choose the fourth item."
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Logra pagar el 100% de sus gastos",
+              "label": {
+                "es": "Logra pagar el 100% de sus gastos",
+                "en": "Covers 100% of its expenses"
+              }
+            },
+            {
+              "value": "Logra pagar el 75% de sus gastos",
+              "label": {
+                "es": "Logra pagar el 75% de sus gastos",
+                "en": "Covers 75% of its expenses"
+              }
+            },
+            {
+              "value": "Logra pagar el 50% de sus gastos",
+              "label": {
+                "es": "Logra pagar el 50% de sus gastos",
+                "en": "Covers 50% of its expenses"
+              }
+            },
+            {
+              "value": "Logra pagar el 25% de sus gastos",
+              "label": {
+                "es": "Logra pagar el 25% de sus gastos",
+                "en": "Covers 25% of its expenses"
+              }
+            },
+            {
+              "value": "Menos del 25% de sus gastos",
+              "label": {
+                "es": "Menos del 25% de sus gastos",
+                "en": "Less than 25% of its expenses"
+              }
+            }
+          ]
+        },
+        {
+          "id": "28431d8a-cdea-4fb9-9460-03c7c53dca15",
+          "key": "q_1118103032",
+          "type": "single_choice",
+          "label": {
+            "es": "Ingresos anuales estimados (USD´s)",
+            "en": "Estimated annual income (USD)"
+          },
+          "help": {
+            "es": "Seleccione el rango más cercano al monto de ingresos que obtiene al año en su empresa",
+            "en": "Select the range closest to the annual income your company earns"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "0 a 99 mil dólares",
+              "label": {
+                "es": "0 a 99 mil dólares",
+                "en": "0 to 99 thousand dollars"
+              }
+            },
+            {
+              "value": "100 mil a 999 mil dólares",
+              "label": {
+                "es": "100 mil a 999 mil dólares",
+                "en": "100 thousand to 999 thousand dollars"
+              }
+            },
+            {
+              "value": "1 millón a 9 millones de dólares",
+              "label": {
+                "es": "1 millón a 9 millones de dólares",
+                "en": "1 million to 9 million dollars"
+              }
+            },
+            {
+              "value": "10 millones a 49 millones de dólares",
+              "label": {
+                "es": "10 millones a 49 millones de dólares",
+                "en": "10 million to 49 million dollars"
+              }
+            },
+            {
+              "value": "50 millones a 249 millones de dólares",
+              "label": {
+                "es": "50 millones a 249 millones de dólares",
+                "en": "50 million to 249 million dollars"
+              }
+            },
+            {
+              "value": "Más de 250 millones de dólares",
+              "label": {
+                "es": "Más de 250 millones de dólares",
+                "en": "More than 250 million dollars"
+              }
+            }
+          ]
+        },
+        {
+          "id": "339f4667-c5da-4178-be39-2a215c839bec",
+          "key": "q_282468073",
+          "type": "number",
+          "label": {
+            "es": "Años de experiencia de la Empresa",
+            "en": "Years of experience of the company"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 5",
+            "en": "e.g., 5"
+          }
+        },
+        {
+          "id": "0db586d3-3ba5-42d3-8972-ec2eeff17ca6",
+          "key": "q_316229653",
+          "type": "long_text",
+          "label": {
+            "es": "Propósito principal de la cuenta:",
+            "en": "Main purpose of the account:"
+          },
+          "help": {
+            "es": "Ejemplo: Pago a proveedores",
+            "en": "Example: Payments to suppliers"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pago a proveedores en el exterior",
+            "en": "e.g., Payments to overseas suppliers"
+          }
+        },
+        {
+          "id": "40dc7ab3-3661-4ae7-bcc0-95cdffea7b02",
+          "key": "q_65481154",
+          "type": "single_choice",
+          "label": {
+            "es": "Su empresa tiene sitio web o redes sociales?",
+            "en": "Does your company have a website or social media?"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        },
+        {
+          "id": "1d27bbbb-3cd2-49c8-9b11-29934dad89b2",
+          "key": "q_50516542",
+          "type": "long_text",
+          "label": {
+            "es": "Principales países con los que hace transacciones",
+            "en": "Main countries you transact with"
+          },
+          "help": {
+            "es": "🌎 (Ejemplo: China 55% – EE. UU. 20% - Brasil 25%)",
+            "en": "🌎 (Example: China 55% – USA 20% – Brazil 25%)"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: China 55% – EE. UU. 20% – Brasil 25%",
+            "en": "e.g., China 55% – USA 20% – Brazil 25%"
+          }
+        },
+        {
+          "id": "7472c0a0-896d-443e-864f-388d78e66f06",
+          "key": "q_108477815",
+          "type": "single_choice",
+          "label": {
+            "es": "Seleccione el organigrama que refleje la estructura organizacional de su empresa:",
+            "en": "Select the organizational chart that reflects your company's structure:"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Funcional",
+              "label": {
+                "es": "Funcional",
+                "en": "Functional"
+              }
+            },
+            {
+              "value": "Divisional",
+              "label": {
+                "es": "Divisional",
+                "en": "Divisional"
+              }
+            },
+            {
+              "value": "Mixto",
+              "label": {
+                "es": "Mixto",
+                "en": "Mixed"
+              }
+            }
+          ]
+        },
+        {
+          "id": "0f1db11f-181b-478c-9050-93d5492e3887",
+          "key": "q_1583354474",
+          "type": "single_choice",
+          "label": {
+            "es": "Seleccione si su empresa realiza una o más de estas actividades:",
+            "en": "Select whether your company performs one or more of these activities:"
+          },
+          "help": {
+            "es": "A continuación debe seleccionar una de las opciones presentadas, si su empresa no realiza ninguna de las actividades mencionadas seleccione la opción: Ninguna de las anteriores.",
+            "en": "Below, select one of the options presented; if your company does not perform any of the mentioned activities, select the option: None of the above."
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Servicios financieros",
+              "label": {
+                "es": "Servicios financieros",
+                "en": "Financial services"
+              }
+            },
+            {
+              "value": "Prestamos o Banca",
+              "label": {
+                "es": "Prestamos o Banca",
+                "en": "Loans or Banking"
+              }
+            },
+            {
+              "value": "Brokers de monedas virtuales",
+              "label": {
+                "es": "Brokers de monedas virtuales",
+                "en": "Virtual currency brokers"
+              }
+            },
+            {
+              "value": "Resguardo de fondos de clientes",
+              "label": {
+                "es": "Resguardo de fondos de clientes",
+                "en": "Safeguarding of client funds"
+              }
+            },
+            {
+              "value": "Servicios de inversión",
+              "label": {
+                "es": "Servicios de inversión",
+                "en": "Investment services"
+              }
+            },
+            {
+              "value": "Renta de cajas de seguridad",
+              "label": {
+                "es": "Renta de cajas de seguridad",
+                "en": "Safe deposit box rental"
+              }
+            },
+            {
+              "value": "Pagos de terceras personas",
+              "label": {
+                "es": "Pagos de terceras personas",
+                "en": "Third-party payments"
+              }
+            },
+            {
+              "value": "Entretenimiento para adultos",
+              "label": {
+                "es": "Entretenimiento para adultos",
+                "en": "Adult entertainment"
+              }
+            },
+            {
+              "value": "Armas, explosivos, etc...",
+              "label": {
+                "es": "Armas, explosivos, etc...",
+                "en": "Weapons, explosives, etc."
+              }
+            },
+            {
+              "value": "Apuestas",
+              "label": {
+                "es": "Apuestas",
+                "en": "Gambling"
+              }
+            },
+            {
+              "value": "Nicotina, tabaco o servicios relacionados",
+              "label": {
+                "es": "Nicotina, tabaco o servicios relacionados",
+                "en": "Nicotine, tobacco, or related services"
+              }
+            },
+            {
+              "value": "Medicamentos",
+              "label": {
+                "es": "Medicamentos",
+                "en": "Pharmaceuticals"
+              }
+            },
+            {
+              "value": "Metales preciosos, gemas o joyería",
+              "label": {
+                "es": "Metales preciosos, gemas o joyería",
+                "en": "Precious metals, gems, or jewelry"
+              }
+            },
+            {
+              "value": "Ninguno de los anteriores",
+              "label": {
+                "es": "Ninguno de los anteriores",
+                "en": "None of the above"
+              }
+            }
+          ]
+        },
+        {
+          "id": "38da10f1-e13c-4b7f-94bb-0f7b8314d973",
+          "key": "q_1755381612",
+          "type": "single_choice",
+          "label": {
+            "es": "¿Opera o realiza transacciones en nombre de cuentas de clientes, proveedores, contratistas o cualquier otro tercero?",
+            "en": "Do you operate or make transactions on behalf of accounts of clients, suppliers, contractors, or any other third party?"
+          },
+          "help": {
+            "es": "Seleccione si, sí  su empresa alguna vez envía, recibe o retiene fondos que no son exclusivamente para el beneficio de su propia empresa (por ejemplo, procesar pagos para clientes, pagar a proveedores externos en nombre de clientes, administrar depósitos en garantía o manejar cuentas agrupadas).",
+            "en": "Select yes if your company ever sends, receives, or holds funds that are not exclusively for the benefit of your own company (for example, processing payments for clients, paying external suppliers on behalf of clients, managing escrow deposits, or handling pooled accounts)."
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        },
+        {
+          "id": "7e5bd1f6-cd3a-41a6-875a-420aadbc52d7",
+          "key": "q_989518398",
+          "type": "single_choice",
+          "label": {
+            "es": "¿Su empresa cotiza en alguna bolsa de valores reconocida?",
+            "en": "Is your company listed on any recognized stock exchange?"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        },
+        {
+          "id": "19b0d1da-165c-4a5f-aaa2-452b2c27445b",
+          "key": "q_783082088",
+          "type": "number",
+          "label": {
+            "es": "¿Cuál es el efectivo disponible actualmente de su empresa?",
+            "en": "What is your company's currently available cash?"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50000",
+            "en": "e.g., 50000"
+          }
+        },
+        {
+          "id": "45a35263-a073-4376-a9fe-efed43c91c66",
+          "key": "q_970695248",
+          "type": "number",
+          "label": {
+            "es": "Volumen de transacciones mensual promedio anticipado (USD)",
+            "en": "Anticipated average monthly transaction volume (USD)"
+          },
+          "help": {
+            "es": "Escriba el valor en dólares estimado que va a enviar mensualmente",
+            "en": "Enter the estimated dollar amount you will send monthly"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 25000",
+            "en": "e.g., 25000"
+          }
+        },
+        {
+          "id": "8529b1df-eb61-4d44-9e5e-931a2f8200fb",
+          "key": "q_91870470",
+          "type": "short_text",
+          "label": {
+            "es": "Número estimado de transacciones por mes",
+            "en": "Estimated number of transactions per month"
+          },
+          "help": {
+            "es": "Díganos un estimado de cuantas veces al mes va a realizar pagos al exterior",
+            "en": "Tell us an estimate of how many times per month you will make payments abroad"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 20",
+            "en": "e.g., 20"
+          }
+        }
+      ],
+      "next": [
+        {
+          "when": {
+            "field": "q_65481154",
+            "op": "eq",
+            "value": "Si"
+          },
+          "goTo": "section_863669935"
+        },
+        {
+          "when": {
+            "field": "q_65481154",
+            "op": "eq",
+            "value": "No"
+          },
+          "goTo": "section_2057021737"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Servicios financieros"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Prestamos o Banca"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Brokers de monedas virtuales"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Resguardo de fondos de clientes"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Servicios de inversión"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Renta de cajas de seguridad"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Pagos de terceras personas"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Entretenimiento para adultos"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Armas, explosivos, etc..."
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Apuestas"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Nicotina, tabaco o servicios relacionados"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Medicamentos"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Metales preciosos, gemas o joyería"
+          },
+          "goTo": "section_1755054917"
+        },
+        {
+          "when": {
+            "field": "q_1583354474",
+            "op": "eq",
+            "value": "Ninguno de los anteriores"
+          },
+          "goTo": "section_863669935"
+        }
+      ],
+      "defaultGoTo": "section_1755054917"
+    },
+    {
+      "id": "section_1755054917",
+      "title": {
+        "es": "ACTIVIDADES REGULADAS",
+        "en": "REGULATED ACTIVITIES"
+      },
+      "fields": [
+        {
+          "id": "b941e4be-fbea-4978-b97f-4d26060a2dd1",
+          "key": "q_141295202",
+          "type": "file",
+          "label": {
+            "es": "En este caso necesitamos que adjunte el permiso o autorización oficial y vigente de su país que le permite realizar la actividad anteriormente declarada por usted",
+            "en": "In this case, we need you to attach the official and valid permit or authorization from your country that allows you to carry out the activity you declared above"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        }
+      ],
+      "defaultGoTo": "section_863669935"
+    },
+    {
+      "id": "section_863669935",
+      "title": {
+        "es": "Sitio Web o redes sociales",
+        "en": "Website or social media"
+      },
+      "fields": [
+        {
+          "id": "f2d606ed-803a-4e0e-84d6-fd2ca8a7f01c",
+          "key": "q_365921356",
+          "type": "short_text",
+          "label": {
+            "es": "Por favor ingrese el enlace de su página web redes sociales (Facebook, Instagram, etc...)",
+            "en": "Please enter the link to your website or social media (Facebook, Instagram, etc.)"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: https://facebook.com/tuempresa",
+            "en": "e.g., https://facebook.com/yourcompany"
+          }
+        }
+      ],
+      "defaultGoTo": "section_2057021737"
+    },
+    {
+      "id": "section_2057021737",
+      "title": {
+        "es": "Método publicitario de la empresa",
+        "en": "Company's advertising method"
+      },
+      "fields": [
+        {
+          "id": "02a291f0-e138-4dbc-b1f2-2abe6c54f79a",
+          "key": "q_814715458",
+          "type": "long_text",
+          "label": {
+            "es": "Si no posee sitio web ni redes sociales, por favor explique como atrae a sus clientes a su empresa.",
+            "en": "If you do not have a website or social media, please explain how you attract customers to your company."
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Recomendaciones de clientes y ventas presenciales",
+            "en": "e.g., Customer referrals and in-person sales"
+          }
+        }
+      ],
+      "defaultGoTo": "section_1575392533"
+    },
+    {
+      "id": "section_1575392533",
+      "title": {
+        "es": "DOCUMENTACIÓN BÁSICA",
+        "en": "BASIC DOCUMENTATION"
+      },
+      "fields": [
+        {
+          "id": "79544288-e2d6-429d-889f-b0dee6890d52",
+          "key": "q_1834360375",
+          "type": "single_choice",
+          "label": {
+            "es": "Tipo de empresa",
+            "en": "Company type"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Unipersonal",
+              "label": {
+                "es": "Unipersonal",
+                "en": "Sole proprietorship"
+              }
+            },
+            {
+              "value": "Sociedad de responsabilidad limitada (S.R.L.)",
+              "label": {
+                "es": "Sociedad de responsabilidad limitada (S.R.L.)",
+                "en": "Limited liability company (S.R.L.)"
+              }
+            },
+            {
+              "value": "Sociedad anónima (S.A.)",
+              "label": {
+                "es": "Sociedad anónima (S.A.)",
+                "en": "Corporation (S.A.)"
+              }
+            },
+            {
+              "value": "Cooperativa minera R. L.",
+              "label": {
+                "es": "Cooperativa minera R. L.",
+                "en": "Mining cooperative (R.L.)"
+              }
+            }
+          ]
+        },
+        {
+          "id": "908612b4-fc2a-4e6b-9b49-fcbbec3dba97",
+          "key": "q_1256985182",
+          "type": "file",
+          "label": {
+            "es": "Número de identificación tributario",
+            "en": "Tax identification number"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "bb36caf6-91b2-47a9-9c85-ee86ffa18b3e",
+          "key": "q_1935428965",
+          "type": "file",
+          "label": {
+            "es": "Matrícula de comercio",
+            "en": "Commercial registration"
+          },
+          "help": {
+            "es": "Adjuntar una foto clara o el documento escaneado de la matrícula de comercio vigente",
+            "en": "Attach a clear photo or scanned document of the valid commercial registration"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "2ce66ac3-0ab1-436d-85b8-9e9e52d5b86a",
+          "key": "q_1125203325",
+          "type": "file",
+          "label": {
+            "es": "Extractos bancarios (De los últimos 3 meses, a nombre de la empresa)",
+            "en": "Bank statements (from the last 3 months, in the company's name)"
+          },
+          "help": {
+            "es": "Adjuntar el documento escaneado de un extracto bancario claro y legible de los últimos 3 meses de una cuenta bancaria de la empresa",
+            "en": "Attach the scanned document of a clear and legible bank statement from the last 3 months of a company bank account"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "acda40c1-dd4e-4f93-aaba-1f32d0b5f2e7",
+          "key": "q_1301362364",
+          "type": "file",
+          "label": {
+            "es": "Adjunte 3 facturas, cotizaciones o contratos emitidos por su Empresa  a sus clientes",
+            "en": "Attach 3 invoices, quotes, or contracts issued by your company to its clients"
+          },
+          "help": {
+            "es": "Debe subir 3 documentos que pueden ser facturas, cotizaciones o contratos de servicios o bienes vendidos por su empresa a clientes de manera que coincida con los servicios o bienes que declaró como actividades principales.",
+            "en": "You must upload 3 documents that may be invoices, quotes, or contracts for services or goods sold by your company to clients, matching the services or goods you declared as main activities."
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "ce1525c2-bd46-4613-9664-3c9d96a06e62",
+          "key": "q_871306237",
+          "type": "file",
+          "label": {
+            "es": "Adjunte un comprobante de domicilio reciente: (Factura de agua, luz o servicios similares, a nombre de la empresa)",
+            "en": "Attach a recent proof of address: (water, electricity, or similar utility bill in the company's name)"
+          },
+          "help": {
+            "es": "En la factura debe verse el nombre de la empresa, la dirección y el número de NIT; estos deben coincidir con la dirección, nombre y NIT presentados en la demás documentación\nEn caso de que no coincida por motivo de alquiler o anticrético se debe adjuntar el contrato respectivo donde se muestre la dirección del inmueble.",
+            "en": "The bill must show the company name, address, and NIT number; these must match the address, name, and NIT presented in the rest of the documentation.\nIf they do not match due to a rental or anticrético arrangement, the corresponding contract showing the property's address must be attached."
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "2da48b19-ddaf-4fe2-bd6a-76cc0f913d83",
+          "key": "q_1053329401",
+          "type": "file",
+          "label": {
+            "es": "Estados financieros actualizados de la última gestión finalizada (Balance general y estado de resultados más recientes) en caso de Unipersonales Form 500, 605 Estados financieros",
+            "en": "Updated financial statements from the last completed fiscal year (most recent balance sheet and income statement); for sole proprietorships, Form 500, 605 financial statements"
+          },
+          "help": {
+            "es": "Debe ajduntar los estados financieros elaborados y firmados por su contador, también puede utilizar el formulario 500 de impuestos nacionales",
+            "en": "You must attach the financial statements prepared and signed by your accountant; you may also use national tax Form 500"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        }
+      ],
+      "next": [
+        {
+          "when": {
+            "field": "q_1834360375",
+            "op": "eq",
+            "value": "Unipersonal"
+          },
+          "goTo": "section_184082182"
+        },
+        {
+          "when": {
+            "field": "q_1834360375",
+            "op": "eq",
+            "value": "Sociedad de responsabilidad limitada (S.R.L.)"
+          },
+          "goTo": "section_1505875750"
+        },
+        {
+          "when": {
+            "field": "q_1834360375",
+            "op": "eq",
+            "value": "Sociedad anónima (S.A.)"
+          },
+          "goTo": "section_1505875750"
+        },
+        {
+          "when": {
+            "field": "q_1834360375",
+            "op": "eq",
+            "value": "Cooperativa minera R. L."
+          },
+          "goTo": "section_1505875750"
+        }
+      ],
+      "defaultGoTo": "section_1505875750"
+    },
+    {
+      "id": "section_1505875750",
+      "title": {
+        "es": "NÚMERO DE SOCIOS DE LA EMPRESA",
+        "en": "NUMBER OF COMPANY PARTNERS"
+      },
+      "fields": [
+        {
+          "id": "5396d976-b725-4a5a-ac0c-5b7516da0cdd",
+          "key": "q_1092191796",
+          "type": "single_choice",
+          "label": {
+            "es": "Cuántos socios son?",
+            "en": "How many partners are there?"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "2 Socios",
+              "label": {
+                "es": "2 Socios",
+                "en": "2 Partners"
+              }
+            },
+            {
+              "value": "3 Socios",
+              "label": {
+                "es": "3 Socios",
+                "en": "3 Partners"
+              }
+            },
+            {
+              "value": "4 Socios",
+              "label": {
+                "es": "4 Socios",
+                "en": "4 Partners"
+              }
+            },
+            {
+              "value": "5 Socios o más",
+              "label": {
+                "es": "5 Socios o más",
+                "en": "5 Partners or more"
+              }
+            }
+          ]
+        }
+      ],
+      "next": [
+        {
+          "when": {
+            "field": "q_1092191796",
+            "op": "eq",
+            "value": "2 Socios"
+          },
+          "goTo": "section_2144153877"
+        },
+        {
+          "when": {
+            "field": "q_1092191796",
+            "op": "eq",
+            "value": "3 Socios"
+          },
+          "goTo": "section_1939692629"
+        },
+        {
+          "when": {
+            "field": "q_1092191796",
+            "op": "eq",
+            "value": "4 Socios"
+          },
+          "goTo": "section_2087641024"
+        },
+        {
+          "when": {
+            "field": "q_1092191796",
+            "op": "eq",
+            "value": "5 Socios o más"
+          },
+          "goTo": "section_1143624273"
+        }
+      ],
+      "defaultGoTo": "section_184082182"
+    },
+    {
+      "id": "section_184082182",
+      "title": {
+        "es": "EMPRESA UNIPERSONAL",
+        "en": "SOLE PROPRIETORSHIP"
+      },
+      "fields": [
+        {
+          "id": "f47a4029-8403-48db-9512-7833162c4e86",
+          "key": "q_19339822",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "2e4d6b6e-f74c-4310-be6e-d8a2cca8b65a",
+          "key": "q_43433308",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "a96c9e94-69cf-4f8e-b329-210c756fd415",
+          "key": "q_1327263043",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "5f7dcc1a-99de-4418-976e-5c597a29efe2",
+          "key": "q_1559707568",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "9937d9db-164a-491d-9a5e-9b9439927d64",
+          "key": "q_1042820840",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "c45e6f5b-b987-41ce-beee-f9007c29a873",
+          "key": "q_1641223829",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "33d300db-3ab6-4b3b-a083-47aa97499ddb",
+          "key": "q_766179889",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "f70507df-c42d-49c0-9fc5-f199eb7f26ec",
+          "key": "q_1139987339",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "help": {
+            "es": "Debe ser una fotografía clara sin reflejos y que se lean con facilidad todos los datos del documento de identidad.",
+            "en": "It must be a clear photograph without glare, with all the ID document details easily readable."
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "268aae7b-c122-478e-9d2c-53945b1cc88b",
+          "key": "q_303089462",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "help": {
+            "es": "Debe ser una fotografía clara sin reflejos y que se lean con facilidad todos los datos del documento de identidad.",
+            "en": "It must be a clear photograph without glare, with all the ID document details easily readable."
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        }
+      ],
+      "defaultGoTo": "section_1327859224"
+    },
+    {
+      "id": "section_2144153877",
+      "title": {
+        "es": "EMPRESA CON DOS SOCIOS",
+        "en": "COMPANY WITH TWO PARTNERS"
+      },
+      "fields": [
+        {
+          "id": "359cab5b-ecb5-403e-aba2-e71244e5d84e",
+          "key": "q_889335055",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL PRIMER SOCIO",
+            "en": "FIRST PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "d210d6c4-ff1f-4a13-8f0d-88b913aa9dce",
+          "key": "q_402003855",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "6891cd34-0a4f-49d6-9fb9-56ee477ca901",
+          "key": "q_1832420017",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "3d534c35-8acb-42ec-ba73-f53b95e6b045",
+          "key": "q_1908951562",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "f3cbb1ff-e026-40bf-b94d-a294e974d68d",
+          "key": "q_1777085924",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "91bb75e8-e175-4f06-986d-0bbdf05f2a2b",
+          "key": "q_1436178945",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "b1190b92-f9ac-4498-8e7b-f73748b1e56c",
+          "key": "q_263490944",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "0eda7e05-1a2a-45c4-8ff1-42fbbcd75a22",
+          "key": "q_186277307",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "8d6b9ac5-73b4-4d66-9ffb-362cf1fcbd29",
+          "key": "q_1453350424",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "1c95511e-94ae-4006-a58b-a8bdb8b6f4c9",
+          "key": "q_1124275386",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "a99d28d6-7c02-435d-95cc-5315fd8d83b9",
+          "key": "q_1431891767",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "af91ea6a-7818-40b9-a2e0-ca32c3f02e14",
+          "key": "q_1012513747",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL SEGUNDO SOCIO",
+            "en": "SECOND PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "35bb2e27-82a6-4d46-b380-b03c4ce14298",
+          "key": "q_1558707950",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "5c564bb2-d796-4696-8308-461a398bd1eb",
+          "key": "q_1025856548",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "3c73ac48-c6e7-4dd8-84e6-af20f42b15ce",
+          "key": "q_170310802",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "f0c2a768-162f-41d6-ab06-dac9400b47e0",
+          "key": "q_64692908",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "da3a31e3-a878-448b-acfb-b7665639dc0b",
+          "key": "q_2055651997",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "e4ce397b-39c8-41cd-b9d6-4e7d5ee723b6",
+          "key": "q_960098180",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "51776a1b-e188-4f27-b91b-31f53cae88ba",
+          "key": "q_706364871",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "96a54f89-4ff2-49c7-9b9f-3010a2915c9b",
+          "key": "q_957664702",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "aedaa81c-6508-4c51-81f5-d7f44c654771",
+          "key": "q_1019901945",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "f5bed188-8b92-472f-8495-362c1f5d0209",
+          "key": "q_700314018",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "318ff0fd-f200-4285-9160-aefbfd502c03",
+          "key": "q_508440594",
+          "type": "single_choice",
+          "label": {
+            "es": "EL REPRESENTANTE LEGAL ES UNO DE LOS SOCIOS REGISTRADOS ARRIBA",
+            "en": "THE LEGAL REPRESENTATIVE IS ONE OF THE PARTNERS REGISTERED ABOVE"
+          },
+          "help": {
+            "es": "Si el representante legal es uno de los socios de los que ya registró los datos en esta sección seleccione \"si\", en caso de que el representante legal de la empresa no sea una de las personas que registró en esta sección seleccione \"no\"",
+            "en": "If the legal representative is one of the partners whose details you already registered in this section, select \"yes\"; if the company's legal representative is not one of the people you registered in this section, select \"no\""
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        }
+      ],
+      "next": [
+        {
+          "when": {
+            "field": "q_508440594",
+            "op": "eq",
+            "value": "Si"
+          },
+          "goTo": "section_439316156"
+        },
+        {
+          "when": {
+            "field": "q_508440594",
+            "op": "eq",
+            "value": "No"
+          },
+          "goTo": "section_581417824"
+        }
+      ],
+      "defaultGoTo": "section_581417824"
+    },
+    {
+      "id": "section_1939692629",
+      "title": {
+        "es": "EMPRESA CON TRES SOCIOS",
+        "en": "COMPANY WITH THREE PARTNERS"
+      },
+      "fields": [
+        {
+          "id": "027193b3-a0bb-4d42-8ff6-2a2b9bf3d98d",
+          "key": "q_936672228",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL PRIMER SOCIO",
+            "en": "FIRST PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "b39c4ac8-f073-481f-b189-0639d35d2089",
+          "key": "q_710216474",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "312179db-16d9-4364-9bcd-cb6b051adc9d",
+          "key": "q_401072213",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "373e2655-ff11-4293-8b48-838d9328976e",
+          "key": "q_1620464882",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "84a49042-9b1f-4372-8640-3c40b9c98884",
+          "key": "q_950950231",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "07a692b1-c2e8-4de0-89b4-acb47b6a7347",
+          "key": "q_2114470265",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "e69aaecb-b256-49b6-b39b-54e533c57ab7",
+          "key": "q_1227570866",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "c0aac327-cf17-4af8-aa4e-86af7bb72a36",
+          "key": "q_1959108456",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "b3cf0975-bec4-40ac-9ac2-ea75ca9d2314",
+          "key": "q_1309333161",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "a4fa14d4-1874-4538-9816-4e4b5613a8cd",
+          "key": "q_188170335",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "ba699308-06fa-4c3b-9026-1abfe56ddce1",
+          "key": "q_1796761966",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "54ea927f-079f-4b9d-997f-a4f0b4ab63b4",
+          "key": "q_173887440",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL SEGUNDO SOCIO",
+            "en": "SECOND PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "b8621e23-abb7-49cf-8be6-65a21b4841ef",
+          "key": "q_888854070",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "95f4e160-2e1e-4a7b-afe0-67808a66143f",
+          "key": "q_1054092063",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "0b1eb894-b61d-4a20-a439-d81764092a08",
+          "key": "q_185058799",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "7077a9bb-3a62-4ce1-ac5e-b04afa238dd1",
+          "key": "q_1169252606",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "669d1601-bf73-4d59-a881-2cc7b358aae0",
+          "key": "q_340099536",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "e4f7537d-1bdd-497f-8adc-224c817180df",
+          "key": "q_134469481",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "86d14545-9a09-4648-99df-1a151482c678",
+          "key": "q_1833475144",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "9ba19667-43ae-479d-a5f0-d6eda36b6f87",
+          "key": "q_663380704",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "14d6d6dc-1f8c-44f0-9f0a-e65d89ee3889",
+          "key": "q_57833135",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL TERCER SOCIO",
+            "en": "THIRD PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "74b80d00-45d9-47d7-bba6-2fb77d713552",
+          "key": "q_1499207430",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "0e9312ea-662e-4892-92ed-6445eabf1c27",
+          "key": "q_1925761142",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "86116e3a-221a-489b-bce1-ecb7cab780fc",
+          "key": "q_932427030",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "0a07e622-24fe-43d3-9c55-4aac03b44f37",
+          "key": "q_2103281015",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "2c2d308f-f92a-4957-982b-58e3b3b6d52c",
+          "key": "q_1343053145",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "ac0500cf-039f-47aa-83df-e84f4979595b",
+          "key": "q_1230247276",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "ce6e84e5-3ad2-4e63-adf1-f704c5957367",
+          "key": "q_1174598797",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "25eb4b66-820c-4e61-a5b0-fc77d1efde06",
+          "key": "q_2007847254",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "d09e1332-8d9d-4c5f-8866-9a6e897e5972",
+          "key": "q_363120609",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "2ce84b5c-18a0-4706-ad9a-fe99a5adde8c",
+          "key": "q_503400180",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "cc79ced6-1aae-4bcd-86e8-b4df76f07919",
+          "key": "q_1988751084",
+          "type": "single_choice",
+          "label": {
+            "es": "EL REPRESENTANTE LEGAL ES UNO DE LOS SOCIOS REGISTRADOS ARRIBA",
+            "en": "THE LEGAL REPRESENTATIVE IS ONE OF THE PARTNERS REGISTERED ABOVE"
+          },
+          "help": {
+            "es": "Si el representante legal es uno de los socios de los que ya registró los datos en esta sección seleccione \"si\", en caso de que el representante legal de la empresa no sea una de las personas que registró en esta sección seleccione \"no\"",
+            "en": "If the legal representative is one of the partners whose details you already registered in this section, select \"yes\"; if the company's legal representative is not one of the people you registered in this section, select \"no\""
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        }
+      ],
+      "next": [
+        {
+          "when": {
+            "field": "q_1988751084",
+            "op": "eq",
+            "value": "Si"
+          },
+          "goTo": "section_439316156"
+        },
+        {
+          "when": {
+            "field": "q_1988751084",
+            "op": "eq",
+            "value": "No"
+          },
+          "goTo": "section_581417824"
+        }
+      ],
+      "defaultGoTo": "section_581417824"
+    },
+    {
+      "id": "section_2087641024",
+      "title": {
+        "es": "EMPRESA CON CUATRO SOCIOS",
+        "en": "COMPANY WITH FOUR PARTNERS"
+      },
+      "fields": [
+        {
+          "id": "e79592dd-9f7b-45ec-9e86-2a2b58bc64cf",
+          "key": "q_1324441523",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL PRIMER SOCIO",
+            "en": "FIRST PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "4bba3a3b-19aa-4f77-a6aa-d01dc4006459",
+          "key": "q_1183687865",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "c9d7d09b-f0b0-4600-9c16-4d1f0e006c71",
+          "key": "q_379550598",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "405d9360-33f6-429d-bad0-8017b4534eb7",
+          "key": "q_1490209028",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "47276beb-1479-477d-9138-a4c0e477b893",
+          "key": "q_1604372836",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "ef8c2fe6-78c7-4f0c-b3bd-17964ae002b5",
+          "key": "q_340790891",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "9f3527f0-1c7e-4a76-8ccb-b21d56e975c0",
+          "key": "q_829999254",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "28ba0872-d881-4be0-84f0-62d99efea3de",
+          "key": "q_272264626",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "3dc9878c-e642-4e50-9320-6f82aa126436",
+          "key": "q_1243330190",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "658eded9-ca34-472f-8f8f-77c111eb744e",
+          "key": "q_1418486497",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "d509909c-26d0-4521-9ce5-22c5c5e7fc68",
+          "key": "q_1228477507",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "9f7cca56-3824-4630-9891-4be025d66c12",
+          "key": "q_918710674",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL SEGUNDO SOCIO",
+            "en": "SECOND PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "7d09a2a5-8441-422a-b2cf-522411ae15c5",
+          "key": "q_566139851",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "9472a248-3383-40ba-a217-f42cf3d7ec78",
+          "key": "q_1519110242",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "23c61b48-b4be-401a-a5a5-9d83da6f04cc",
+          "key": "q_817851630",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "57f51e91-827f-4893-9755-f036a6b2821c",
+          "key": "q_71334181",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "ae3fd94a-9217-4791-8304-e4c8d191e4c6",
+          "key": "q_1491203152",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "6a013b5a-e9dc-4ebb-bba7-c5ec5eefb715",
+          "key": "q_1886127391",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "3d5ed414-3d6b-43a4-b19b-3e11968fe451",
+          "key": "q_1558520250",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "00e9e0a9-b34d-4e48-9f01-159cf27b6a6b",
+          "key": "q_2111604751",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "4fa1f608-a1b5-43f8-9415-5171d7c2b40f",
+          "key": "q_1978419141",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "f8eb999b-049f-4ed7-af49-002dcac30fef",
+          "key": "q_1990150541",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "3215c38b-70cd-4207-88be-2b282dd2153b",
+          "key": "q_1049107518",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL TERCER SOCIO",
+            "en": "THIRD PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "cff4a5f0-a1ab-4996-82c7-f29a6e44adae",
+          "key": "q_778086855",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "89746000-8571-4ee7-957a-e972b73737c4",
+          "key": "q_1734469044",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "feb124e2-a102-493a-8fc5-3f674366d965",
+          "key": "q_1793123591",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "d60bd521-c6b7-4b4b-882c-0dfb7a4c69c7",
+          "key": "q_1992716595",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "d4803efc-f99a-462f-803c-5d6514f0f73b",
+          "key": "q_1661182466",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "44c7f01a-bde6-4f4a-b208-4f2ca2b94507",
+          "key": "q_1780868440",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "74aca965-b5d9-4e30-83d5-fad035bc6a92",
+          "key": "q_733853423",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "6cd14d98-ee8f-4ab2-9a17-5ac98baff501",
+          "key": "q_1382878649",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "184e2d00-6710-43b7-a916-9f9edb7613f1",
+          "key": "q_482462213",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "8114ebba-0a84-4b1b-b9ca-75b94f8fca91",
+          "key": "q_2034621068",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "155eb814-787e-493e-9f18-76a585e8e84b",
+          "key": "q_1898811315",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL CUARTO SOCIO",
+            "en": "FOURTH PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "f06a27b8-ce2a-44fa-bd1f-a8ad31605755",
+          "key": "q_1515880797",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "7cbaf1dc-c6e6-4f63-b593-7779e6e729a7",
+          "key": "q_1685012240",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "7e7f7b5b-9218-45ef-a92f-a8304f5da638",
+          "key": "q_695208218",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "25d61678-f399-4da8-96bf-d547b04aece4",
+          "key": "q_2029687491",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "d2116882-bd2c-4d1b-b936-86a37f333d8b",
+          "key": "q_253159984",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "9aaca5c3-b44f-45b1-93eb-bbc05e303f8a",
+          "key": "q_1402558685",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "02510d64-91c4-4fe0-ad23-73988c67562d",
+          "key": "q_744453993",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "57d84abc-d13e-4a5c-a25c-431e77ac2238",
+          "key": "q_1284766440",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "c968ff32-52cd-4ef4-ab10-c13cd5d2c71e",
+          "key": "q_618345257",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "8517dc5f-27ce-4f9e-88ca-9d7c1ecf5bef",
+          "key": "q_1506017876",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "2e21635e-1c24-4693-87d6-4072515ec8e6",
+          "key": "q_791293088",
+          "type": "single_choice",
+          "label": {
+            "es": "EL REPRESENTANTE LEGAL ES UNO DE LOS SOCIOS REGISTRADOS ARRIBA",
+            "en": "THE LEGAL REPRESENTATIVE IS ONE OF THE PARTNERS REGISTERED ABOVE"
+          },
+          "help": {
+            "es": "Si el representante legal es uno de los socios de los que ya registró los datos en esta sección seleccione \"si\", en caso de que el representante legal de la empresa no sea una de las personas que registró en esta sección seleccione \"no\"",
+            "en": "If the legal representative is one of the partners whose details you already registered in this section, select \"yes\"; if the company's legal representative is not one of the people you registered in this section, select \"no\""
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        }
+      ],
+      "next": [
+        {
+          "when": {
+            "field": "q_791293088",
+            "op": "eq",
+            "value": "Si"
+          },
+          "goTo": "section_439316156"
+        },
+        {
+          "when": {
+            "field": "q_791293088",
+            "op": "eq",
+            "value": "No"
+          },
+          "goTo": "section_581417824"
+        }
+      ],
+      "defaultGoTo": "section_581417824"
+    },
+    {
+      "id": "section_1143624273",
+      "title": {
+        "es": "EMPRESA CON CINCO SOCIOS O MÁS",
+        "en": "COMPANY WITH FIVE PARTNERS OR MORE"
+      },
+      "fields": [
+        {
+          "id": "9a94b251-0bb3-4aa8-9c06-b509e7adcf93",
+          "key": "q_1405017100",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL PRIMER SOCIO",
+            "en": "FIRST PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "fa253f79-53d4-4a86-bf3c-9708ee4f2987",
+          "key": "q_1790704305",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "f83af1e7-d2f0-4d55-8e45-7b1551788ed4",
+          "key": "q_1649289476",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "5c30d374-0bd6-47c6-a492-3747dda71331",
+          "key": "q_929955091",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "ce849e59-f375-490e-9153-61941e20648b",
+          "key": "q_1272965035",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "869bc711-da9d-4bda-8693-0fb7677553f9",
+          "key": "q_1747993753",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "58f88ab1-de7e-40d4-97d1-c555411b68b7",
+          "key": "q_1685584228",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "797ca29e-4a1a-4133-81a8-6425b5ae88e0",
+          "key": "q_184450169",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "b867ab19-d8bc-4c74-b7b0-1b6efa0e865a",
+          "key": "q_1469267862",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "a2106c03-8f0f-4bc8-a3c2-6d299350d7cf",
+          "key": "q_1764005220",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "59e94e3d-8009-4795-ab9c-c6db6d25e8ca",
+          "key": "q_2059967050",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "691f1e6c-a35d-45c0-9a42-ad1efe9b2b89",
+          "key": "q_1159300924",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL SEGUNDO SOCIO",
+            "en": "SECOND PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "c747456d-ac81-46f5-9927-85fcd40574cc",
+          "key": "q_1101912524",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "d17ee144-7198-4e21-88fe-27aecffd2658",
+          "key": "q_71219059",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "03c0c5a4-a04a-43bb-a723-915c65acfb1b",
+          "key": "q_493802364",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "74e4e01e-31b7-42e1-a281-0648220e1c97",
+          "key": "q_565724212",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "7f4b9416-e788-46e8-9566-60191b74791f",
+          "key": "q_1005605169",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "2f970a25-b1d3-4bb7-9aad-dde3f36b277d",
+          "key": "q_103557395",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "ce9df7c4-5b7e-4363-85f3-4a66c5edfc64",
+          "key": "q_545938546",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "eb416227-2f25-4054-b685-20007d613a1a",
+          "key": "q_1520315729",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "8c199e0d-c239-4cb2-bed4-0e1c10e2b32c",
+          "key": "q_1550044612",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "f6635ec1-d47d-471a-9165-ffc4d5cc4cb6",
+          "key": "q_1771803414",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "56b18049-5c91-4788-81e1-fe7e68416fff",
+          "key": "q_154222081",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL TERCER SOCIO",
+            "en": "THIRD PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "d25d43e1-b3bb-4c85-8f79-5cec91bd7f4f",
+          "key": "q_1659502275",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "fa008c29-fa0b-40db-b8e1-0898aaeb9673",
+          "key": "q_1850476094",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "b82d1970-e14f-4d80-b219-e5786ffaa67d",
+          "key": "q_829813650",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "c1a3cd3c-789f-42e8-9783-98b6e5ba5342",
+          "key": "q_1706628053",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "cdf64700-3478-410d-bbbb-d695dd4ac04d",
+          "key": "q_770069513",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "3586fad1-882b-4915-be95-270c82147a44",
+          "key": "q_899609429",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "a470fed5-a8ee-44f4-abac-1fd87fcac772",
+          "key": "q_1000549360",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "b2e9ac4c-65d1-424e-aca4-cbe44bf42da9",
+          "key": "q_813893388",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "9143d4a5-ca7a-44f4-9c4a-fc2b07878ea6",
+          "key": "q_444455440",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "76053fd5-5268-485d-952d-d63f2d1dd63e",
+          "key": "q_891788166",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "51ef34bf-f136-48e6-86c6-ea402af69cb1",
+          "key": "q_2054931734",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL CUARTO SOCIO",
+            "en": "FOURTH PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "d3179088-6d37-49fc-ad2c-256161f4f5ca",
+          "key": "q_2098653305",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "47ca7dcd-f471-4fc8-bb48-ba4c97b7fa37",
+          "key": "q_84818898",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "4e73e8a9-16dc-472d-8ece-019f58b67bd8",
+          "key": "q_2076116096",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "4aa8c6d0-3176-4401-9110-4204a966e5fd",
+          "key": "q_492316878",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "44830742-5919-42e2-b23a-3a697cac6fb8",
+          "key": "q_574952826",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "b6e03f2a-a462-4aca-87a3-9ad07f13c817",
+          "key": "q_779456491",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "3f239d35-74b9-4c3f-9db2-6effbd0fbe26",
+          "key": "q_247599348",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "f561ece2-9377-4d02-91be-eeebcab81ac6",
+          "key": "q_1233825813",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "27039dca-6ba6-4ce1-8366-eacf01ec0601",
+          "key": "q_529164156",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "8a2c3be9-c351-42c4-9b9c-f2fd67bfa196",
+          "key": "q_544166228",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "0d477b36-745f-453a-bf4d-2f6c146180df",
+          "key": "q_575261644",
+          "type": "note",
+          "label": {
+            "es": "DATOS DEL QUINTO SOCIO",
+            "en": "FIFTH PARTNER'S DETAILS"
+          },
+          "required": false
+        },
+        {
+          "id": "7acb3782-4c75-4636-aec9-23c50a32e978",
+          "key": "q_1729151625",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "7b1fd231-1154-4b14-aa53-9ba60dd67b31",
+          "key": "q_1258242813",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "f40f1b2a-9a25-4040-8a12-8a3cc1622441",
+          "key": "q_1770449179",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "0b391b7d-9ef8-4012-b47c-bfea935cb830",
+          "key": "q_2080024878",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "f3544de9-1f03-40a8-838d-94faaa5e517d",
+          "key": "q_2105600451",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "38cc96d8-541a-4c5e-89eb-4f65e32aa7df",
+          "key": "q_2104211624",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "264cf830-210f-4f6a-8d47-507686651e91",
+          "key": "q_2112031571",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "d2c422b3-ef93-40d9-92a2-159886645b8b",
+          "key": "q_1918919680",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "e5dbdf93-2561-431f-aa37-a99840ccb084",
+          "key": "q_77493290",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "d6266ded-4863-4ee2-b622-120035c05228",
+          "key": "q_1588276138",
+          "type": "number",
+          "label": {
+            "es": "PORCENTAJE DE PARTICIPACIÓN",
+            "en": "OWNERSHIP PERCENTAGE"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 50",
+            "en": "e.g., 50"
+          }
+        },
+        {
+          "id": "be811ee9-15d5-4c17-a3b3-118a6143d10d",
+          "key": "q_1459659371",
+          "type": "single_choice",
+          "label": {
+            "es": "EL REPRESENTANTE LEGAL ES UNO DE LOS SOCIOS REGISTRADOS ARRIBA",
+            "en": "THE LEGAL REPRESENTATIVE IS ONE OF THE PARTNERS REGISTERED ABOVE"
+          },
+          "help": {
+            "es": "Si el representante legal es uno de los socios de los que ya registró los datos en esta sección seleccione \"si\", en caso de que el representante legal de la empresa no sea una de las personas que registró en esta sección seleccione \"no\"",
+            "en": "If the legal representative is one of the partners whose details you already registered in this section, select \"yes\"; if the company's legal representative is not one of the people you registered in this section, select \"no\""
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        }
+      ],
+      "next": [
+        {
+          "when": {
+            "field": "q_1459659371",
+            "op": "eq",
+            "value": "Si"
+          },
+          "goTo": "section_439316156"
+        },
+        {
+          "when": {
+            "field": "q_1459659371",
+            "op": "eq",
+            "value": "No"
+          },
+          "goTo": "section_581417824"
+        }
+      ],
+      "defaultGoTo": "section_581417824"
+    },
+    {
+      "id": "section_581417824",
+      "title": {
+        "es": "INFORMACIÓN DEL REPRESENTANTE LEGAL",
+        "en": "LEGAL REPRESENTATIVE INFORMATION"
+      },
+      "fields": [
+        {
+          "id": "8b36ca01-498b-4963-a979-5040edbbd6e9",
+          "key": "q_536429105",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER NOMBRE",
+            "en": "FIRST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Juan",
+            "en": "e.g., John"
+          }
+        },
+        {
+          "id": "bb52e98c-fa85-4cf1-86b1-50f83bbc97aa",
+          "key": "q_1102301316",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO NOMBRE (OPCIONAL)",
+            "en": "MIDDLE NAME (OPTIONAL)"
+          },
+          "required": false,
+          "placeholder": {
+            "es": "Ej: Carlos",
+            "en": "e.g., Michael"
+          }
+        },
+        {
+          "id": "788b2dd0-2057-4ec7-8c95-8e4f7dc8a37d",
+          "key": "q_443638763",
+          "type": "short_text",
+          "label": {
+            "es": "PRIMER APELLIDO",
+            "en": "LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Pérez",
+            "en": "e.g., Smith"
+          }
+        },
+        {
+          "id": "a3399ec5-848c-41ce-be99-8ad9f4616062",
+          "key": "q_1679236328",
+          "type": "short_text",
+          "label": {
+            "es": "SEGUNDO APELLIDO",
+            "en": "SECOND LAST NAME"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Gutiérrez",
+            "en": "e.g., Johnson"
+          }
+        },
+        {
+          "id": "c2cce1a4-75b4-4ac0-b13d-9cfaf76d0f5a",
+          "key": "q_220064567",
+          "type": "short_text",
+          "label": {
+            "es": "NÚMERO DE CELULAR",
+            "en": "MOBILE NUMBER"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: +591 70000000",
+            "en": "e.g., +591 70000000"
+          }
+        },
+        {
+          "id": "8d88446d-3701-4e10-9572-75b53a79f8fe",
+          "key": "q_582363395",
+          "type": "email",
+          "label": {
+            "es": "CORREO ELECTRÓNICO",
+            "en": "EMAIL ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: nombre@empresa.com",
+            "en": "e.g., name@company.com"
+          }
+        },
+        {
+          "id": "99e12f3c-b6c6-496d-bf9d-c5f6c901e79c",
+          "key": "q_2125841653",
+          "type": "long_text",
+          "label": {
+            "es": "DIRECCIÓN DEL DOMICILIO",
+            "en": "HOME ADDRESS"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: Calle 21 de Calacoto #456, La Paz",
+            "en": "e.g., 456 Calacoto St., La Paz"
+          }
+        },
+        {
+          "id": "56de500d-5a9f-4287-a1d1-5f514d64b2c8",
+          "key": "q_1683166302",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (ANVERSO)",
+            "en": "ID DOCUMENT (FRONT)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "f87328fd-3960-4486-863f-16887580f5ca",
+          "key": "q_1704898099",
+          "type": "file",
+          "label": {
+            "es": "DOCUMENTO DE IDENTIDAD (REVERSO)",
+            "en": "ID DOCUMENT (BACK)"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        }
+      ],
+      "defaultGoTo": "section_439316156"
+    },
+    {
+      "id": "section_439316156",
+      "title": {
+        "es": "DOCUMENTACIÓN COMPLEMENTARIA DE LA EMPRESA",
+        "en": "SUPPLEMENTARY COMPANY DOCUMENTATION"
+      },
+      "fields": [
+        {
+          "id": "9fe66f61-02e6-4725-bd08-ef6140627bf9",
+          "key": "q_1837356140",
+          "type": "file",
+          "label": {
+            "es": "TESTIMONIO DE CONSTITUCIÓN DE LA EMPRESA",
+            "en": "COMPANY INCORPORATION DEED"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "e6280041-cb88-4e00-b1de-42a939d91c98",
+          "key": "q_1118668263",
+          "type": "file",
+          "label": {
+            "es": "MODIFICACIONES EN LA CONSTITUCIÓN DE LA EMPRESA",
+            "en": "AMENDMENTS TO THE COMPANY'S INCORPORATION"
+          },
+          "help": {
+            "es": "En caso de haber tenido cambios en la constitución de la empresa o la participación accionaria de la misma por favor adjuntar los testimonios en este apartado",
+            "en": "If there have been changes to the company's incorporation or its shareholding, please attach the deeds in this section"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        },
+        {
+          "id": "3cd0dd31-a659-4105-8d7f-7551d1b4a5bb",
+          "key": "q_1190031853",
+          "type": "file",
+          "label": {
+            "es": "PODER DEL REPRESENTANTE LEGAL",
+            "en": "LEGAL REPRESENTATIVE'S POWER OF ATTORNEY"
+          },
+          "required": false,
+          "file": {
+            "accept": [],
+            "multiple": false,
+            "maxSizeMB": 15
+          }
+        }
+      ],
+      "defaultGoTo": "section_1327859224"
+    },
+    {
+      "id": "section_1327859224",
+      "title": {
+        "es": "Términos y referencias",
+        "en": "Terms and references"
+      },
+      "fields": [
+        {
+          "id": "3d0ccc54-2b8a-4b39-93b9-f6ac65c5680d",
+          "key": "q_1408424617",
+          "type": "number",
+          "label": {
+            "es": "Numero de cuenta en USD en pais de origen",
+            "en": "USD account number in country of origin"
+          },
+          "required": true,
+          "placeholder": {
+            "es": "Ej: 000-1234567-890",
+            "en": "e.g., 000-1234567-890"
+          }
+        },
+        {
+          "id": "a0ac74a3-59e9-4c4d-9c26-2da6be72ce2f",
+          "key": "q_476106077",
+          "type": "dropdown",
+          "label": {
+            "es": "Banco",
+            "en": "Bank"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "BANCO BISA",
+              "label": {
+                "es": "BANCO BISA",
+                "en": "BANCO BISA"
+              }
+            },
+            {
+              "value": "BANCO SOL",
+              "label": {
+                "es": "BANCO SOL",
+                "en": "BANCO SOL"
+              }
+            },
+            {
+              "value": "COOPERATIVA JESUS NAZARENO",
+              "label": {
+                "es": "COOPERATIVA JESUS NAZARENO",
+                "en": "COOPERATIVA JESUS NAZARENO"
+              }
+            },
+            {
+              "value": "TIGO MONEY",
+              "label": {
+                "es": "TIGO MONEY",
+                "en": "TIGO MONEY"
+              }
+            },
+            {
+              "value": "BANCO PYME DE LA COMUNIDAD",
+              "label": {
+                "es": "BANCO PYME DE LA COMUNIDAD",
+                "en": "BANCO PYME DE LA COMUNIDAD"
+              }
+            },
+            {
+              "value": "COOPERATIVA MADRE Y MAESTRA LTDA",
+              "label": {
+                "es": "COOPERATIVA MADRE Y MAESTRA LTDA",
+                "en": "COOPERATIVA MADRE Y MAESTRA LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN JOSE DE BERMEJO LTDA",
+              "label": {
+                "es": "COOPERATIVA SAN JOSE DE BERMEJO LTDA",
+                "en": "COOPERATIVA SAN JOSE DE BERMEJO LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA CATEDRAL LTDA",
+              "label": {
+                "es": "COOPERATIVA CATEDRAL LTDA",
+                "en": "COOPERATIVA CATEDRAL LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA CACEF R.L.",
+              "label": {
+                "es": "COOPERATIVA CACEF R.L.",
+                "en": "COOPERATIVA CACEF R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA MONSEÑOR FELIX GAINZA LTDA",
+              "label": {
+                "es": "COOPERATIVA MONSEÑOR FELIX GAINZA LTDA",
+                "en": "COOPERATIVA MONSEÑOR FELIX GAINZA LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA TRINIDAD LTDA",
+              "label": {
+                "es": "COOPERATIVA TRINIDAD LTDA",
+                "en": "COOPERATIVA TRINIDAD LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA LA SAGRADA FAMILIA R.L.",
+              "label": {
+                "es": "COOPERATIVA LA SAGRADA FAMILIA R.L.",
+                "en": "COOPERATIVA LA SAGRADA FAMILIA R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA LOYOLA R.L.",
+              "label": {
+                "es": "COOPERATIVA LOYOLA R.L.",
+                "en": "COOPERATIVA LOYOLA R.L."
+              }
+            },
+            {
+              "value": "LINKSER S.A.",
+              "label": {
+                "es": "LINKSER S.A.",
+                "en": "LINKSER S.A."
+              }
+            },
+            {
+              "value": "IDEPRO IFD",
+              "label": {
+                "es": "IDEPRO IFD",
+                "en": "IDEPRO IFD"
+              }
+            },
+            {
+              "value": "BANCO CENTRAL DE BOLIVIA - MLD",
+              "label": {
+                "es": "BANCO CENTRAL DE BOLIVIA - MLD",
+                "en": "BANCO CENTRAL DE BOLIVIA - MLD"
+              }
+            },
+            {
+              "value": "COOPERATIVA ABIERTA SAN PEDRO DE AIQUILE R.L.",
+              "label": {
+                "es": "COOPERATIVA ABIERTA SAN PEDRO DE AIQUILE R.L.",
+                "en": "COOPERATIVA ABIERTA SAN PEDRO DE AIQUILE R.L."
+              }
+            },
+            {
+              "value": "BANCO FIE S.A.",
+              "label": {
+                "es": "BANCO FIE S.A.",
+                "en": "BANCO FIE S.A."
+              }
+            },
+            {
+              "value": "BANCO FORTALEZA S.A.",
+              "label": {
+                "es": "BANCO FORTALEZA S.A.",
+                "en": "BANCO FORTALEZA S.A."
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN MARTIN DE PORRES",
+              "label": {
+                "es": "COOPERATIVA SAN MARTIN DE PORRES",
+                "en": "COOPERATIVA SAN MARTIN DE PORRES"
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN ROQUE R.L.",
+              "label": {
+                "es": "COOPERATIVA SAN ROQUE R.L.",
+                "en": "COOPERATIVA SAN ROQUE R.L."
+              }
+            },
+            {
+              "value": "LA PROMOTORA EFV",
+              "label": {
+                "es": "LA PROMOTORA EFV",
+                "en": "LA PROMOTORA EFV"
+              }
+            },
+            {
+              "value": "COOPERATIVA PIO X R.L.",
+              "label": {
+                "es": "COOPERATIVA PIO X R.L.",
+                "en": "COOPERATIVA PIO X R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN MATEO LTDA",
+              "label": {
+                "es": "COOPERATIVA SAN MATEO LTDA",
+                "en": "COOPERATIVA SAN MATEO LTDA"
+              }
+            },
+            {
+              "value": "BANCO PYME ECOFUTURO S.A.",
+              "label": {
+                "es": "BANCO PYME ECOFUTURO S.A.",
+                "en": "BANCO PYME ECOFUTURO S.A."
+              }
+            },
+            {
+              "value": "COOPERATIVA LA MERCED",
+              "label": {
+                "es": "COOPERATIVA LA MERCED",
+                "en": "COOPERATIVA LA MERCED"
+              }
+            },
+            {
+              "value": "LA PRIMERA EFV",
+              "label": {
+                "es": "LA PRIMERA EFV",
+                "en": "LA PRIMERA EFV"
+              }
+            },
+            {
+              "value": "COOPERATIVA EDUCADORES GRAN CHACO LTDA",
+              "label": {
+                "es": "COOPERATIVA EDUCADORES GRAN CHACO LTDA",
+                "en": "COOPERATIVA EDUCADORES GRAN CHACO LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA MAGISTERIO RURAL DE CHUQUISACA R.L.",
+              "label": {
+                "es": "COOPERATIVA MAGISTERIO RURAL DE CHUQUISACA R.L.",
+                "en": "COOPERATIVA MAGISTERIO RURAL DE CHUQUISACA R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA MAGISTERIO RURAL LTDA",
+              "label": {
+                "es": "COOPERATIVA MAGISTERIO RURAL LTDA",
+                "en": "COOPERATIVA MAGISTERIO RURAL LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA COMARAPA LTDA",
+              "label": {
+                "es": "COOPERATIVA COMARAPA LTDA",
+                "en": "COOPERATIVA COMARAPA LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA FÁTIMA LTDA.",
+              "label": {
+                "es": "COOPERATIVA FÁTIMA LTDA.",
+                "en": "COOPERATIVA FÁTIMA LTDA."
+              }
+            },
+            {
+              "value": "COOPERATIVA PROGRESO R.L.",
+              "label": {
+                "es": "COOPERATIVA PROGRESO R.L.",
+                "en": "COOPERATIVA PROGRESO R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA INCA HUASI LTDA.",
+              "label": {
+                "es": "COOPERATIVA INCA HUASI LTDA.",
+                "en": "COOPERATIVA INCA HUASI LTDA."
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN PEDRO LTDA.",
+              "label": {
+                "es": "COOPERATIVA SAN PEDRO LTDA.",
+                "en": "COOPERATIVA SAN PEDRO LTDA."
+              }
+            },
+            {
+              "value": "CRECER IFD",
+              "label": {
+                "es": "CRECER IFD",
+                "en": "CRECER IFD"
+              }
+            },
+            {
+              "value": "EL PROGRESO EFV",
+              "label": {
+                "es": "EL PROGRESO EFV",
+                "en": "EL PROGRESO EFV"
+              }
+            },
+            {
+              "value": "COOPERATIVA SOCIETARIA VIRGEN DE LOS REMEDIOS R.L.",
+              "label": {
+                "es": "COOPERATIVA SOCIETARIA VIRGEN DE LOS REMEDIOS R.L.",
+                "en": "COOPERATIVA SOCIETARIA VIRGEN DE LOS REMEDIOS R.L."
+              }
+            },
+            {
+              "value": "FUBODE IFD",
+              "label": {
+                "es": "FUBODE IFD",
+                "en": "FUBODE IFD"
+              }
+            },
+            {
+              "value": "COOPERATIVA ABIERTA SAN FRANCISCO SOLANO R.L.",
+              "label": {
+                "es": "COOPERATIVA ABIERTA SAN FRANCISCO SOLANO R.L.",
+                "en": "COOPERATIVA ABIERTA SAN FRANCISCO SOLANO R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA EL CHOROLQUE LTDA",
+              "label": {
+                "es": "COOPERATIVA EL CHOROLQUE LTDA",
+                "en": "COOPERATIVA EL CHOROLQUE LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN JOAQUIN R.L.",
+              "label": {
+                "es": "COOPERATIVA SAN JOAQUIN R.L.",
+                "en": "COOPERATIVA SAN JOAQUIN R.L."
+              }
+            },
+            {
+              "value": "FUNDACION PROMUJER IFD",
+              "label": {
+                "es": "FUNDACION PROMUJER IFD",
+                "en": "FUNDACION PROMUJER IFD"
+              }
+            },
+            {
+              "value": "DIACONIA IFD",
+              "label": {
+                "es": "DIACONIA IFD",
+                "en": "DIACONIA IFD"
+              }
+            },
+            {
+              "value": "COOPERATIVA SOCIETARIA SAN MARTIN R.L.",
+              "label": {
+                "es": "COOPERATIVA SOCIETARIA SAN MARTIN R.L.",
+                "en": "COOPERATIVA SOCIETARIA SAN MARTIN R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA ASOCIACION DE PRODUCTORES DE LECHE R.L.",
+              "label": {
+                "es": "COOPERATIVA ASOCIACION DE PRODUCTORES DE LECHE R.L.",
+                "en": "COOPERATIVA ASOCIACION DE PRODUCTORES DE LECHE R.L."
+              }
+            },
+            {
+              "value": "BANCO CENTRAL DE BOLIVIA",
+              "label": {
+                "es": "BANCO CENTRAL DE BOLIVIA",
+                "en": "BANCO CENTRAL DE BOLIVIA"
+              }
+            },
+            {
+              "value": "BANCO DE LA NACION ARGENTINA",
+              "label": {
+                "es": "BANCO DE LA NACION ARGENTINA",
+                "en": "BANCO DE LA NACION ARGENTINA"
+              }
+            },
+            {
+              "value": "COOPERATIVA QUILLACOLLO",
+              "label": {
+                "es": "COOPERATIVA QUILLACOLLO",
+                "en": "COOPERATIVA QUILLACOLLO"
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN CARLOS BORROMEO LTDA",
+              "label": {
+                "es": "COOPERATIVA SAN CARLOS BORROMEO LTDA",
+                "en": "COOPERATIVA SAN CARLOS BORROMEO LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN ANTONIO R.L.",
+              "label": {
+                "es": "COOPERATIVA SAN ANTONIO R.L.",
+                "en": "COOPERATIVA SAN ANTONIO R.L."
+              }
+            },
+            {
+              "value": "COOPERATIVA SAN JOSE DE PUNATA LTDA",
+              "label": {
+                "es": "COOPERATIVA SAN JOSE DE PUNATA LTDA",
+                "en": "COOPERATIVA SAN JOSE DE PUNATA LTDA"
+              }
+            },
+            {
+              "value": "COOPERATIVA ASUNCION LTDA",
+              "label": {
+                "es": "COOPERATIVA ASUNCION LTDA",
+                "en": "COOPERATIVA ASUNCION LTDA"
+              }
+            },
+            {
+              "value": "UNILINK S.A.",
+              "label": {
+                "es": "UNILINK S.A.",
+                "en": "UNILINK S.A."
+              }
+            },
+            {
+              "value": "CIDRE IFD",
+              "label": {
+                "es": "CIDRE IFD",
+                "en": "CIDRE IFD"
+              }
+            },
+            {
+              "value": "ADMINISTRADORA DE TARJETAS DE CREDITO",
+              "label": {
+                "es": "ADMINISTRADORA DE TARJETAS DE CREDITO",
+                "en": "ADMINISTRADORA DE TARJETAS DE CREDITO"
+              }
+            },
+            {
+              "value": "BANCO NACIONAL DE BOLIVIA",
+              "label": {
+                "es": "BANCO NACIONAL DE BOLIVIA",
+                "en": "BANCO NACIONAL DE BOLIVIA"
+              }
+            },
+            {
+              "value": "BANCO MERCANTIL",
+              "label": {
+                "es": "BANCO MERCANTIL",
+                "en": "BANCO MERCANTIL"
+              }
+            },
+            {
+              "value": "BANCO DE CREDITO",
+              "label": {
+                "es": "BANCO DE CREDITO",
+                "en": "BANCO DE CREDITO"
+              }
+            },
+            {
+              "value": "BANCO ECONOMICO",
+              "label": {
+                "es": "BANCO ECONOMICO",
+                "en": "BANCO ECONOMICO"
+              }
+            },
+            {
+              "value": "BANCO GANADERO",
+              "label": {
+                "es": "BANCO GANADERO",
+                "en": "BANCO GANADERO"
+              }
+            },
+            {
+              "value": "BANCO UNION",
+              "label": {
+                "es": "BANCO UNION",
+                "en": "BANCO UNION"
+              }
+            }
+          ]
+        },
+        {
+          "id": "cb31cc9f-c68c-4503-8cb3-7f2f3e4b9597",
+          "key": "q_854423996",
+          "type": "single_choice",
+          "label": {
+            "es": "¿Acepta los términos y condiciones?",
+            "en": "Do you accept the terms and conditions?"
+          },
+          "help": {
+            "es": "https://www.ideasdeinternet.com/terminos-y-condiciones",
+            "en": "https://www.ideasdeinternet.com/terminos-y-condiciones"
+          },
+          "required": true,
+          "options": [
+            {
+              "value": "Si",
+              "label": {
+                "es": "Si",
+                "en": "Yes"
+              }
+            },
+            {
+              "value": "No",
+              "label": {
+                "es": "No",
+                "en": "No"
+              }
+            }
+          ]
+        }
+      ],
+      "defaultGoTo": "SUBMIT"
+    }
+  ]
+}

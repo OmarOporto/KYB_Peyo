@@ -35,6 +35,7 @@ export const FIELD_TYPES = [
   "multiple_choice",
   "dropdown",
   "file",
+  "selfie",
   "boolean",
   "note",
 ] as const;
@@ -44,6 +45,47 @@ export type FieldType = (typeof FIELD_TYPES)[number];
 export function isChoiceType(t: FieldType): boolean {
   return t === "single_choice" || t === "multiple_choice" || t === "dropdown";
 }
+
+// ============================================================
+// Revisión con DIDIT (metadata por-campo)
+// ============================================================
+export const DIDIT_FEATURES = [
+  "aml_screening",
+  "id_verification",
+  "proof_of_address",
+  "email_verification",
+  "phone_verification",
+  "database_validation",
+  "age_estimation",
+  "liveness",
+  "face_match",
+] as const;
+export const diditFeatureSchema = z.enum(DIDIT_FEATURES);
+export type DiditFeature = (typeof DIDIT_FEATURES)[number];
+
+/** Tipos de campo compatibles con cada feature de DIDIT (subconjunto mapeable). */
+export const DIDIT_FEATURE_COMPAT: Record<DiditFeature, FieldType[]> = {
+  aml_screening: ["short_text", "long_text"],
+  id_verification: ["file"],
+  proof_of_address: ["file"],
+  email_verification: ["email"],
+  phone_verification: ["short_text"],
+  database_validation: ["short_text"],
+  age_estimation: ["selfie", "file"],
+  liveness: ["selfie"],
+  face_match: ["selfie"],
+};
+
+/** ¿El tipo de campo satisface el input que requiere la feature de DIDIT? */
+export function isDiditCompatible(feature: DiditFeature, type: FieldType): boolean {
+  return DIDIT_FEATURE_COMPAT[feature].includes(type);
+}
+
+export const reviewSchema = z.object({
+  provider: z.literal("didit"),
+  feature: diditFeatureSchema,
+});
+export type FieldReview = z.infer<typeof reviewSchema>;
 
 // ============================================================
 // Condiciones (lógica)
@@ -84,6 +126,7 @@ export const conditionSchema: z.ZodType<Condition> = z.lazy(() =>
 export const optionSchema = z.object({
   value: z.string(),
   label: localizedTextSchema,
+  image: z.string().optional(), // URL pública de imagen de ayuda (opcional)
 });
 export type FormOption = z.infer<typeof optionSchema>;
 
@@ -109,12 +152,14 @@ export const fieldSchema = z.object({
   type: fieldTypeSchema,
   label: localizedTextSchema,
   help: localizedTextSchema.optional(),
+  image: z.string().optional(), // URL pública de imagen de ayuda (opcional)
   placeholder: localizedTextSchema.optional(),
   required: z.boolean().default(false),
   options: z.array(optionSchema).optional(),
   file: fileConfigSchema.optional(),
   validation: validationSchema,
   visibleIf: conditionSchema.optional(),
+  review: reviewSchema.optional(),
 });
 export type Field = z.infer<typeof fieldSchema>;
 

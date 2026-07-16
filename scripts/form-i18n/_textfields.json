@@ -1,0 +1,697 @@
+[
+  {
+    "key": "q_2029245471",
+    "type": "short_text",
+    "label": "Nombre de la empresa"
+  },
+  {
+    "key": "q_144568948",
+    "type": "short_text",
+    "label": "Agregar un numero de celular con Whatsapp para que podamos contactarnos con su empresa"
+  },
+  {
+    "key": "q_158317050",
+    "type": "short_text",
+    "label": "Número de Identificación Tributario (NIT)"
+  },
+  {
+    "key": "q_1020042618",
+    "type": "long_text",
+    "label": "Dirección de la empresa"
+  },
+  {
+    "key": "q_674906010",
+    "type": "long_text",
+    "label": "Por favor explique brevemente el origen de sus fondos"
+  },
+  {
+    "key": "q_2031073247",
+    "type": "long_text",
+    "label": "Describa brevemente las actividades principales de su empresa"
+  },
+  {
+    "key": "q_282468073",
+    "type": "number",
+    "label": "Años de experiencia de la Empresa"
+  },
+  {
+    "key": "q_316229653",
+    "type": "long_text",
+    "label": "Propósito principal de la cuenta:"
+  },
+  {
+    "key": "q_50516542",
+    "type": "long_text",
+    "label": "Principales países con los que hace transacciones"
+  },
+  {
+    "key": "q_783082088",
+    "type": "number",
+    "label": "¿Cuál es el efectivo disponible actualmente de su empresa?"
+  },
+  {
+    "key": "q_970695248",
+    "type": "number",
+    "label": "Volumen de transacciones mensual promedio anticipado (USD)"
+  },
+  {
+    "key": "q_91870470",
+    "type": "short_text",
+    "label": "Número estimado de transacciones por mes"
+  },
+  {
+    "key": "q_365921356",
+    "type": "short_text",
+    "label": "Por favor ingrese el enlace de su página web redes sociales (Facebook, Instagram, etc...)"
+  },
+  {
+    "key": "q_814715458",
+    "type": "long_text",
+    "label": "Si no posee sitio web ni redes sociales, por favor explique como atrae a sus clientes a su empresa."
+  },
+  {
+    "key": "q_19339822",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_43433308",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_1327263043",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_1559707568",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_1042820840",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1641223829",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_766179889",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_402003855",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1832420017",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_1908951562",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_1777085924",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_1436178945",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_263490944",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_186277307",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1431891767",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1558707950",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1025856548",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_170310802",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_64692908",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_2055651997",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_960098180",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_706364871",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_700314018",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_710216474",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_401072213",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_1620464882",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_950950231",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_2114470265",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1227570866",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_1959108456",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1796761966",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_888854070",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1054092063",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_185058799",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1169252606",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_340099536",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_663380704",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1499207430",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1925761142",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_932427030",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_2103281015",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_1343053145",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1230247276",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_1174598797",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_503400180",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1183687865",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_379550598",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_1490209028",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_1604372836",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_340790891",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_829999254",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_272264626",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1228477507",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_566139851",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1519110242",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_817851630",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_71334181",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_1491203152",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1886127391",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_1558520250",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1990150541",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_778086855",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1734469044",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_1793123591",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_1992716595",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_1661182466",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1780868440",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_733853423",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_2034621068",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1515880797",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1685012240",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_695208218",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_2029687491",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_253159984",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1402558685",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_744453993",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1506017876",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1790704305",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1649289476",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_929955091",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_1272965035",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_1747993753",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_1685584228",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_184450169",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_2059967050",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1101912524",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_71219059",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_493802364",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_565724212",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_1005605169",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_103557395",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_545938546",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1771803414",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1659502275",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1850476094",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_829813650",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_1706628053",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_770069513",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_899609429",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_1000549360",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_891788166",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_2098653305",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_84818898",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_2076116096",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_492316878",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_574952826",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_779456491",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_247599348",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_544166228",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_1729151625",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1258242813",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_1770449179",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_2080024878",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_2105600451",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_2104211624",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_2112031571",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1588276138",
+    "type": "number",
+    "label": "PORCENTAJE DE PARTICIPACIÓN"
+  },
+  {
+    "key": "q_536429105",
+    "type": "short_text",
+    "label": "PRIMER NOMBRE"
+  },
+  {
+    "key": "q_1102301316",
+    "type": "short_text",
+    "label": "SEGUNDO NOMBRE (OPCIONAL)"
+  },
+  {
+    "key": "q_443638763",
+    "type": "short_text",
+    "label": "PRIMER APELLIDO"
+  },
+  {
+    "key": "q_1679236328",
+    "type": "short_text",
+    "label": "SEGUNDO APELLIDO"
+  },
+  {
+    "key": "q_220064567",
+    "type": "short_text",
+    "label": "NÚMERO DE CELULAR"
+  },
+  {
+    "key": "q_582363395",
+    "type": "email",
+    "label": "CORREO ELECTRÓNICO"
+  },
+  {
+    "key": "q_2125841653",
+    "type": "long_text",
+    "label": "DIRECCIÓN DEL DOMICILIO"
+  },
+  {
+    "key": "q_1408424617",
+    "type": "number",
+    "label": "Numero de cuenta en USD en pais de origen"
+  }
+]

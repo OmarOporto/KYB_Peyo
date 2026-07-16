@@ -320,6 +320,13 @@ function FieldInput({
       <div className="border-b border-border pb-1 pt-2">
         <p className="text-sm font-semibold uppercase tracking-wide text-muted">{label}</p>
         {help && <p className="mt-0.5 text-xs text-muted">{help}</p>}
+        {field.image && (
+          <HelpImage
+            src={field.image}
+            wrapperClassName="mt-2 block w-fit"
+            className="max-h-56 rounded-lg border border-border"
+          />
+        )}
       </div>
     );
   }
@@ -331,6 +338,13 @@ function FieldInput({
         {field.required && <span className="text-danger"> *</span>}
       </label>
       {help && <p className="mb-1 text-xs text-muted">{help}</p>}
+      {field.image && (
+        <HelpImage
+          src={field.image}
+          wrapperClassName="mb-2 block w-fit"
+          className="max-h-56 rounded-lg border border-border"
+        />
+      )}
 
       {field.type === "long_text" ? (
         <textarea
@@ -351,6 +365,13 @@ function FieldInput({
                 onChange={() => onChange(o.value)}
               />
               <span>{resolveText(o.label, locale)}</span>
+              {o.image && (
+                <HelpImage
+                  src={o.image}
+                  wrapperClassName="shrink-0"
+                  className="h-12 w-12 rounded border border-border object-cover"
+                />
+              )}
             </label>
           ))}
         </div>
@@ -373,6 +394,13 @@ function FieldInput({
                   }
                 />
                 <span>{resolveText(o.label, locale)}</span>
+                {o.image && (
+                  <HelpImage
+                    src={o.image}
+                    wrapperClassName="shrink-0"
+                    className="h-12 w-12 rounded border border-border object-cover"
+                  />
+                )}
               </label>
             );
           })}
@@ -392,6 +420,14 @@ function FieldInput({
         </select>
       ) : field.type === "file" ? (
         <FileField field={field} value={value} onChange={onChange} onUploadFile={onUploadFile} />
+      ) : field.type === "selfie" ? (
+        <SelfieField
+          field={field}
+          value={value}
+          onChange={onChange}
+          onUploadFile={onUploadFile}
+          locale={locale}
+        />
       ) : field.type === "boolean" ? (
         <label className="flex items-center gap-2 text-sm text-foreground">
           <input
@@ -414,6 +450,24 @@ function FieldInput({
 
       {error && <p className="mt-1 text-sm text-danger">{error}</p>}
     </div>
+  );
+}
+
+/** Imagen de ayuda (pregunta u opción). Clickeable para verla en grande. */
+function HelpImage({
+  src,
+  className,
+  wrapperClassName,
+}: {
+  src: string;
+  className: string;
+  wrapperClassName?: string;
+}) {
+  return (
+    <a href={src} target="_blank" rel="noopener" className={wrapperClassName}>
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img src={src} alt="" className={className} />
+    </a>
   );
 }
 
@@ -479,6 +533,200 @@ function FileField({
           ))}
         </ul>
       )}
+    </div>
+  );
+}
+
+// ---------- Captura de selfie por cámara (solo en vivo) ----------
+const SELFIE_TEXT = {
+  es: {
+    start: "Encender cámara",
+    capture: "Tomar foto",
+    retake: "Volver a tomar",
+    cancel: "Cancelar",
+    captured: "Selfie capturada",
+    camError: "No se pudo acceder a la cámara. Concede el permiso y usa un dispositivo con cámara.",
+    upError: "No se pudo subir la foto. Intenta de nuevo.",
+    uploading: "Subiendo…",
+  },
+  en: {
+    start: "Turn on camera",
+    capture: "Take photo",
+    retake: "Retake",
+    cancel: "Cancel",
+    captured: "Selfie captured",
+    camError: "Could not access the camera. Grant permission and use a device with a camera.",
+    upError: "Could not upload the photo. Try again.",
+    uploading: "Uploading…",
+  },
+} as const;
+
+function SelfieField({
+  field,
+  value,
+  onChange,
+  onUploadFile,
+  locale,
+}: {
+  field: Field;
+  value: unknown;
+  onChange: (v: unknown) => void;
+  onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  locale: string;
+}) {
+  const t = SELFIE_TEXT[locale === "en" ? "en" : "es"];
+  const refs = Array.isArray(value) ? (value as FileRef[]) : [];
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const streamRef = useRef<MediaStream | null>(null);
+  const thumbUrlRef = useRef<string | null>(null);
+  const [active, setActive] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [thumb, setThumb] = useState<string | null>(null);
+
+  function stopCamera() {
+    streamRef.current?.getTracks().forEach((tr) => tr.stop());
+    streamRef.current = null;
+    setActive(false);
+  }
+  function revokeThumb() {
+    if (thumbUrlRef.current) {
+      URL.revokeObjectURL(thumbUrlRef.current);
+      thumbUrlRef.current = null;
+    }
+  }
+
+  // Adjunta el stream al <video> cuando la cámara se enciende.
+  useEffect(() => {
+    if (active && videoRef.current && streamRef.current) {
+      videoRef.current.srcObject = streamRef.current;
+      videoRef.current.play().catch(() => {});
+    }
+  }, [active]);
+
+  // Limpieza al desmontar.
+  useEffect(() => {
+    return () => {
+      stopCamera();
+      revokeThumb();
+    };
+  }, []);
+
+  async function startCamera() {
+    setErr(null);
+    if (!navigator.mediaDevices?.getUserMedia) {
+      setErr(t.camError);
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: "user" },
+        audio: false,
+      });
+      streamRef.current = stream;
+      setActive(true);
+    } catch {
+      setErr(t.camError);
+    }
+  }
+
+  async function capture() {
+    const video = videoRef.current;
+    if (!video || !video.videoWidth || !video.videoHeight) return;
+    const canvas = document.createElement("canvas");
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+    const blob = await new Promise<Blob | null>((res) =>
+      canvas.toBlob((b) => res(b), "image/jpeg", 0.9),
+    );
+    if (!blob) return;
+    const file = new File([blob], `selfie-${Date.now()}.jpg`, { type: "image/jpeg" });
+
+    stopCamera();
+    revokeThumb();
+    const url = URL.createObjectURL(blob);
+    thumbUrlRef.current = url;
+    setThumb(url);
+
+    setErr(null);
+    setBusy(true);
+    try {
+      if (onUploadFile) {
+        const ref = await onUploadFile(file, field);
+        if (ref) {
+          onChange([ref]);
+        } else {
+          setErr(t.upError);
+          revokeThumb();
+          setThumb(null);
+        }
+      } else {
+        onChange([{ path: "", filename: file.name }]);
+      }
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function retake() {
+    revokeThumb();
+    setThumb(null);
+    setErr(null);
+    onChange([]);
+    startCamera();
+  }
+
+  const hasCapture = refs.length > 0 || thumb != null;
+
+  return (
+    <div>
+      {active ? (
+        <div className="space-y-2">
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            muted
+            className="w-full max-w-xs rounded-lg border border-border bg-black"
+          />
+          <div className="flex gap-2">
+            <Button type="button" size="sm" onClick={capture} disabled={busy}>
+              {t.capture}
+            </Button>
+            <Button type="button" variant="outline" size="sm" onClick={stopCamera}>
+              {t.cancel}
+            </Button>
+          </div>
+        </div>
+      ) : hasCapture ? (
+        <div className="space-y-2">
+          {thumb && (
+            <>
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={thumb}
+                alt=""
+                className="w-full max-w-xs rounded-lg border border-border"
+              />
+            </>
+          )}
+          <p className="text-sm text-muted">
+            <span className="text-success">✓</span> {t.captured}
+          </p>
+          <Button type="button" variant="outline" size="sm" onClick={retake} disabled={busy}>
+            {t.retake}
+          </Button>
+        </div>
+      ) : (
+        <Button type="button" size="sm" onClick={startCamera} disabled={busy}>
+          {t.start}
+        </Button>
+      )}
+      {busy && <p className="mt-1 text-sm text-muted">{t.uploading}</p>}
+      {err && <p className="mt-1 text-sm text-danger">{err}</p>}
     </div>
   );
 }

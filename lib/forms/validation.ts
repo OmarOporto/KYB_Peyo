@@ -18,7 +18,7 @@ export function fieldZod(field: Field, locale = "es"): z.ZodTypeAny {
 
   switch (field.type) {
     case "email": {
-      let s = z.string().email(m.email);
+      const s = z.string().email(m.email);
       if (!req) return s.optional().or(z.literal(""));
       return s.min(1, m.required);
     }
@@ -50,8 +50,9 @@ export function fieldZod(field: Field, locale = "es"): z.ZodTypeAny {
       const a = z.array(z.string());
       return req ? a.min(1, m.required) : a.optional();
     }
+    case "selfie":
     case "file": {
-      // Las respuestas de archivo son arrays de referencias { path, filename }.
+      // Las respuestas de archivo/selfie son arrays de referencias { path, filename }.
       const a = z.array(z.any());
       return req ? a.min(1, m.required) : a.optional();
     }

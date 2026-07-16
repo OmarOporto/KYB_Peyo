@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type ChangeEvent } from "react";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/Button";
 import { createForm, importFormJson } from "./actions";
@@ -20,6 +20,18 @@ export function FormsToolbar() {
     if (res && !res.ok) setError(res.error);
   }
 
+  async function onFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // permite re-seleccionar el mismo archivo
+    if (!file) return;
+    setError(null);
+    try {
+      setJson(await file.text());
+    } catch {
+      setError(t("readError"));
+    }
+  }
+
   return (
     <div className="mb-4 flex flex-wrap items-center gap-2">
       <form action={createForm}>
@@ -31,6 +43,14 @@ export function FormsToolbar() {
 
       {showImport && (
         <div className="mt-2 w-full">
+          <p className="mb-1 text-sm text-muted">{t("importHint")}</p>
+          <input
+            type="file"
+            accept="application/json,.json"
+            onChange={onFile}
+            aria-label={t("chooseFile")}
+            className="mb-2 block w-full cursor-pointer text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-hover"
+          />
           <textarea
             value={json}
             onChange={(e) => setJson(e.target.value)}
