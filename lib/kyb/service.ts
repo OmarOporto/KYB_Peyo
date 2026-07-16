@@ -172,6 +172,31 @@ export async function getDraft(
   return (data?.data as Record<string, unknown>) ?? {};
 }
 
+/**
+ * Genera URLs firmadas (temporales) para varios documentos del bucket privado.
+ * Devuelve un mapa `path -> signedUrl`; omite los que fallen. Usado por el
+ * detalle del request en admin para mostrar miniaturas inline.
+ */
+export async function createSignedDocUrls(
+  paths: string[],
+  expiresIn = 3600,
+): Promise<Record<string, string>> {
+  const unique = Array.from(new Set(paths.filter(Boolean)));
+  if (unique.length === 0) return {};
+
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.storage
+    .from(DOCUMENTS_BUCKET)
+    .createSignedUrls(unique, expiresIn);
+  if (error || !data) return {};
+
+  const map: Record<string, string> = {};
+  for (const item of data) {
+    if (item.signedUrl && item.path) map[item.path] = item.signedUrl;
+  }
+  return map;
+}
+
 /** Registra los metadatos de un documento subido a Storage. */
 export async function recordDocument(input: {
   requestId: string;

@@ -5,12 +5,12 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { DocLink } from "@/components/admin/DocLink";
+import { DocPreview } from "@/components/admin/DocPreview";
 import { decideAction } from "@/app/admin/actions";
-import { isTerminal } from "@/lib/kyb/service";
+import { isTerminal, createSignedDocUrls } from "@/lib/kyb/service";
 import type { KybStatus } from "@/lib/kyb/types";
 import { getFormForRequest } from "@/lib/forms/store";
-import { resolveText } from "@/lib/forms/definition";
+import { resolveText, type Field } from "@/lib/forms/definition";
 import { renderAnswer } from "@/lib/forms/answers";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +35,7 @@ export default async function RequestDetail({
     supabase.from("kyb_form_responses").select("data").eq("request_id", id).maybeSingle(),
     supabase
       .from("kyb_documents")
-      .select("id, doc_type, filename, storage_path, uploaded_at")
+      .select("id, doc_type, filename, storage_path, mime, uploaded_at")
       .eq("request_id", id),
     supabase
       .from("aml_checks")
@@ -50,6 +50,20 @@ export default async function RequestDetail({
   const form = await getFormForRequest(
     (request as { form_id?: string | null }).form_id,
   );
+
+  // Firma una sola vez las URLs de todos los archivos (documentos + campos
+  // file/selfie del formulario) para mostrar miniaturas inline.
+  const answerRefs = form
+    ? form.definition.sections.flatMap((s) =>
+        s.fields
+          .filter((f) => f.type === "file" || f.type === "selfie")
+          .flatMap((f) => fileRefsOf(formData[f.key])),
+      )
+    : [];
+  const signedUrls = await createSignedDocUrls([
+    ...(docs ?? []).map((d) => d.storage_path),
+    ...answerRefs.map((r) => r.path),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-3xl p-6">
@@ -90,14 +104,19 @@ export default async function RequestDetail({
         {(docs ?? []).length === 0 && (
           <p className="text-sm text-muted">{t("noDocuments")}</p>
         )}
-        <ul className="space-y-1 text-sm">
+        <div className="flex flex-wrap gap-4 text-sm">
           {(docs ?? []).map((d) => (
-            <li key={d.id}>
-              <DocLink path={d.storage_path} filename={d.filename} />{" "}
-              <span className="text-muted">({d.doc_type})</span>
-            </li>
+            <div key={d.id}>
+              <DocPreview
+                path={d.storage_path}
+                filename={d.filename}
+                url={signedUrls[d.storage_path]}
+                mime={d.mime}
+              />
+              <p className="mt-1 text-xs text-muted">{d.doc_type}</p>
+            </div>
           ))}
-        </ul>
+        </div>
       </Section>
 
       {/* Formulario */}
@@ -119,7 +138,12 @@ export default async function RequestDetail({
                           {resolveText(f.label, locale) || f.key}
                         </dt>
                         <dd className="break-words text-foreground">
-                          {renderAnswer(f, formData[f.key], locale)}
+                          <AnswerValue
+                            field={f}
+                            value={formData[f.key]}
+                            locale={locale}
+                            signedUrls={signedUrls}
+                          />
                         </dd>
                       </div>
                     ))}
@@ -165,6 +189,55 @@ export default async function RequestDetail({
       )}
     </main>
   );
+}
+
+/** Extrae los FileRef ({path, filename}) del valor de un campo file/selfie. */
+function fileRefsOf(value: unknown): { path: string; filename: string }[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((r) =>
+    r && typeof r === "object" && "path" in r
+      ? [
+          {
+            path: String((r as { path: unknown }).path),
+            filename:
+              "filename" in r
+                ? String((r as { filename: unknown }).filename)
+                : "archivo",
+          },
+        ]
+      : [],
+  );
+}
+
+/** Renderiza la respuesta de un campo: miniaturas para file/selfie, texto para el resto. */
+function AnswerValue({
+  field,
+  value,
+  locale,
+  signedUrls,
+}: {
+  field: Field;
+  value: unknown;
+  locale: string;
+  signedUrls: Record<string, string>;
+}) {
+  if (field.type === "file" || field.type === "selfie") {
+    const refs = fileRefsOf(value);
+    if (refs.length === 0) return <>—</>;
+    return (
+      <div className="mt-1 flex flex-wrap gap-2">
+        {refs.map((r, i) => (
+          <DocPreview
+            key={i}
+            path={r.path}
+            filename={r.filename}
+            url={signedUrls[r.path]}
+          />
+        ))}
+      </div>
+    );
+  }
+  return <>{renderAnswer(field, value, locale)}</>;
 }
 
 function amlToBadge(status: string): string {
