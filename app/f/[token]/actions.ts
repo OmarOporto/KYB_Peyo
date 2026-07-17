@@ -15,7 +15,7 @@ import {
 import { createServiceClient } from "@/lib/supabase/service";
 import { kybSubmitSchema } from "@/lib/forms/schema";
 import { resolveRequestDefinition } from "@/lib/forms/store";
-import { allVisibleFields } from "@/lib/forms/logic";
+import { reachableFields } from "@/lib/forms/logic";
 import { buildZod } from "@/lib/forms/validation";
 
 type ActionResult = { ok: true } | { ok: false; error: string };
@@ -236,7 +236,7 @@ export async function submitFormAction(
   const snapshot = (r.req as { form_definition?: unknown }).form_definition;
   const definition = await resolveRequestDefinition(snapshot, formId);
   if (definition) {
-    const parse = buildZod(allVisibleFields(definition, answers)).safeParse(answers);
+    const parse = buildZod(reachableFields(definition, answers)).safeParse(answers);
     if (!parse.success) {
       const missing = [
         ...new Set(

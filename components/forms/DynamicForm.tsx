@@ -10,7 +10,8 @@ import {
   nextSectionId,
   visibleFields,
   visibleSections,
-  allVisibleFields,
+  reachableSections,
+  reachableFields,
   type Answers,
 } from "@/lib/forms/logic";
 import { countryOptions } from "@/lib/forms/countries";
@@ -255,12 +256,12 @@ export function DynamicForm({
     // Valida TODO el formulario visible. Si falta algo, en vez de un `return`
     // mudo: navega a la sección del primer campo faltante, lo resalta y muestra
     // un mensaje claro (antes esto se veía como un "cuelgue" sin feedback).
-    const missing = computeErrors(allVisibleFields(definition, answers));
+    const missing = computeErrors(reachableFields(definition, answers));
     const missingKeys = Object.keys(missing);
     if (missingKeys.length > 0) {
       setErrors(missing);
       const firstKey = missingKeys[0];
-      const target = visibleSections(definition, answers).find((s) =>
+      const target = reachableSections(definition, answers).find((s) =>
         s.fields.some((f) => f.key === firstKey),
       );
       if (target && target.id !== currentId) setCurrentId(target.id);
@@ -305,7 +306,7 @@ export function DynamicForm({
 
   if (!current) return null;
 
-  const visSecs = visibleSections(definition, answers);
+  const visSecs = reachableSections(definition, answers);
   const stepIdx = visSecs.findIndex((s) => s.id === current.id);
   const progress = visSecs.length ? ((stepIdx + 1) / visSecs.length) * 100 : 0;
 

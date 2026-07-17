@@ -98,7 +98,35 @@ export function nextSectionId(
   return SUBMIT;
 }
 
-/** Todos los campos visibles del formulario (para validación de envío). */
+/** Todos los campos visibles del formulario (por `visibleIf`, sin considerar saltos). */
 export function allVisibleFields(def: FormDefinition, answers: Answers): Field[] {
   return visibleSections(def, answers).flatMap((s) => visibleFields(s, answers));
+}
+
+/**
+ * Secciones realmente ALCANZADAS siguiendo el flujo de saltos (`next`/
+ * `defaultGoTo`) desde la primera sección visible hasta SUBMIT. A diferencia de
+ * `visibleSections` (que solo mira `visibleIf`), respeta el branching: una
+ * sección a la que solo se llega por una rama NO tomada no se incluye. Úsese
+ * para la validación de envío, así no se exigen campos de ramas inaplicables.
+ */
+export function reachableSections(def: FormDefinition, answers: Answers): Section[] {
+  const start = visibleSections(def, answers)[0] ?? def.sections[0];
+  if (!start) return [];
+  const byId = new Map(def.sections.map((s) => [s.id, s] as const));
+  const visited: Section[] = [];
+  const seen = new Set<string>();
+  let curId: string = start.id;
+  while (curId && curId !== SUBMIT && !seen.has(curId)) {
+    seen.add(curId);
+    const sec = byId.get(curId);
+    if (sec) visited.push(sec);
+    curId = nextSectionId(def, curId, answers);
+  }
+  return visited;
+}
+
+/** Campos a validar en el envío: los de las secciones alcanzadas por el flujo. */
+export function reachableFields(def: FormDefinition, answers: Answers): Field[] {
+  return reachableSections(def, answers).flatMap((s) => visibleFields(s, answers));
 }
