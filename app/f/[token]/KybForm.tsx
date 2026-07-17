@@ -18,9 +18,20 @@ import { AppHeader } from "@/components/AppHeader";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { Field, inputCls } from "@/components/ui/Field";
-import { saveDraftAction, submitAction, uploadDocumentAction } from "./actions";
+import {
+  saveDraftAction,
+  submitAction,
+  uploadDocumentAction,
+  deleteDocumentAction,
+} from "./actions";
 
-type Doc = { id: string; doc_type: string; filename: string; uploaded_at: string };
+type Doc = {
+  id: string;
+  doc_type: string;
+  filename: string;
+  uploaded_at: string;
+  storagePath: string;
+};
 
 export default function KybForm({
   token,
@@ -38,6 +49,7 @@ export default function KybForm({
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
+  const [removingId, setRemovingId] = useState<string | null>(null);
 
   const form = useForm<KybFormValues>({
     resolver: zodResolver(kybSubmitSchema) as unknown as Resolver<KybFormValues>,
@@ -92,10 +104,28 @@ export default function KybForm({
           doc_type: docType,
           filename: res.filename ?? file.name,
           uploaded_at: new Date().toISOString(),
+          storagePath: res.path ?? "",
         },
       ]);
     } else {
       setSubmitError(res.error);
+    }
+  }
+
+  async function removeDoc(doc: Doc) {
+    setSubmitError(null);
+    setRemovingId(doc.id);
+    try {
+      if (doc.storagePath) {
+        const res = await deleteDocumentAction(token, doc.storagePath);
+        if (!res.ok) {
+          setSubmitError(res.error);
+          return;
+        }
+      }
+      setDocs((d) => d.filter((x) => x.id !== doc.id));
+    } finally {
+      setRemovingId(null);
     }
   }
 
@@ -272,18 +302,32 @@ export default function KybForm({
                   <p className="mb-2 text-sm font-medium text-foreground">
                     {t("documentsTitle")}
                   </p>
-                  <input
-                    type="file"
-                    disabled={uploading}
-                    onChange={(e) => onFile(e, "general")}
-                    className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-hover"
-                  />
+                  <label className="inline-flex cursor-pointer items-center gap-2">
+                    <span className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hover">
+                      {uploading ? "…" : t("chooseFile")}
+                    </span>
+                    <input
+                      type="file"
+                      disabled={uploading}
+                      onChange={(e) => onFile(e, "general")}
+                      className="hidden"
+                    />
+                  </label>
                   <p className="mt-1 text-xs text-muted">{t("documentsHint")}</p>
                   {docs.length > 0 && (
                     <ul className="mt-3 space-y-1 text-sm">
                       {docs.map((d) => (
-                        <li key={d.id} className="text-muted">
-                          <span className="text-success">✓</span> {d.filename}
+                        <li key={d.id} className="flex items-center gap-2 text-muted">
+                          <span className="text-success">✓</span>
+                          <span className="min-w-0 flex-1 truncate">{d.filename}</span>
+                          <button
+                            type="button"
+                            className="shrink-0 cursor-pointer text-xs text-danger hover:underline disabled:opacity-50"
+                            onClick={() => removeDoc(d)}
+                            disabled={removingId !== null || uploading}
+                          >
+                            {removingId === d.id ? "…" : t("remove")}
+                          </button>
                         </li>
                       ))}
                     </ul>

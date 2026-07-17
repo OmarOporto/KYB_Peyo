@@ -4,7 +4,12 @@ import { useTranslations } from "next-intl";
 import { DynamicForm } from "@/components/forms/DynamicForm";
 import type { Field, FormDefinition } from "@/lib/forms/definition";
 import type { Answers } from "@/lib/forms/logic";
-import { saveDraftAction, uploadDocumentAction, submitFormAction } from "./actions";
+import {
+  saveDraftAction,
+  uploadDocumentAction,
+  deleteDocumentAction,
+  submitFormAction,
+} from "./actions";
 
 export function ApplicantForm({
   token,
@@ -37,6 +42,10 @@ export function ApplicantForm({
         return res.ok && res.path
           ? { path: res.path, filename: res.filename ?? file.name }
           : null;
+      }}
+      onDeleteFile={async (path: string) => {
+        const res = await deleteDocumentAction(token, path);
+        return res.ok;
       }}
       onSubmit={(a) => submitFormAction(token, a as Record<string, unknown>)}
       labels={{

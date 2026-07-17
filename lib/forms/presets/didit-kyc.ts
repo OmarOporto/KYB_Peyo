@@ -155,14 +155,104 @@ const sections: Section[] = [
       en: "Screening against sanctions/PEP/adverse-media lists (text data only).",
     },
   ),
+
+  // 4. Comprobante de domicilio → proof_of_address
+  section(
+    "didit_kyc_poa",
+    { es: "Comprobante de domicilio", en: "Proof of address" },
+    [
+      field({
+        key: "didit_poa_document",
+        type: "file",
+        label: { es: "Comprobante de domicilio", en: "Proof of address" },
+        required: true,
+        file: DOC_FILE,
+        review: didit("proof_of_address"),
+        help: {
+          es: "Recibo de servicios o estado de cuenta reciente con tu domicilio.",
+          en: "Recent utility bill or bank statement showing your address.",
+        },
+      }),
+    ],
+    {
+      es: "Sube un comprobante de domicilio; DIDIT lo valida.",
+      en: "Upload a proof of address; DIDIT validates it.",
+    },
+  ),
+
+  // 5. Estimación de edad → age_estimation (selfie propia)
+  section(
+    "didit_kyc_age",
+    { es: "Estimación de edad", en: "Age estimation" },
+    [
+      field({
+        key: "didit_age_selfie",
+        type: "selfie",
+        label: { es: "Selfie para estimación de edad", en: "Selfie for age estimation" },
+        required: true,
+        review: didit("age_estimation"),
+        help: {
+          es: "Se usa para estimar tu edad aproximada.",
+          en: "Used to estimate your approximate age.",
+        },
+      }),
+    ],
+    {
+      es: "Estima la edad a partir de una selfie en vivo.",
+      en: "Estimates age from a live selfie.",
+    },
+  ),
+
+  // 6. Validación en base de datos → database_validation (datos de texto).
+  // El campo de nombre lleva el tag; los hermanos se leen por convención de key
+  // (first_name / last_name / birth_date / personal_number / issuing_state).
+  section(
+    "didit_kyc_db",
+    { es: "Validación en base de datos", en: "Database validation" },
+    [
+      field({
+        key: "didit_db_first_name",
+        type: "short_text",
+        label: { es: "Nombre(s)", en: "First name" },
+        required: true,
+        review: didit("database_validation"),
+      }),
+      field({
+        key: "didit_db_last_name",
+        type: "short_text",
+        label: { es: "Apellido(s)", en: "Last name" },
+        required: true,
+      }),
+      field({
+        key: "didit_db_birth_date",
+        type: "date",
+        label: { es: "Fecha de nacimiento", en: "Date of birth" },
+      }),
+      field({
+        key: "didit_db_personal_number",
+        type: "short_text",
+        label: { es: "Número personal (CURP / ID)", en: "Personal number (ID)" },
+      }),
+      field({
+        key: "didit_db_issuing_state",
+        type: "short_text",
+        label: { es: "Estado emisor", en: "Issuing state" },
+        help: { es: "ISO 3166-1 alpha-2 (ej. MX).", en: "ISO 3166-1 alpha-2 (e.g. MX)." },
+      }),
+    ],
+    {
+      es: "Valida los datos personales contra bases de datos oficiales (solo texto).",
+      en: "Validates personal data against official databases (text only).",
+    },
+  ),
 ];
 
 export const diditKycPreset: FieldPreset = {
   id: "didit_kyc",
   label: { es: "DIDIT — Verificación KYC", en: "DIDIT — KYC verification" },
   description: {
-    es: "Campos para verificación de identidad, coincidencia facial y AML con DIDIT.",
-    en: "Fields for ID verification, face match and AML with DIDIT.",
+    es: "Campos para todas las verificaciones DIDIT: identidad, coincidencia facial, liveness, AML, comprobante de domicilio, estimación de edad y validación en base de datos.",
+    en: "Fields for all DIDIT checks: ID, face match, liveness, AML, proof of address, age estimation and database validation.",
   },
   sections,
 };

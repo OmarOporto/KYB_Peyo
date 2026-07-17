@@ -28,6 +28,14 @@ function apiKey(): string {
   return k;
 }
 
+// TODO(DIDIT): logging temporal para capturar el shape real de las respuestas
+// durante la prueba en vivo. QUITAR tras reconciliar el contrato.
+function debugLogDidit(path: string, status: number, json: unknown): void {
+  console.log(
+    `[DIDIT][debug] ${path} -> ${status}\n${JSON.stringify(json, null, 2)}`,
+  );
+}
+
 async function postJson(path: string, body: unknown): Promise<Record<string, unknown>> {
   const res = await fetch(`${base()}${path}`, {
     method: "POST",
@@ -36,6 +44,7 @@ async function postJson(path: string, body: unknown): Promise<Record<string, unk
     cache: "no-store",
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  debugLogDidit(path, res.status, json);
   if (!res.ok) throw new Error(`DIDIT ${path} ${res.status}: ${JSON.stringify(json).slice(0, 300)}`);
   return json;
 }
@@ -49,6 +58,7 @@ async function postMultipart(path: string, form: FormData): Promise<Record<strin
     cache: "no-store",
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
+  debugLogDidit(path, res.status, json);
   if (!res.ok) throw new Error(`DIDIT ${path} ${res.status}: ${JSON.stringify(json).slice(0, 300)}`);
   return json;
 }

@@ -44,13 +44,18 @@ export function FormsToolbar() {
       {showImport && (
         <div className="mt-2 w-full">
           <p className="mb-1 text-sm text-muted">{t("importHint")}</p>
-          <input
-            type="file"
-            accept="application/json,.json"
-            onChange={onFile}
-            aria-label={t("chooseFile")}
-            className="mb-2 block w-full cursor-pointer text-sm text-muted file:mr-3 file:cursor-pointer file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-hover"
-          />
+          <label className="mb-2 inline-flex cursor-pointer items-center gap-2">
+            <span className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hover">
+              {t("chooseFile")}
+            </span>
+            <input
+              type="file"
+              accept="application/json,.json"
+              onChange={onFile}
+              aria-label={t("chooseFile")}
+              className="hidden"
+            />
+          </label>
           <textarea
             value={json}
             onChange={(e) => setJson(e.target.value)}

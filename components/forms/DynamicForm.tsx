@@ -26,6 +26,7 @@ export interface DynamicFormProps {
   mode?: "live" | "preview";
   onSaveDraft?: (answers: Answers) => Promise<void> | void;
   onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onDeleteFile?: (path: string) => Promise<boolean>;
   onSubmit?: (answers: Answers) => Promise<{ ok: boolean; error?: string }>;
   labels?: {
     back: string;
@@ -69,6 +70,7 @@ export function DynamicForm({
   mode = "live",
   onSaveDraft,
   onUploadFile,
+  onDeleteFile,
   onSubmit,
   labels,
 }: DynamicFormProps) {
@@ -279,6 +281,7 @@ export function DynamicForm({
               error={errors[f.key]}
               onChange={(v) => setAnswer(f.key, v)}
               onUploadFile={onUploadFile}
+              onDeleteFile={onDeleteFile}
             />
           ))}
           {fields.length === 0 && (
@@ -325,6 +328,7 @@ function FieldInput({
   error,
   onChange,
   onUploadFile,
+  onDeleteFile,
 }: {
   field: Field;
   locale: string;
@@ -332,6 +336,7 @@ function FieldInput({
   error?: string;
   onChange: (v: unknown) => void;
   onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onDeleteFile?: (path: string) => Promise<boolean>;
 }) {
   const label = resolveText(field.label, locale);
   const placeholder = resolveText(field.placeholder, locale);
@@ -444,13 +449,21 @@ function FieldInput({
       ) : field.type === "country" ? (
         <CountryField value={value} onChange={onChange} locale={locale} />
       ) : field.type === "file" ? (
-        <FileField field={field} value={value} onChange={onChange} onUploadFile={onUploadFile} locale={locale} />
+        <FileField
+          field={field}
+          value={value}
+          onChange={onChange}
+          onUploadFile={onUploadFile}
+          onDeleteFile={onDeleteFile}
+          locale={locale}
+        />
       ) : field.type === "selfie" ? (
         <SelfieField
           field={field}
           value={value}
           onChange={onChange}
           onUploadFile={onUploadFile}
+          onDeleteFile={onDeleteFile}
           locale={locale}
         />
       ) : field.type === "boolean" ? (
@@ -578,8 +591,18 @@ function CountryField({
 }
 
 const FILE_TEXT = {
-  es: { upError: "No se pudo subir el archivo. Intenta de nuevo." },
-  en: { upError: "Could not upload the file. Try again." },
+  es: {
+    upError: "No se pudo subir el archivo. Intenta de nuevo.",
+    delError: "No se pudo eliminar el archivo. Intenta de nuevo.",
+    choose: "Elegir archivo",
+    remove: "Quitar",
+  },
+  en: {
+    upError: "Could not upload the file. Try again.",
+    delError: "Could not remove the file. Try again.",
+    choose: "Choose file",
+    remove: "Remove",
+  },
 } as const;
 
 function FileField({
@@ -587,19 +610,44 @@ function FileField({
   value,
   onChange,
   onUploadFile,
+  onDeleteFile,
   locale,
 }: {
   field: Field;
   value: unknown;
   onChange: (v: unknown) => void;
   onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onDeleteFile?: (path: string) => Promise<boolean>;
   locale: string;
 }) {
   const [busy, setBusy] = useState(false);
+  const [removing, setRemoving] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const refs = Array.isArray(value) ? (value as FileRef[]) : [];
   const cfg = field.file;
   const T = locale === "en" ? FILE_TEXT.en : FILE_TEXT.es;
+
+  async function removeAt(i: number) {
+    const ref = refs[i];
+    if (!ref) return;
+    setErr(null);
+    setRemoving(i);
+    try {
+      if (ref.path && onDeleteFile) {
+        const ok = await onDeleteFile(ref.path);
+        if (!ok) {
+          setErr(T.delError);
+          return;
+        }
+      }
+      onChange(refs.filter((_, idx) => idx !== i));
+    } catch (delErr) {
+      console.error("[FileField] borrado falló", delErr);
+      setErr(T.delError);
+    } finally {
+      setRemoving(null);
+    }
+  }
 
   async function onFiles(e: React.ChangeEvent<HTMLInputElement>) {
     const files = Array.from(e.target.files ?? []);
@@ -636,14 +684,19 @@ function FileField({
 
   return (
     <div>
-      <input
-        type="file"
-        multiple={cfg?.multiple}
-        accept={cfg?.accept?.length ? cfg.accept.join(",") : undefined}
-        disabled={busy}
-        onChange={onFiles}
-        className="block w-full text-sm text-muted file:mr-3 file:rounded-lg file:border-0 file:bg-brand file:px-3 file:py-1.5 file:text-sm file:font-medium file:text-white hover:file:bg-brand-hover"
-      />
+      <label className="inline-flex cursor-pointer items-center gap-2">
+        <span className="rounded-lg bg-brand px-3 py-1.5 text-sm font-medium text-white hover:bg-brand-hover">
+          {busy ? "…" : T.choose}
+        </span>
+        <input
+          type="file"
+          multiple={cfg?.multiple}
+          accept={cfg?.accept?.length ? cfg.accept.join(",") : undefined}
+          disabled={busy}
+          onChange={onFiles}
+          className="hidden"
+        />
+      </label>
       {cfg?.accept?.length ? (
         <p className="mt-1 text-xs text-muted">{cfg.accept.join(", ")}</p>
       ) : null}
@@ -651,8 +704,17 @@ function FileField({
       {refs.length > 0 && (
         <ul className="mt-2 space-y-1 text-sm">
           {refs.map((r, i) => (
-            <li key={i} className="text-muted">
-              <span className="text-success">✓</span> {r.filename}
+            <li key={i} className="flex items-center gap-2 text-muted">
+              <span className="text-success">✓</span>
+              <span className="min-w-0 flex-1 truncate">{r.filename}</span>
+              <button
+                type="button"
+                className="shrink-0 cursor-pointer text-xs text-danger hover:underline disabled:opacity-50"
+                onClick={() => removeAt(i)}
+                disabled={removing !== null || busy}
+              >
+                {removing === i ? "…" : T.remove}
+              </button>
             </li>
           ))}
         </ul>
@@ -690,12 +752,14 @@ function SelfieField({
   value,
   onChange,
   onUploadFile,
+  onDeleteFile,
   locale,
 }: {
   field: Field;
   value: unknown;
   onChange: (v: unknown) => void;
   onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onDeleteFile?: (path: string) => Promise<boolean>;
   locale: string;
 }) {
   const t = SELFIE_TEXT[locale === "en" ? "en" : "es"];
@@ -802,6 +866,9 @@ function SelfieField({
   }
 
   function retake() {
+    // Borra la foto previa ya subida para no dejar huérfanos en Storage.
+    const prev = refs[0]?.path;
+    if (prev && onDeleteFile) void onDeleteFile(prev);
     revokeThumb();
     setThumb(null);
     setErr(null);

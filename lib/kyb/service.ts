@@ -217,6 +217,20 @@ export async function recordDocument(input: {
   });
 }
 
+/** Elimina un documento de Storage y su fila de metadatos. */
+export async function deleteDocument(input: {
+  requestId: string;
+  storagePath: string;
+}) {
+  const supabase = createServiceClient();
+  await supabase.storage.from(DOCUMENTS_BUCKET).remove([input.storagePath]);
+  await supabase
+    .from("kyb_documents")
+    .delete()
+    .eq("request_id", input.requestId)
+    .eq("storage_path", input.storagePath);
+}
+
 /**
  * Finaliza el formulario: guarda datos, dispara el check AML y pasa a
  * under_review (o submitted mientras el AML esté pending).

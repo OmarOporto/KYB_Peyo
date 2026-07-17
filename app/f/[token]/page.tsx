@@ -54,7 +54,7 @@ export default async function FormPage({
       .maybeSingle(),
     supabase
       .from("kyb_documents")
-      .select("id, doc_type, filename, uploaded_at")
+      .select("id, doc_type, filename, uploaded_at, storage_path")
       .eq("request_id", req.id)
       .order("uploaded_at", { ascending: true }),
   ]);
@@ -86,7 +86,13 @@ export default async function FormPage({
     <KybForm
       token={token}
       initialData={{ ...emptyForm, ...savedData }}
-      initialDocs={docs ?? []}
+      initialDocs={(docs ?? []).map((d) => ({
+        id: d.id,
+        doc_type: d.doc_type,
+        filename: d.filename,
+        uploaded_at: d.uploaded_at,
+        storagePath: d.storage_path ?? "",
+      }))}
     />
   );
 }

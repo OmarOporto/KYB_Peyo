@@ -6,6 +6,7 @@ import {
   saveDraft,
   submitRequest,
   recordDocument,
+  deleteDocument,
   isTerminal,
   DOCUMENTS_BUCKET,
 } from "@/lib/kyb/service";
@@ -92,6 +93,26 @@ export async function uploadDocumentAction(
   } catch (e) {
     console.error("[uploadDocumentAction] falló", e);
     return { ok: false, error: "No se pudo subir el archivo." };
+  }
+}
+
+/** Elimina un documento ya subido (gated por token). */
+export async function deleteDocumentAction(
+  token: string,
+  storagePath: string,
+): Promise<ActionResult> {
+  const r = await resolveOpen(token);
+  if (!r.ok) return { ok: false, error: r.error };
+  // Solo se pueden borrar archivos que pertenecen a esta solicitud.
+  if (!storagePath || !storagePath.startsWith(`${r.req.id}/`)) {
+    return { ok: false, error: "Documento inválido." };
+  }
+  try {
+    await deleteDocument({ requestId: r.req.id, storagePath });
+    return { ok: true };
+  } catch (e) {
+    console.error("[deleteDocumentAction] falló", e);
+    return { ok: false, error: "No se pudo eliminar el documento." };
   }
 }
 
