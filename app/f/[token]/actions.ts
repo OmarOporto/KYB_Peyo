@@ -57,11 +57,19 @@ export async function uploadDocumentAction(
   const file = formData.get("file");
 
   const r = await resolveOpen(token);
-  if (!r.ok) return { ok: false, error: r.error };
+  if (!r.ok) {
+    console.warn("[uploadDocumentAction] solicitud no abierta:", r.error);
+    return { ok: false, error: r.error };
+  }
   if (!(file instanceof File) || file.size === 0) {
+    console.warn("[uploadDocumentAction] archivo inválido o vacío", {
+      isFile: file instanceof File,
+      size: file instanceof File ? file.size : null,
+    });
     return { ok: false, error: "Archivo inválido." };
   }
   if (file.size > 15 * 1024 * 1024) {
+    console.warn("[uploadDocumentAction] archivo supera 15 MB:", file.size);
     return { ok: false, error: "El archivo supera 15 MB." };
   }
 
@@ -78,7 +86,13 @@ export async function uploadDocumentAction(
         contentType: file.type || "application/octet-stream",
         upsert: false,
       });
-    if (error) return { ok: false, error: error.message };
+    if (error) {
+      console.error(
+        `[uploadDocumentAction] storage falló (bucket "${DOCUMENTS_BUCKET}", path "${path}"):`,
+        error.message,
+      );
+      return { ok: false, error: error.message };
+    }
 
     await recordDocument({
       requestId: r.req.id,

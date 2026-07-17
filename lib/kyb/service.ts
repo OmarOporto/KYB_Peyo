@@ -268,10 +268,19 @@ export async function submitRequest(
   });
 
   // Dispara verificaciones: DIDIT real (por-feature) o mock.
+  const amlProvider = env.amlProvider();
+  console.log(
+    `[AML] request=${requestId} provider=${amlProvider} form_id=${req.form_id ?? "null"}`,
+  );
   try {
-    if (env.amlProvider() === "didit") {
+    if (amlProvider === "didit") {
       const form = await getFormForRequest(req.form_id);
-      if (!form) throw new Error("No se encontró la definición del formulario para las verificaciones");
+      if (!form) {
+        console.error(
+          `[AML] request=${requestId} sin definición de formulario (form_id=${req.form_id ?? "null"}); no se puede verificar`,
+        );
+        throw new Error("No se encontró la definición del formulario para las verificaciones");
+      }
       const rows = await dispatchDiditReviews({
         requestId,
         externalRef: req.external_ref,
@@ -279,7 +288,7 @@ export async function submitRequest(
         answers: data,
       });
       if (rows.length) {
-        await supabase.from("aml_checks").insert(
+        const { error } = await supabase.from("aml_checks").insert(
           rows.map((r) => ({
             request_id: requestId,
             provider: "didit",
@@ -291,6 +300,18 @@ export async function submitRequest(
             result: r.result,
           })),
         );
+        if (error) {
+          console.error(
+            `[AML] request=${requestId} insert de ${rows.length} checks DIDIT falló:`,
+            error.message,
+          );
+        } else {
+          console.log(`[AML] request=${requestId} guardados ${rows.length} checks DIDIT`);
+        }
+      } else {
+        console.warn(
+          `[AML] request=${requestId} DIDIT no produjo checks: el formulario (form_id=${req.form_id ?? "null"}) no tiene campos con revisión DIDIT (field.review.provider="didit")`,
+        );
       }
     } else {
       const provider = getAmlProvider();
@@ -299,21 +320,34 @@ export async function submitRequest(
         externalRef: req.external_ref,
         subject: buildAmlSubject(data),
       });
-      await supabase.from("aml_checks").insert({
+      const { error } = await supabase.from("aml_checks").insert({
         request_id: requestId,
         provider: provider.name,
         external_ref: result.externalRef,
         status: result.status,
         result: result.result ?? null,
       });
+      if (error) {
+        console.error(`[AML] request=${requestId} insert (${provider.name}) falló:`, error.message);
+      }
     }
   } catch (e) {
-    await supabase.from("aml_checks").insert({
+    console.error(
+      `[AML] request=${requestId} verificación falló:`,
+      e instanceof Error ? e.message : String(e),
+    );
+    const { error: insErr } = await supabase.from("aml_checks").insert({
       request_id: requestId,
-      provider: env.amlProvider(),
+      provider: amlProvider,
       status: "error",
       result: { error: e instanceof Error ? e.message : String(e) },
     });
+    if (insErr) {
+      console.error(
+        `[AML] request=${requestId} no se pudo guardar la fila de error:`,
+        insErr.message,
+      );
+    }
   }
 
   await setStatus(requestId, "under_review", "submitted", "system", "moved_to_review");

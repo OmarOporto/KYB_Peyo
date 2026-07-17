@@ -6,6 +6,11 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DocPreview } from "@/components/admin/DocPreview";
+import {
+  AmlCheckCard,
+  type AmlCheckRow,
+  type CheckImage,
+} from "@/components/admin/AmlCheckCard";
 import { decideAction } from "@/app/admin/actions";
 import { isTerminal, createSignedDocUrls } from "@/lib/kyb/service";
 import type { KybStatus } from "@/lib/kyb/types";
@@ -21,7 +26,7 @@ export default async function RequestDetail({
   params: Promise<{ id: string }>;
 }) {
   const t = await getTranslations("admin");
-  const tB = await getTranslations("builder");
+  const tCommon = await getTranslations("common");
   const { id } = await params;
   const supabase = await createServerSupabase();
 
@@ -66,10 +71,24 @@ export default async function RequestDetail({
     ...answerRefs.map((r) => r.path),
   ]);
 
+  // Campo por key (para resolver las imágenes de referencia de face_match).
+  const fieldByKey = new Map<string, Field>();
+  if (form) {
+    for (const s of form.definition.sections) {
+      for (const f of s.fields) fieldByKey.set(f.key, f);
+    }
+  }
+  const imageForKey = (key: string): CheckImage | undefined => {
+    const ref = fileRefsOf(formData[key])[0];
+    return ref
+      ? { filename: ref.filename, path: ref.path, url: signedUrls[ref.path] }
+      : undefined;
+  };
+
   return (
     <main className="mx-auto w-full max-w-3xl p-6">
       <Link href="/admin" className="text-sm text-brand hover:underline">
-        ← {t("back")}
+        ← {tCommon("back")}
       </Link>
 
       <header className="mt-3 mb-6 flex items-center justify-between">
@@ -88,31 +107,18 @@ export default async function RequestDetail({
           <p className="text-sm text-muted">{t("noChecks")}</p>
         )}
         {(aml ?? []).map((c, i) => {
-          const featureKey = c.feature ? `didit_${c.feature}` : null;
-          const title =
-            featureKey && tB.has(featureKey) ? tB(featureKey) : t("amlResult");
+          const image = c.field_key ? imageForKey(c.field_key) : undefined;
+          const field = c.field_key ? fieldByKey.get(c.field_key) : undefined;
+          const refImages = (field?.review?.refKeys ?? [])
+            .map((k) => imageForKey(k))
+            .filter((im): im is CheckImage => Boolean(im));
           return (
-            <Card key={i} className="mb-2 p-3 text-sm">
-              <div className="mb-2 flex flex-wrap items-center gap-2">
-                <span className="font-medium text-foreground">{title}</span>
-                <StatusBadge status={amlToBadge(c.status)} />
-                {typeof c.score === "number" && (
-                  <span className="text-xs text-muted">
-                    {t("score")}: {c.score.toFixed(2)}
-                  </span>
-                )}
-                <span className="ml-auto text-xs text-muted">{c.provider}</span>
-              </div>
-              <AmlSummary result={c.result} emptyLabel={t("noAmlDetails")} />
-              <details className="mt-2">
-                <summary className="cursor-pointer text-xs text-muted hover:text-foreground">
-                  {t("rawResponse")}
-                </summary>
-                <pre className="mt-1 overflow-x-auto rounded-lg bg-surface-2 p-2 text-xs whitespace-pre-wrap break-words text-muted">
-                  {JSON.stringify(c.result, null, 2)}
-                </pre>
-              </details>
-            </Card>
+            <AmlCheckCard
+              key={i}
+              check={c as AmlCheckRow}
+              image={image}
+              refImages={refImages}
+            />
           );
         })}
       </Section>
@@ -256,53 +262,6 @@ function AnswerValue({
     );
   }
   return <>{renderAnswer(field, value, locale)}</>;
-}
-
-/** Resumen legible del `result` de un check (clave/valor), con el JSON crudo aparte. */
-function AmlSummary({ result, emptyLabel }: { result: unknown; emptyLabel: string }) {
-  if (!result || typeof result !== "object") {
-    return <p className="text-xs text-muted">{emptyLabel}</p>;
-  }
-  const entries = Object.entries(result as Record<string, unknown>).filter(
-    ([k]) => k !== "provider", // el proveedor ya se muestra en el encabezado
-  );
-  if (entries.length === 0) {
-    return <p className="text-xs text-muted">{emptyLabel}</p>;
-  }
-  return (
-    <div className="space-y-1 text-xs">
-      {entries.map(([k, v]) => (
-        <div key={k} className="flex gap-2">
-          <span className="shrink-0 text-muted">{k}</span>
-          <span className="min-w-0 break-words text-foreground">{formatVal(v)}</span>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/** Formatea un valor del `result` para el resumen (los detalles anidados van al JSON crudo). */
-function formatVal(v: unknown): string {
-  if (v === null || v === undefined) return "—";
-  if (Array.isArray(v)) {
-    if (v.length === 0) return "—";
-    return v.every((x) => typeof x !== "object")
-      ? v.map(String).join(", ")
-      : String(v.length);
-  }
-  if (typeof v === "object") return JSON.stringify(v);
-  if (typeof v === "boolean") return v ? "✓" : "✗";
-  return String(v);
-}
-
-function amlToBadge(status: string): string {
-  return status === "passed"
-    ? "approved"
-    : status === "flagged"
-      ? "rejected"
-      : status === "error"
-        ? "expired"
-        : "under_review";
 }
 
 function Section({

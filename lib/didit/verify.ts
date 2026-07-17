@@ -28,12 +28,11 @@ function apiKey(): string {
   return k;
 }
 
-// TODO(DIDIT): logging temporal para capturar el shape real de las respuestas
-// durante la prueba en vivo. QUITAR tras reconciliar el contrato.
-function debugLogDidit(path: string, status: number, json: unknown): void {
-  console.log(
-    `[DIDIT][debug] ${path} -> ${status}\n${JSON.stringify(json, null, 2)}`,
-  );
+// Log conciso por llamada. NO se vuelca el body (trae PII: nombre, documento,
+// fecha de nacimiento, URLs firmadas); el detalle completo queda en aml_checks.result.
+function logDiditCall(path: string, status: number, json: unknown): void {
+  const node = json && typeof json === "object" ? (json as Record<string, unknown>) : {};
+  console.log(`[DIDIT] POST ${path} -> ${status} request_id=${node.request_id ?? "-"}`);
 }
 
 async function postJson(path: string, body: unknown): Promise<Record<string, unknown>> {
@@ -44,7 +43,7 @@ async function postJson(path: string, body: unknown): Promise<Record<string, unk
     cache: "no-store",
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  debugLogDidit(path, res.status, json);
+  logDiditCall(path, res.status, json);
   if (!res.ok) throw new Error(`DIDIT ${path} ${res.status}: ${JSON.stringify(json).slice(0, 300)}`);
   return json;
 }
@@ -58,7 +57,7 @@ async function postMultipart(path: string, form: FormData): Promise<Record<strin
     cache: "no-store",
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
-  debugLogDidit(path, res.status, json);
+  logDiditCall(path, res.status, json);
   if (!res.ok) throw new Error(`DIDIT ${path} ${res.status}: ${JSON.stringify(json).slice(0, 300)}`);
   return json;
 }
@@ -161,7 +160,16 @@ export async function dispatchDiditReviews(input: {
       if (field.review?.provider === "didit") tagged.push({ field, si });
     }),
   );
-  if (!tagged.length) return rows;
+  console.log(
+    `[DIDIT] request=${input.requestId} apiKey=${env.diditApiKey() ? "set" : "MISSING"} ` +
+      `tagged=${tagged.length} features=[${tagged.map((t) => t.field.review?.feature).join(",")}]`,
+  );
+  if (!tagged.length) {
+    console.warn(
+      `[DIDIT] request=${input.requestId} sin campos con revisión DIDIT; no se llamará a ningún endpoint`,
+    );
+    return rows;
+  }
 
   const byFeature = (feat: DiditFeature) => tagged.filter((t) => t.field.review?.feature === feat);
 
@@ -176,8 +184,16 @@ export async function dispatchDiditReviews(input: {
 
   async function run(feature: DiditFeature, fieldKey: string | null, fn: () => Promise<TaskResult>) {
     try {
-      rows.push({ feature, fieldKey, ...(await fn()) });
+      const res = await fn();
+      console.log(
+        `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} status=${res.status} score=${res.score ?? "-"}`,
+      );
+      rows.push({ feature, fieldKey, ...res });
     } catch (e) {
+      console.error(
+        `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} falló:`,
+        e instanceof Error ? e.message : String(e),
+      );
       rows.push({
         feature,
         fieldKey,

@@ -18,6 +18,10 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
 export type FileRef = { path: string; filename: string };
+/** Resultado de una subida: la referencia, o el motivo del fallo para mostrarlo. */
+export type UploadResult =
+  | { ok: true; ref: FileRef }
+  | { ok: false; error?: string };
 
 export interface DynamicFormProps {
   definition: FormDefinition;
@@ -25,7 +29,7 @@ export interface DynamicFormProps {
   initialAnswers?: Answers;
   mode?: "live" | "preview";
   onSaveDraft?: (answers: Answers) => Promise<void> | void;
-  onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
   onSubmit?: (answers: Answers) => Promise<{ ok: boolean; error?: string }>;
   labels?: {
@@ -335,7 +339,7 @@ function FieldInput({
   value: unknown;
   error?: string;
   onChange: (v: unknown) => void;
-  onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
 }) {
   const label = resolveText(field.label, locale);
@@ -616,7 +620,7 @@ function FileField({
   field: Field;
   value: unknown;
   onChange: (v: unknown) => void;
-  onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
   locale: string;
 }) {
@@ -662,10 +666,10 @@ function FileField({
           continue;
         }
         if (onUploadFile) {
-          const ref = await onUploadFile(file, field);
-          if (ref) added.push(ref);
-          // Falla silenciosa antes: si la subida devuelve null, avisar.
-          else setErr(T.upError);
+          const res = await onUploadFile(file, field);
+          if (res.ok) added.push(res.ref);
+          // Mostrar el motivo real (p. ej. error de storage / invitación) en vez del genérico.
+          else setErr(res.error || T.upError);
         } else {
           added.push({ path: "", filename: file.name });
         }
@@ -758,7 +762,7 @@ function SelfieField({
   field: Field;
   value: unknown;
   onChange: (v: unknown) => void;
-  onUploadFile?: (file: File, field: Field) => Promise<FileRef | null>;
+  onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
   locale: string;
 }) {
@@ -843,11 +847,11 @@ function SelfieField({
     setBusy(true);
     try {
       if (onUploadFile) {
-        const ref = await onUploadFile(file, field);
-        if (ref) {
-          onChange([ref]);
+        const res = await onUploadFile(file, field);
+        if (res.ok) {
+          onChange([res.ref]);
         } else {
-          setErr(t.upError);
+          setErr(res.error || t.upError);
           revokeThumb();
           setThumb(null);
         }

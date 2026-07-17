@@ -39,9 +39,12 @@ export function ApplicantForm({
         fd.set("docType", field.key);
         fd.set("file", file);
         const res = await uploadDocumentAction(fd);
-        return res.ok && res.path
-          ? { path: res.path, filename: res.filename ?? file.name }
-          : null;
+        if (res.ok && res.path) {
+          return { ok: true as const, ref: { path: res.path, filename: res.filename ?? file.name } };
+        }
+        const error = res.ok ? "No se pudo subir el archivo." : res.error;
+        console.error("[ApplicantForm] subida falló:", error);
+        return { ok: false as const, error };
       }}
       onDeleteFile={async (path: string) => {
         const res = await deleteDocumentAction(token, path);
