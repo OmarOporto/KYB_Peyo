@@ -4,8 +4,8 @@ import { generateToken, hashToken } from "@/lib/tokens";
 import { env } from "@/lib/env";
 import { getAmlProvider } from "@/lib/aml";
 import { buildAmlSubject } from "@/lib/aml/mapping";
-import { dispatchDiditReviews } from "@/lib/didit/verify";
-import { getFormForRequest } from "@/lib/forms/store";
+import { dispatchDiditReviews, type DiditCheckRow } from "@/lib/didit/verify";
+import { resolveRequestDefinition } from "@/lib/forms/store";
 import { FORM_VERSION } from "@/lib/forms/schema";
 import type { KybDecision, KybRequest, KybStatus } from "@/lib/kyb/types";
 
@@ -39,6 +39,7 @@ export async function createRequest(
   externalRef: string,
   ttlHours = DEFAULT_TTL_HOURS,
   formId?: string | null,
+  formDefinition?: unknown,
 ): Promise<{
   id: string;
   token: string;
@@ -58,6 +59,9 @@ export async function createRequest(
       form_version: FORM_VERSION,
       status: "created",
       form_id: formId ?? null,
+      // Snapshot de la definición para validar el envío contra lo que el
+      // solicitante realmente llenó (aunque el form se edite después).
+      form_definition: formDefinition ?? null,
     })
     .select("id")
     .single();
@@ -275,19 +279,23 @@ export async function submitRequest(
  * de {@link submitRequest}: es idempotente (solo actúa sobre solicitudes en
  * estado `submitted`) y relee las respuestas ya persistidas.
  */
-export async function runVerifications(requestId: string): Promise<void> {
+export async function runVerifications(
+  requestId: string,
+  opts: { force?: boolean } = {},
+): Promise<void> {
   const supabase = createServiceClient();
   const { data: req } = await supabase
     .from("kyb_requests")
-    .select("id, status, external_ref, form_id")
+    .select("id, status, external_ref, form_id, form_definition")
     .eq("id", requestId)
     .single();
   if (!req) {
     console.error(`[AML] request=${requestId} no encontrada; se omiten verificaciones`);
     return;
   }
-  // Idempotencia: solo verificar una solicitud recién enviada.
-  if (req.status !== "submitted") {
+  // Idempotencia: solo verificar una solicitud enviada. `force` (re-run manual del
+  // admin) permite reanudar una que quedó a medias.
+  if (!opts.force && req.status !== "submitted") {
     console.warn(
       `[AML] request=${requestId} estado=${req.status} (no 'submitted'); se omiten verificaciones`,
     );
@@ -308,69 +316,98 @@ export async function runVerifications(requestId: string): Promise<void> {
   );
   try {
     if (amlProvider === "didit") {
-      const form = await getFormForRequest(req.form_id);
-      if (!form) {
+      const definition = await resolveRequestDefinition(
+        (req as { form_definition?: unknown }).form_definition,
+        req.form_id,
+      );
+      if (!definition) {
         console.error(
           `[AML] request=${requestId} sin definición de formulario (form_id=${req.form_id ?? "null"}); no se puede verificar`,
         );
         throw new Error("No se encontró la definición del formulario para las verificaciones");
       }
+
+      // Reanudable: no re-hacer verificaciones ya exitosas y limpiar errores
+      // viejos para no acumular filas en cada reintento.
+      const { data: existing } = await supabase
+        .from("aml_checks")
+        .select("feature, field_key, status")
+        .eq("request_id", requestId)
+        .eq("provider", "didit");
+      const skip = new Set<string>();
+      for (const c of existing ?? []) {
+        if (c.status !== "error") skip.add(`${c.feature}:${c.field_key ?? ""}`);
+      }
+      await supabase
+        .from("aml_checks")
+        .delete()
+        .eq("request_id", requestId)
+        .eq("provider", "didit")
+        .eq("status", "error");
+
+      // Inserta cada verificación apenas completa (sobrevive a un corte del background).
+      const insertRow = async (r: DiditCheckRow) => {
+        const { error } = await supabase.from("aml_checks").insert({
+          request_id: requestId,
+          provider: "didit",
+          feature: r.feature,
+          field_key: r.fieldKey,
+          external_ref: r.externalRef,
+          status: r.status,
+          score: r.score,
+          result: r.result,
+        });
+        if (error) {
+          console.error(
+            `[AML] request=${requestId} insert check (${r.feature}/${r.fieldKey ?? "-"}) falló:`,
+            error.message,
+          );
+        }
+      };
+
       const rows = await dispatchDiditReviews({
         requestId,
         externalRef: req.external_ref,
-        definition: form.definition,
+        definition,
         answers: data,
+        skip,
+        onRow: insertRow,
       });
-      if (rows.length) {
-        const { error } = await supabase.from("aml_checks").insert(
-          rows.map((r) => ({
-            request_id: requestId,
-            provider: "didit",
-            feature: r.feature,
-            field_key: r.fieldKey,
-            external_ref: r.externalRef,
-            status: r.status,
-            score: r.score,
-            result: r.result,
-          })),
-        );
-        if (error) {
-          console.error(
-            `[AML] request=${requestId} insert de ${rows.length} checks DIDIT falló:`,
-            error.message,
-          );
-          // Respaldo visible en el panel: no referencia columnas nuevas
-          // (feature/field_key/score), así entra aun si falta la migración.
-          await supabase.from("aml_checks").insert({
-            request_id: requestId,
-            provider: "didit",
-            status: "error",
-            result: { error: error.message, checks: rows.length },
-          });
-        } else {
-          console.log(`[AML] request=${requestId} guardados ${rows.length} checks DIDIT`);
-        }
-      } else {
+      console.log(
+        `[AML] request=${requestId} DIDIT: ${rows.length} verificaciones nuevas (ya hechas=${skip.size})`,
+      );
+      if (!rows.length && skip.size === 0) {
         console.warn(
-          `[AML] request=${requestId} DIDIT no produjo checks: el formulario (form_id=${req.form_id ?? "null"}) no tiene campos con revisión DIDIT (field.review.provider="didit")`,
+          `[AML] request=${requestId} DIDIT no produjo checks: el formulario no tiene campos con revisión DIDIT (field.review.provider="didit")`,
         );
       }
     } else {
-      const provider = getAmlProvider();
-      const result = await provider.submitCheck({
-        requestId,
-        externalRef: req.external_ref,
-        subject: buildAmlSubject(data),
-      });
-      const { error } = await supabase.from("aml_checks").insert({
-        request_id: requestId,
-        provider: provider.name,
-        external_ref: result.externalRef,
-        status: result.status,
-        result: result.result ?? null,
-      });
-      if (error) {
-        console.error(`[AML] request=${requestId} insert (${provider.name}) falló:`, error.message);
+      // Mock: idempotente — si ya hay un check no-error, no duplicar.
+      const { data: existing } = await supabase
+        .from("aml_checks")
+        .select("id")
+        .eq("request_id", requestId)
+        .neq("status", "error")
+        .limit(1);
+      if ((existing ?? []).length > 0) {
+        console.log(`[AML] request=${requestId} ya tiene checks; se omite mock`);
+      } else {
+        const provider = getAmlProvider();
+        const result = await provider.submitCheck({
+          requestId,
+          externalRef: req.external_ref,
+          subject: buildAmlSubject(data),
+        });
+        const { error } = await supabase.from("aml_checks").insert({
+          request_id: requestId,
+          provider: provider.name,
+          external_ref: result.externalRef,
+          status: result.status,
+          result: result.result ?? null,
+        });
+        if (error) {
+          console.error(`[AML] request=${requestId} insert (${provider.name}) falló:`, error.message);
+        }
       }
     }
   } catch (e) {
@@ -392,7 +429,7 @@ export async function runVerifications(requestId: string): Promise<void> {
     }
   }
 
-  await setStatus(requestId, "under_review", "submitted", "system", "moved_to_review");
+  await setStatus(requestId, "under_review", req.status, "system", "moved_to_review");
 }
 
 /** Decisión del analista (approve/reject). */

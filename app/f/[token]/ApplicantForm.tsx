@@ -94,6 +94,7 @@ export function ApplicantForm({
         saved: t("draftSaved"),
         saveError: t("saveError"),
         submitFailed: t("submitFailed"),
+        missingFields: t("missingFields"),
         required: t("errRequired"),
         invalidEmail: t("errEmail"),
         invalidNumber: t("errNumber"),

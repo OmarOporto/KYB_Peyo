@@ -46,6 +46,21 @@ export async function getFormForRequest(
   return getDefaultPublishedForm();
 }
 
+/**
+ * Definición contra la que operar una solicitud: prioriza el snapshot congelado
+ * en la solicitud (lo que el solicitante realmente llenó) y, si no existe o es
+ * inválido (solicitudes viejas / creadas por API), cae al form vigente por id.
+ */
+export async function resolveRequestDefinition(
+  snapshot: unknown,
+  formId: string | null | undefined,
+): Promise<FormDefinition | null> {
+  const parsed = formDefinitionSchema.safeParse(snapshot);
+  if (parsed.success) return parsed.data;
+  const form = await getFormForRequest(formId);
+  return form?.definition ?? null;
+}
+
 /** Formulario publicado por defecto: el más reciente. */
 export async function getDefaultPublishedForm(): Promise<FormRow | null> {
   const supabase = createServiceClient();

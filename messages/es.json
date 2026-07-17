@@ -174,6 +174,7 @@
     "review": "Revisar",
     "noRequests": "No hay solicitudes todavía.",
     "amlResult": "Resultado AML",
+    "reverify": "Re-verificar",
     "noChecks": "Sin checks todavía.",
     "rawResponse": "Respuesta cruda (JSON)",
     "checkFields": {
@@ -233,6 +234,7 @@
     "startError": "No se pudo iniciar la solicitud. Intenta de nuevo.",
     "saveError": "No se pudo guardar",
     "submitFailed": "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.",
+    "missingFields": "Faltan {count} campo(s) obligatorio(s). Te llevamos al primero.",
     "errRequired": "Este campo es obligatorio",
     "errEmail": "Ingresa un email válido",
     "errNumber": "Ingresa un número válido",

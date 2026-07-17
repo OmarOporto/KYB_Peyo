@@ -44,6 +44,7 @@ export interface DynamicFormProps {
     saved: string;
     saveError?: string;
     submitFailed?: string;
+    missingFields?: string;
     required?: string;
     invalidEmail?: string;
     invalidNumber?: string;
@@ -62,6 +63,7 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   saved: "Guardado",
   saveError: "No se pudo guardar",
   submitFailed: "No se pudo enviar. Revisa tu conexión e inténtalo de nuevo.",
+  missingFields: "Faltan {count} campo(s) obligatorio(s). Te llevamos al primero.",
   required: "Requerido",
   invalidEmail: "Email inválido",
   invalidNumber: "Número inválido",
@@ -101,6 +103,11 @@ export function DynamicForm({
   // Autosave con debounce.
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const firstRun = useRef(true);
+  // Siempre apunta a las respuestas más recientes (para guardar al ocultar la pestaña).
+  const answersRef = useRef<Answers>(answers);
+  useEffect(() => {
+    answersRef.current = answers;
+  }, [answers]);
   useEffect(() => {
     if (mode !== "live" || !onSaveDraft) return;
     if (firstRun.current) {
@@ -120,12 +127,45 @@ export function DynamicForm({
     }, 1000);
   }, [answers, mode, onSaveDraft]);
 
+  // Guarda ya mismo (cancela el debounce). Se usa al cambiar de sección para no
+  // depender de la ventana de 1s si el usuario avanza rápido.
+  function flushSave() {
+    if (mode !== "live" || !onSaveDraft) return;
+    if (timer.current) {
+      clearTimeout(timer.current);
+      timer.current = null;
+    }
+    setSaveState("saving");
+    Promise.resolve(onSaveDraft(answers))
+      .then(() => setSaveState("saved"))
+      .catch((e: unknown) => {
+        console.error("[DynamicForm] guardado falló", e);
+        setSaveState("error");
+      });
+  }
+
+  // Flush best-effort al ocultar/cerrar la pestaña (no depende del debounce).
+  useEffect(() => {
+    if (mode !== "live" || !onSaveDraft) return;
+    const onHide = () => {
+      if (document.visibilityState === "hidden") void onSaveDraft(answersRef.current);
+    };
+    const onPageHide = () => void onSaveDraft(answersRef.current);
+    document.addEventListener("visibilitychange", onHide);
+    window.addEventListener("pagehide", onPageHide);
+    return () => {
+      document.removeEventListener("visibilitychange", onHide);
+      window.removeEventListener("pagehide", onPageHide);
+    };
+  }, [mode, onSaveDraft]);
+
   function setAnswer(key: string, value: unknown) {
     setAnswers((a) => ({ ...a, [key]: value }));
     setErrors((e) => (e[key] ? { ...e, [key]: "" } : e));
   }
 
-  function validateFields(list: Field[]): boolean {
+  /** Calcula el mapa de errores (key → mensaje) para una lista de campos. Puro. */
+  function computeErrors(list: Field[]): Record<string, string> {
     const next: Record<string, string> = {};
     for (const f of list) {
       if (f.type === "note") continue;
@@ -166,16 +206,24 @@ export function DynamicForm({
           next[f.key] = L.invalid;
       }
     }
+    return next;
+  }
 
+  /** Hace scroll + foco al campo con la key dada, si está en el DOM. */
+  function scrollToField(key: string) {
+    if (!key || typeof document === "undefined") return;
+    const el = document.querySelector<HTMLElement>(
+      `[data-field="${CSS.escape(key)}"]`,
+    );
+    el?.scrollIntoView({ behavior: "smooth", block: "center" });
+    el?.querySelector<HTMLElement>("input, textarea, select")?.focus();
+  }
+
+  function validateFields(list: Field[]): boolean {
+    const next = computeErrors(list);
     setErrors(next);
     const firstKey = Object.keys(next)[0];
-    if (firstKey && typeof document !== "undefined") {
-      const el = document.querySelector<HTMLElement>(
-        `[data-field="${CSS.escape(firstKey)}"]`,
-      );
-      el?.scrollIntoView({ behavior: "smooth", block: "center" });
-      el?.querySelector<HTMLElement>("input, textarea, select")?.focus();
-    }
+    if (firstKey) scrollToField(firstKey);
     return Object.keys(next).length === 0;
   }
 
@@ -185,6 +233,7 @@ export function DynamicForm({
     if (target === "SUBMIT") {
       await submit();
     } else {
+      flushSave(); // persiste el borrador al avanzar de sección
       setStack((s) => [...s, currentId]);
       setCurrentId(target);
       setErrors({});
@@ -192,6 +241,7 @@ export function DynamicForm({
   }
 
   function goBack() {
+    flushSave(); // persiste el borrador al retroceder de sección
     setStack((s) => {
       if (s.length === 0) return s;
       const prev = s[s.length - 1];
@@ -202,7 +252,23 @@ export function DynamicForm({
   }
 
   async function submit() {
-    if (!validateFields(allVisibleFields(definition, answers))) return;
+    // Valida TODO el formulario visible. Si falta algo, en vez de un `return`
+    // mudo: navega a la sección del primer campo faltante, lo resalta y muestra
+    // un mensaje claro (antes esto se veía como un "cuelgue" sin feedback).
+    const missing = computeErrors(allVisibleFields(definition, answers));
+    const missingKeys = Object.keys(missing);
+    if (missingKeys.length > 0) {
+      setErrors(missing);
+      const firstKey = missingKeys[0];
+      const target = visibleSections(definition, answers).find((s) =>
+        s.fields.some((f) => f.key === firstKey),
+      );
+      if (target && target.id !== currentId) setCurrentId(target.id);
+      setSubmitError(L.missingFields.replace("{count}", String(missingKeys.length)));
+      // El campo se renderiza tras cambiar de sección → scroll en el próximo tick.
+      setTimeout(() => scrollToField(firstKey), 60);
+      return;
+    }
     if (mode === "preview" || !onSubmit) {
       setDone(true);
       return;

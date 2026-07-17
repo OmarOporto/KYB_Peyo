@@ -154,6 +154,10 @@ export async function dispatchDiditReviews(input: {
   externalRef: string;
   definition: FormDefinition;
   answers: Record<string, unknown>;
+  /** Claves `feature:fieldKey` ya verificadas (se saltan; permite reanudar). */
+  skip?: Set<string>;
+  /** Persiste cada verificación apenas completa (progreso parcial resiliente). */
+  onRow?: (row: DiditCheckRow) => Promise<void> | void;
 }): Promise<DiditCheckRow[]> {
   const { definition, answers, externalRef } = input;
   const sections = definition.sections;
@@ -191,28 +195,34 @@ export async function dispatchDiditReviews(input: {
   // propio error (empuja una fila `error`), así que `Promise.all` nunca rechaza.
   const tasks: Promise<void>[] = [];
   function run(feature: DiditFeature, fieldKey: string | null, fn: () => Promise<TaskResult>) {
+    // Saltar lo ya verificado con éxito en una corrida previa (reanudable).
+    if (input.skip?.has(`${feature}:${fieldKey ?? ""}`)) return;
     tasks.push(
       (async () => {
+        let row: DiditCheckRow;
         try {
           const res = await fn();
           console.log(
             `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} status=${res.status} score=${res.score ?? "-"}`,
           );
-          rows.push({ feature, fieldKey, ...res });
+          row = { feature, fieldKey, ...res };
         } catch (e) {
           console.error(
             `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} falló:`,
             e instanceof Error ? e.message : String(e),
           );
-          rows.push({
+          row = {
             feature,
             fieldKey,
             externalRef: null,
             status: "error",
             score: null,
             result: { error: e instanceof Error ? e.message : String(e) },
-          });
+          };
         }
+        rows.push(row);
+        // Persiste apenas completa: si el background se corta, no se pierde.
+        if (input.onRow) await input.onRow(row);
       })(),
     );
   }

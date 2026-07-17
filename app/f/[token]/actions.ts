@@ -14,7 +14,7 @@ import {
 } from "@/lib/kyb/service";
 import { createServiceClient } from "@/lib/supabase/service";
 import { kybSubmitSchema } from "@/lib/forms/schema";
-import { getFormForRequest } from "@/lib/forms/store";
+import { resolveRequestDefinition } from "@/lib/forms/store";
 import { allVisibleFields } from "@/lib/forms/logic";
 import { buildZod } from "@/lib/forms/validation";
 
@@ -224,20 +224,33 @@ export async function submitAction(
   }
 }
 
-/** Envío del formulario dinámico (valida contra la definición asignada). */
+/** Envío del formulario dinámico (valida contra la definición congelada del request). */
 export async function submitFormAction(
   token: string,
   answers: Record<string, unknown>,
-): Promise<ActionResult> {
+): Promise<ActionResult & { missing?: string[] }> {
   const r = await resolveOpen(token);
   if (!r.ok) return { ok: false, error: r.error };
 
   const formId = (r.req as { form_id?: string | null }).form_id ?? null;
-  const form = await getFormForRequest(formId);
-  if (form) {
-    const schema = buildZod(allVisibleFields(form.definition, answers));
-    if (!schema.safeParse(answers).success) {
-      return { ok: false, error: "Faltan campos requeridos o hay valores inválidos." };
+  const snapshot = (r.req as { form_definition?: unknown }).form_definition;
+  const definition = await resolveRequestDefinition(snapshot, formId);
+  if (definition) {
+    const parse = buildZod(allVisibleFields(definition, answers)).safeParse(answers);
+    if (!parse.success) {
+      const missing = [
+        ...new Set(
+          parse.error.issues.map((i) => String(i.path[0] ?? "")).filter(Boolean),
+        ),
+      ];
+      console.warn(
+        `[submitFormAction] request=${r.req.id} validación falló; campos=${missing.join(", ") || "?"}`,
+      );
+      return {
+        ok: false,
+        error: "Faltan campos requeridos o hay valores inválidos.",
+        missing,
+      };
     }
   }
 

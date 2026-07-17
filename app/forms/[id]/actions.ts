@@ -24,7 +24,7 @@ export async function startPublicIntake(
   try {
     // external_ref distintivo para que admin identifique los intakes públicos.
     const externalRef = `public:${randomUUID().slice(0, 8)}`;
-    const created = await createRequest(externalRef, undefined, formId);
+    const created = await createRequest(externalRef, undefined, formId, form.definition);
     token = created.token;
   } catch (e) {
     console.error("[startPublicIntake] falló", e);

@@ -11,7 +11,7 @@ import {
   type AmlCheckRow,
   type CheckImage,
 } from "@/components/admin/AmlCheckCard";
-import { decideAction } from "@/app/admin/actions";
+import { decideAction, rerunVerificationsAction } from "@/app/admin/actions";
 import { isTerminal, createSignedDocUrls } from "@/lib/kyb/service";
 import type { KybStatus } from "@/lib/kyb/types";
 import { getFormForRequest } from "@/lib/forms/store";
@@ -103,6 +103,11 @@ export default async function RequestDetail({
 
       {/* AML */}
       <Section title={t("amlResult")}>
+        <form action={rerunVerificationsAction.bind(null, id)} className="mb-2">
+          <Button type="submit" variant="outline" size="sm">
+            {t("reverify")}
+          </Button>
+        </form>
         {(aml ?? []).length === 0 && (
           <p className="text-sm text-muted">{t("noChecks")}</p>
         )}
