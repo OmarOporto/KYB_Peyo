@@ -232,8 +232,9 @@ export async function deleteDocument(input: {
 }
 
 /**
- * Finaliza el formulario: guarda datos, dispara el check AML y pasa a
- * under_review (o submitted mientras el AML esté pending).
+ * Finaliza el formulario (parte rápida): guarda datos y pasa a `submitted`.
+ * Las verificaciones (DIDIT/AML) se disparan aparte con {@link runVerifications}
+ * en segundo plano para no bloquear la respuesta al usuario.
  */
 export async function submitRequest(
   requestId: string,
@@ -242,7 +243,7 @@ export async function submitRequest(
   const supabase = createServiceClient();
   const { data: req } = await supabase
     .from("kyb_requests")
-    .select("*")
+    .select("id, status")
     .eq("id", requestId)
     .single();
   if (!req) throw new Error("Solicitud no encontrada");
@@ -266,6 +267,39 @@ export async function submitRequest(
     fromStatus: req.status,
     toStatus: "submitted",
   });
+}
+
+/**
+ * Dispara las verificaciones (DIDIT real por-feature o mock) y pasa la solicitud
+ * a `under_review`. Pensada para correr en segundo plano (Next `after`) después
+ * de {@link submitRequest}: es idempotente (solo actúa sobre solicitudes en
+ * estado `submitted`) y relee las respuestas ya persistidas.
+ */
+export async function runVerifications(requestId: string): Promise<void> {
+  const supabase = createServiceClient();
+  const { data: req } = await supabase
+    .from("kyb_requests")
+    .select("id, status, external_ref, form_id")
+    .eq("id", requestId)
+    .single();
+  if (!req) {
+    console.error(`[AML] request=${requestId} no encontrada; se omiten verificaciones`);
+    return;
+  }
+  // Idempotencia: solo verificar una solicitud recién enviada.
+  if (req.status !== "submitted") {
+    console.warn(
+      `[AML] request=${requestId} estado=${req.status} (no 'submitted'); se omiten verificaciones`,
+    );
+    return;
+  }
+
+  const { data: responseRow } = await supabase
+    .from("kyb_form_responses")
+    .select("data")
+    .eq("request_id", requestId)
+    .maybeSingle();
+  const data = (responseRow?.data as Record<string, unknown>) ?? {};
 
   // Dispara verificaciones: DIDIT real (por-feature) o mock.
   const amlProvider = env.amlProvider();
@@ -305,6 +339,14 @@ export async function submitRequest(
             `[AML] request=${requestId} insert de ${rows.length} checks DIDIT falló:`,
             error.message,
           );
+          // Respaldo visible en el panel: no referencia columnas nuevas
+          // (feature/field_key/score), así entra aun si falta la migración.
+          await supabase.from("aml_checks").insert({
+            request_id: requestId,
+            provider: "didit",
+            status: "error",
+            result: { error: error.message, checks: rows.length },
+          });
         } else {
           console.log(`[AML] request=${requestId} guardados ${rows.length} checks DIDIT`);
         }

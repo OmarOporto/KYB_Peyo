@@ -1,10 +1,12 @@
 "use server";
 
 import { randomUUID } from "crypto";
+import { after } from "next/server";
 import {
   getRequestByToken,
   saveDraft,
   submitRequest,
+  runVerifications,
   recordDocument,
   deleteDocument,
   isTerminal,
@@ -110,6 +112,70 @@ export async function uploadDocumentAction(
   }
 }
 
+/**
+ * Crea una signed upload URL para subir un archivo DIRECTO a Storage desde el
+ * navegador (sin el doble salto por el Server Action). El server arma el path
+ * scoped a la solicitud; el cliente no puede inyectarlo.
+ */
+export async function createUploadUrlAction(
+  token: string,
+  docType: string,
+  filename: string,
+): Promise<ActionResult & { path?: string; uploadToken?: string }> {
+  const r = await resolveOpen(token);
+  if (!r.ok) return { ok: false, error: r.error };
+
+  const safeName = (filename || "archivo").replace(/[^\w.\-]+/g, "_");
+  const path = `${r.req.id}/${docType || "general"}/${randomUUID()}-${safeName}`;
+  try {
+    const supabase = createServiceClient();
+    const { data, error } = await supabase.storage
+      .from(DOCUMENTS_BUCKET)
+      .createSignedUploadUrl(path);
+    if (error || !data) {
+      console.error("[createUploadUrlAction] falló:", error?.message);
+      return { ok: false, error: error?.message ?? "No se pudo preparar la subida." };
+    }
+    return { ok: true, path: data.path, uploadToken: data.token };
+  } catch (e) {
+    console.error("[createUploadUrlAction] falló", e);
+    return { ok: false, error: "No se pudo preparar la subida." };
+  }
+}
+
+/**
+ * Registra los metadatos de un archivo ya subido vía signed URL (gated por
+ * token). Valida que el path pertenezca a esta solicitud.
+ */
+export async function confirmUploadAction(input: {
+  token: string;
+  path: string;
+  docType: string;
+  filename: string;
+  mime?: string | null;
+  size?: number | null;
+}): Promise<ActionResult> {
+  const r = await resolveOpen(input.token);
+  if (!r.ok) return { ok: false, error: r.error };
+  if (!input.path || !input.path.startsWith(`${r.req.id}/`)) {
+    return { ok: false, error: "Ruta inválida." };
+  }
+  try {
+    await recordDocument({
+      requestId: r.req.id,
+      docType: input.docType || "general",
+      storagePath: input.path,
+      filename: input.filename,
+      mime: input.mime ?? null,
+      size: input.size ?? null,
+    });
+    return { ok: true };
+  } catch (e) {
+    console.error("[confirmUploadAction] falló", e);
+    return { ok: false, error: "No se pudo registrar el archivo." };
+  }
+}
+
 /** Elimina un documento ya subido (gated por token). */
 export async function deleteDocumentAction(
   token: string,
@@ -148,6 +214,9 @@ export async function submitAction(
 
   try {
     await submitRequest(r.req.id, parsed.data);
+    // Las verificaciones (DIDIT/AML) corren en segundo plano para no bloquear
+    // la respuesta; el admin lee los checks en vivo cuando estén listos.
+    after(() => runVerifications(r.req.id));
     return { ok: true };
   } catch (e) {
     console.error("[submitAction] falló", e);
@@ -174,6 +243,8 @@ export async function submitFormAction(
 
   try {
     await submitRequest(r.req.id, answers);
+    // Verificaciones DIDIT/AML en segundo plano (ver submitAction).
+    after(() => runVerifications(r.req.id));
     return { ok: true };
   } catch (e) {
     console.error("[submitFormAction] falló", e);

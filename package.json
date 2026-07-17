@@ -10,6 +10,7 @@
     "typecheck": "tsc --noEmit",
     "db:start": "supabase start",
     "db:reset": "supabase db reset",
+    "db:push": "supabase db push",
     "seed:admin": "node scripts/seed-admin.mjs",
     "didit:pull": "node scripts/didit-pull.mjs"
   },

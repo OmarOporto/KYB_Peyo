@@ -9,6 +9,9 @@ import { ApplicantForm } from "./ApplicantForm";
 import KybForm from "./KybForm";
 
 export const dynamic = "force-dynamic";
+// Margen para el trabajo en segundo plano (`after` → runVerifications) que
+// corre tras responder el submit de este route (verificaciones DIDIT/AML).
+export const maxDuration = 60;
 
 function Notice({ title, body }: { title: string; body: string }) {
   return (

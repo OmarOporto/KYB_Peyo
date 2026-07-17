@@ -35,12 +35,16 @@ function logDiditCall(path: string, status: number, json: unknown): void {
   console.log(`[DIDIT] POST ${path} -> ${status} request_id=${node.request_id ?? "-"}`);
 }
 
+// Corta una llamada DIDIT colgada para que no estire el trabajo en background.
+const DIDIT_TIMEOUT_MS = 30_000;
+
 async function postJson(path: string, body: unknown): Promise<Record<string, unknown>> {
   const res = await fetch(`${base()}${path}`, {
     method: "POST",
     headers: { "x-api-key": apiKey(), "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify(body),
     cache: "no-store",
+    signal: AbortSignal.timeout(DIDIT_TIMEOUT_MS),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   logDiditCall(path, res.status, json);
@@ -55,6 +59,7 @@ async function postMultipart(path: string, form: FormData): Promise<Record<strin
     headers: { "x-api-key": apiKey(), accept: "application/json" },
     body: form,
     cache: "no-store",
+    signal: AbortSignal.timeout(DIDIT_TIMEOUT_MS),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   logDiditCall(path, res.status, json);
@@ -182,27 +187,34 @@ export async function dispatchDiditReviews(input: {
     }),
   );
 
-  async function run(feature: DiditFeature, fieldKey: string | null, fn: () => Promise<TaskResult>) {
-    try {
-      const res = await fn();
-      console.log(
-        `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} status=${res.status} score=${res.score ?? "-"}`,
-      );
-      rows.push({ feature, fieldKey, ...res });
-    } catch (e) {
-      console.error(
-        `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} falló:`,
-        e instanceof Error ? e.message : String(e),
-      );
-      rows.push({
-        feature,
-        fieldKey,
-        externalRef: null,
-        status: "error",
-        score: null,
-        result: { error: e instanceof Error ? e.message : String(e) },
-      });
-    }
+  // Cada verificación se encola para correr en paralelo. La tarea aísla su
+  // propio error (empuja una fila `error`), así que `Promise.all` nunca rechaza.
+  const tasks: Promise<void>[] = [];
+  function run(feature: DiditFeature, fieldKey: string | null, fn: () => Promise<TaskResult>) {
+    tasks.push(
+      (async () => {
+        try {
+          const res = await fn();
+          console.log(
+            `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} status=${res.status} score=${res.score ?? "-"}`,
+          );
+          rows.push({ feature, fieldKey, ...res });
+        } catch (e) {
+          console.error(
+            `[DIDIT] request=${input.requestId} feature=${feature} field=${fieldKey ?? "-"} falló:`,
+            e instanceof Error ? e.message : String(e),
+          );
+          rows.push({
+            feature,
+            fieldKey,
+            externalRef: null,
+            status: "error",
+            score: null,
+            result: { error: e instanceof Error ? e.message : String(e) },
+          });
+        }
+      })(),
+    );
   }
 
   const idFields = byFeature("id_verification");
@@ -250,7 +262,7 @@ export async function dispatchDiditReviews(input: {
     if (!frontKey || consumed.has(frontKey) || !isIdVerification(frontKey)) continue;
     consumed.add(frontKey);
     if (backKey) consumed.add(backKey);
-    await run("id_verification", frontKey, () => idVerificationCall(frontKey, backKey));
+    run("id_verification", frontKey, () => idVerificationCall(frontKey, backKey));
   }
   // (b) id_verification no consumido → agrupado por sección (un documento por sección).
   const idBySection = new Map<number, TaggedField[]>();
@@ -263,14 +275,14 @@ export async function dispatchDiditReviews(input: {
   for (const group of idBySection.values()) {
     const backField = group.find((g) => /back|reverso/i.test(g.field.key));
     const frontField = group.find((g) => g !== backField) ?? group[0];
-    await run("id_verification", frontField.field.key, () =>
+    run("id_verification", frontField.field.key, () =>
       idVerificationCall(frontField.field.key, backField?.field.key),
     );
   }
 
   // --- face_match: selfie (user_image) + frente del documento enlazado (ref_image) ---
   for (const t of byFeature("face_match")) {
-    await run("face_match", t.field.key, async () => {
+    run("face_match", t.field.key, async () => {
       const selfie = firstFileRef(answers, t.field.key);
       if (!selfie) throw new Error("Falta la selfie");
       // Referencia = frente del documento enlazado (refKeys). Sin binding → heurística de
@@ -313,7 +325,7 @@ export async function dispatchDiditReviews(input: {
 
   // --- aml_screening: full_name (campo etiquetado) + soporte de hermanos ---
   for (const t of byFeature("aml_screening")) {
-    await run("aml_screening", t.field.key, async () => {
+    run("aml_screening", t.field.key, async () => {
       const fullName = textAnswer(answers, t.field.key);
       if (!fullName) throw new Error("Falta el nombre completo para AML");
       const sib = siblingText(sections[t.si], answers);
@@ -335,7 +347,7 @@ export async function dispatchDiditReviews(input: {
 
   // --- proof_of_address: documento (una llamada por campo) ---
   for (const t of byFeature("proof_of_address")) {
-    await run("proof_of_address", t.field.key, async () => {
+    run("proof_of_address", t.field.key, async () => {
       const doc = firstFileRef(answers, t.field.key);
       if (!doc) throw new Error("Falta el comprobante de domicilio");
       const fd = new FormData();
@@ -359,7 +371,7 @@ export async function dispatchDiditReviews(input: {
   ];
   for (const spec of IMG_FEATURES) {
     for (const t of byFeature(spec.feature)) {
-      await run(spec.feature, t.field.key, async () => {
+      run(spec.feature, t.field.key, async () => {
         const img = firstFileRef(answers, t.field.key);
         if (!img) throw new Error("Falta la imagen (selfie)");
         const fd = new FormData();
@@ -379,7 +391,7 @@ export async function dispatchDiditReviews(input: {
 
   // --- database_validation: datos de texto de la sección ---
   for (const t of byFeature("database_validation")) {
-    await run("database_validation", t.field.key, async () => {
+    run("database_validation", t.field.key, async () => {
       const sib = siblingText(sections[t.si], answers);
       const body: Record<string, unknown> = { vendor_data: externalRef };
       if (sib.firstName) body.first_name = sib.firstName;
@@ -398,5 +410,7 @@ export async function dispatchDiditReviews(input: {
     });
   }
 
+  // Ejecuta todas las verificaciones encoladas en paralelo (cada una aísla su error).
+  await Promise.all(tasks);
   return rows;
 }

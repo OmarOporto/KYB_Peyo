@@ -14,6 +14,7 @@ import {
   type Answers,
 } from "@/lib/forms/logic";
 import { countryOptions } from "@/lib/forms/countries";
+import { downscaleImage } from "@/lib/forms/imageCompress";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 
@@ -666,7 +667,9 @@ function FileField({
           continue;
         }
         if (onUploadFile) {
-          const res = await onUploadFile(file, field);
+          // Comprime imágenes grandes antes de subir (los no-imagen pasan intactos).
+          const toUpload = await downscaleImage(file, { maxDim: 2000, quality: 0.85 });
+          const res = await onUploadFile(toUpload, field);
           if (res.ok) added.push(res.ref);
           // Mostrar el motivo real (p. ej. error de storage / invitación) en vez del genérico.
           else setErr(res.error || T.upError);
@@ -825,14 +828,20 @@ function SelfieField({
   async function capture() {
     const video = videoRef.current;
     if (!video || !video.videoWidth || !video.videoHeight) return;
+    // Reescala al lado mayor ≤ 1600px para no capturar a resolución completa de
+    // cámara (archivos enormes que ralentizan subida y verificación).
+    const SELFIE_MAX_DIM = 1600;
+    const vw = video.videoWidth;
+    const vh = video.videoHeight;
+    const scale = Math.max(vw, vh) > SELFIE_MAX_DIM ? SELFIE_MAX_DIM / Math.max(vw, vh) : 1;
     const canvas = document.createElement("canvas");
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = Math.round(vw * scale);
+    canvas.height = Math.round(vh * scale);
     const ctx = canvas.getContext("2d");
     if (!ctx) return;
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     const blob = await new Promise<Blob | null>((res) =>
-      canvas.toBlob((b) => res(b), "image/jpeg", 0.9),
+      canvas.toBlob((b) => res(b), "image/jpeg", 0.85),
     );
     if (!blob) return;
     const file = new File([blob], `selfie-${Date.now()}.jpg`, { type: "image/jpeg" });
