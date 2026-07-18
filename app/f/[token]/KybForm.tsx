@@ -37,10 +37,12 @@ export default function KybForm({
   token,
   initialData,
   initialDocs,
+  returnUrl,
 }: {
   token: string;
   initialData: Record<string, unknown>;
   initialDocs: Doc[];
+  returnUrl?: string;
 }) {
   const t = useTranslations("form");
   const [step, setStep] = useState(0);
@@ -50,6 +52,16 @@ export default function KybForm({
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [uploading, setUploading] = useState(false);
   const [removingId, setRemovingId] = useState<string | null>(null);
+
+  // Tras enviar, redirige de vuelta a la app del cliente (si hay return_url).
+  useEffect(() => {
+    if (submitted && returnUrl) {
+      const timer = setTimeout(() => {
+        window.location.href = returnUrl;
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [submitted, returnUrl]);
 
   const form = useForm<KybFormValues>({
     resolver: zodResolver(kybSubmitSchema) as unknown as Resolver<KybFormValues>,
@@ -149,6 +161,17 @@ export default function KybForm({
               {t("submittedTitle")}
             </h1>
             <p className="mt-2 text-muted">{t("submittedBody")}</p>
+            {returnUrl && (
+              <div className="mt-6">
+                <a
+                  href={returnUrl}
+                  className="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+                >
+                  {t("returnCta")}
+                </a>
+                <p className="mt-2 text-xs text-muted">{t("redirecting")}</p>
+              </div>
+            )}
           </Card>
         </main>
       </>

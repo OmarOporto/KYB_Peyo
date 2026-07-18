@@ -1,5 +1,23 @@
 import { resolveText, type Field } from "./definition";
 
+export type FileRef = { path: string; filename: string };
+
+/** Extrae los FileRef ({path, filename}) del valor de un campo file/selfie. */
+export function fileRefsOf(value: unknown): FileRef[] {
+  if (!Array.isArray(value)) return [];
+  return value.flatMap((r) =>
+    r && typeof r === "object" && "path" in r
+      ? [
+          {
+            path: String((r as { path: unknown }).path),
+            filename:
+              "filename" in r ? String((r as { filename: unknown }).filename) : "archivo",
+          },
+        ]
+      : [],
+  );
+}
+
 /** Formatea el valor de una respuesta de forma legible según el tipo del campo. */
 export function renderAnswer(
   field: Field,

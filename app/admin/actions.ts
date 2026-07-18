@@ -2,8 +2,10 @@
 
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
+import { after } from "next/server";
 import { requireAnalyst } from "@/lib/auth/admin";
 import { decideRequest, runVerifications, DOCUMENTS_BUCKET } from "@/lib/kyb/service";
+import { notifyClient } from "@/lib/kyb/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { KybDecision } from "@/lib/kyb/types";
@@ -14,6 +16,8 @@ export async function decideAction(requestId: string, decision: KybDecision) {
     userId: analyst.userId,
     email: analyst.email,
   });
+  // Push al cliente en segundo plano (no bloquea la respuesta del panel).
+  after(() => notifyClient(requestId, "decision.made"));
   revalidatePath(`/admin/requests/${requestId}`);
   revalidatePath("/admin");
 }

@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifyApiKey } from "@/lib/auth/apiKey";
+import { consumeApiKey } from "@/lib/auth/rateLimit";
+import { rateLimitResponse } from "@/lib/auth/rateLimitResponse";
 import { createServiceClient } from "@/lib/supabase/service";
 
 export const runtime = "nodejs";
@@ -7,7 +9,8 @@ export const runtime = "nodejs";
 /**
  * GET /api/v1/kyb/requests/:id
  * Auth: Bearer <api_key>. Devuelve estado + resultado (decisión + AML) para
- * que la app principal consulte el avance de la solicitud.
+ * que el cliente consulte el avance. Aislado por cliente: cada key solo ve
+ * las solicitudes que ella misma creó.
  */
 export async function GET(
   req: NextRequest,
@@ -18,6 +21,9 @@ export async function GET(
     return NextResponse.json({ error: "unauthorized" }, { status: 401 });
   }
 
+  const rl = await consumeApiKey(keyId);
+  if (!rl.allowed) return rateLimitResponse(rl);
+
   const { id } = await params;
   const supabase = createServiceClient();
 
@@ -27,6 +33,7 @@ export async function GET(
       "id, external_ref, status, decision, created_at, submitted_at, decided_at",
     )
     .eq("id", id)
+    .eq("api_key_id", keyId)
     .maybeSingle();
 
   if (!request) {

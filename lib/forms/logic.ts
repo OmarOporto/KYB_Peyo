@@ -13,7 +13,7 @@ function valuesEqual(answer: unknown, value: unknown): boolean {
   return String(answer ?? "") === String(value ?? "");
 }
 
-function isAnswered(a: unknown): boolean {
+export function isAnswered(a: unknown): boolean {
   if (a == null) return false;
   if (typeof a === "string") return a.trim() !== "";
   if (Array.isArray(a)) return a.length > 0;

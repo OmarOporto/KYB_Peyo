@@ -63,6 +63,10 @@ curl -X POST http://localhost:3000/api/v1/kyb/requests \
   -d '{"external_ref":"emp-123"}'
 ```
 
+Body opcional: `ttl_hours`, `form_id` (UUID del formulario publicado a usar),
+`callback_url` (webhook server-to-server, ver abajo) y `return_url` (a dónde
+redirigir el navegador del usuario tras enviar, ver "Reanudación y redirect").
+
 Consultar estado:
 
 ```bash
@@ -70,8 +74,67 @@ curl http://localhost:3000/api/v1/kyb/requests/<id> \
   -H "Authorization: Bearer kyb_test_key_local_dev"
 ```
 
+### Endpoints del cliente (todos con `Authorization: Bearer <key>`, aislados por key)
+
+| Método | Ruta | Qué devuelve |
+|---|---|---|
+| `POST` | `/api/v1/kyb/requests` | Crea la solicitud → `{ id, invitationUrl, token, expiresAt }` |
+| `GET` | `/api/v1/kyb/requests` | **Lista** sus solicitudes. Query: `status`, `external_ref`, `limit` (máx 100), `offset` → `{ data, limit, offset, total }` |
+| `GET` | `/api/v1/kyb/requests/:id` | Estado + decisión + `aml[]` |
+| `GET` | `/api/v1/kyb/requests/:id/answers` | Respuestas mapeadas a etiquetas (`?locale=`); file/selfie con URLs firmadas |
+| `GET` | `/api/v1/kyb/requests/:id/documents` | Documentos con URLs firmadas (`?expires_in=`, seg) |
+| `GET` | `/api/v1/kyb/requests/:id/draft` | Avance del borrador: `{ filled, total, percent, fields[] }` |
+| `POST` | `/api/v1/kyb/requests/:id/invitation` | Re-emite el link (mismo borrador) si se perdió/expiró → nuevo `invitationUrl` |
+
 > La API key de prueba (`kyb_test_key_local_dev`) se siembra en `supabase/seed.sql`.
-> En producción, genera keys reales (hash sha256 en `api_keys`).
+> En producción se gestionan desde el panel **Clientes API** (`/admin/clients`):
+> emitir (se muestra el texto una sola vez), rotar, revocar, fijar rate limit y ver uso.
+
+### Aislamiento por cliente
+
+Cada solicitud queda ligada a la API key que la creó (`kyb_requests.api_key_id`).
+El `GET /:id` solo devuelve solicitudes de **esa** key (404 si no es suya). Los
+intakes públicos (`/forms/[id]`) no tienen dueño y no son accesibles por la API.
+
+### Rate limiting
+
+Por API key. Límite configurable por key (panel) o el default global
+`API_RATE_LIMIT_DEFAULT_PER_MIN` (60). Al exceder: `429 {"error":"rate_limited"}`
+con headers `Retry-After`, `X-RateLimit-Limit`, `X-RateLimit-Remaining`.
+
+### Webhook saliente (push de resultados)
+
+El cliente **registra sus endpoints** en el panel (`/admin/clients/<id>/webhooks`):
+solo `https`, puerto 443, y se **rechazan IPs privadas/loopback/link-local**
+(anti-SSRF). Cada endpoint tiene su **propio secreto** (cifrado en reposo,
+mostrado en claro una sola vez). Al crear la solicitud se pasa
+`webhook_endpoint_id` (no una URL arbitraria).
+
+Se hace `POST` al endpoint cuando:
+- `verification.completed` — terminan las verificaciones DIDIT/AML (`under_review`).
+- `decision.made` — el analista aprueba/rechaza.
+
+Body = shape del `GET` + `event` + `event_id` + `sent_at`. Headers:
+`x-kyb-timestamp`, `x-kyb-event-id`, `x-kyb-delivery-id`, y
+`x-kyb-signature: v1=<hex>` donde `<hex> = HMAC-SHA256(secret, timestamp + "." + rawBody)`.
+
+**Verificación del receptor**: recomputar la firma (comparación en tiempo
+constante), **rechazar timestamps > 5 min** (anti-replay), **deduplicar por
+`event_id`** y procesar de forma **idempotente**. No se siguen redirects; timeout
+corto; hasta 3 reintentos; el polling del `GET` es el respaldo. Entregas en
+`audit_log` (`webhook_delivered` / `webhook_failed`).
+
+### Reanudación y redirect
+
+- **Reanudar a medias**: el formulario autosalva el borrador. Si el usuario se sale
+  y **el cliente lo manda de vuelta al mismo `invitationUrl`** (mientras la solicitud
+  esté `created`/`in_progress`), se **restauran los datos** llenados. El token dura 14
+  días (`ttl_hours` configurable). Si se perdió o expiró, `POST /:id/invitation`
+  genera un link nuevo conservando el borrador.
+- **Redirect al terminar**: si al crear se pasó `return_url`, al enviar el formulario
+  el navegador del usuario se redirige a esa URL (botón + auto-redirect). Es distinto
+  de `callback_url` (webhook server-to-server); `return_url` es el redirect del
+  **navegador** del usuario final.
 
 ## DIDIT (AML) — por definir
 

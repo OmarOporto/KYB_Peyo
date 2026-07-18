@@ -71,11 +71,16 @@ export async function AmlCheckCard({
   check,
   image,
   refImages,
+  sectionTitle,
+  fieldLabel,
 }: {
   check: AmlCheckRow;
   image?: CheckImage;
   /** Imágenes de referencia (p. ej. el documento contra el que se hizo el face match). */
   refImages?: CheckImage[];
+  /** Sección y pregunta del formulario que dispararon esta verificación. */
+  sectionTitle?: string;
+  fieldLabel?: string;
 }) {
   const t = await getTranslations("admin");
   const tB = await getTranslations("builder");
@@ -135,6 +140,28 @@ export async function AmlCheckCard({
         <StatusBadge status={amlToBadge(check.status)} />
         <span className="ml-auto text-xs text-muted">{check.provider}</span>
       </div>
+
+      {(sectionTitle || fieldLabel) && (
+        <details className="mb-2 rounded-lg bg-surface-2 px-2 py-1">
+          <summary className="cursor-pointer text-xs text-muted hover:text-foreground">
+            {t("validationTrigger")}
+          </summary>
+          <dl className="mt-1 space-y-0.5 text-xs">
+            {sectionTitle && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 text-muted">{t("section")}:</dt>
+                <dd className="min-w-0 break-words text-foreground">{sectionTitle}</dd>
+              </div>
+            )}
+            {fieldLabel && (
+              <div className="flex gap-2">
+                <dt className="shrink-0 text-muted">{t("question")}:</dt>
+                <dd className="min-w-0 break-words text-foreground">{fieldLabel}</dd>
+              </div>
+            )}
+          </dl>
+        </details>
+      )}
 
       <div className="flex flex-wrap gap-3">
         {image?.url && (

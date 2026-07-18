@@ -14,9 +14,10 @@ import {
 import { decideAction, rerunVerificationsAction } from "@/app/admin/actions";
 import { isTerminal, createSignedDocUrls } from "@/lib/kyb/service";
 import type { KybStatus } from "@/lib/kyb/types";
-import { getFormForRequest } from "@/lib/forms/store";
+import { resolveRequestDefinition } from "@/lib/forms/store";
+import { isAnswered } from "@/lib/forms/logic";
 import { resolveText, type Field } from "@/lib/forms/definition";
-import { renderAnswer } from "@/lib/forms/answers";
+import { renderAnswer, fileRefsOf } from "@/lib/forms/answers";
 
 export const dynamic = "force-dynamic";
 
@@ -53,14 +54,16 @@ export default async function RequestDetail({
   const formData = (formRow?.data as Record<string, unknown>) ?? {};
   const closed = isTerminal(request.status as KybStatus);
   const locale = await getLocale();
-  const form = await getFormForRequest(
+  // Definición congelada del request (lo que el solicitante realmente llenó).
+  const definition = await resolveRequestDefinition(
+    (request as { form_definition?: unknown }).form_definition,
     (request as { form_id?: string | null }).form_id,
   );
 
   // Firma una sola vez las URLs de todos los archivos (documentos + campos
   // file/selfie del formulario) para mostrar miniaturas inline.
-  const answerRefs = form
-    ? form.definition.sections.flatMap((s) =>
+  const answerRefs = definition
+    ? definition.sections.flatMap((s) =>
         s.fields
           .filter((f) => f.type === "file" || f.type === "selfie")
           .flatMap((f) => fileRefsOf(formData[f.key])),
@@ -71,11 +74,19 @@ export default async function RequestDetail({
     ...answerRefs.map((r) => r.path),
   ]);
 
-  // Campo por key (para resolver las imágenes de referencia de face_match).
+  // Campo por key (imágenes de referencia) y origen (sección/pregunta) por key.
   const fieldByKey = new Map<string, Field>();
-  if (form) {
-    for (const s of form.definition.sections) {
-      for (const f of s.fields) fieldByKey.set(f.key, f);
+  const triggerByKey = new Map<string, { section: string; question: string }>();
+  if (definition) {
+    for (const s of definition.sections) {
+      const sectionTitle = resolveText(s.title, locale);
+      for (const f of s.fields) {
+        fieldByKey.set(f.key, f);
+        triggerByKey.set(f.key, {
+          section: sectionTitle,
+          question: resolveText(f.label, locale) || f.key,
+        });
+      }
     }
   }
   const imageForKey = (key: string): CheckImage | undefined => {
@@ -114,6 +125,7 @@ export default async function RequestDetail({
         {(aml ?? []).map((c, i) => {
           const image = c.field_key ? imageForKey(c.field_key) : undefined;
           const field = c.field_key ? fieldByKey.get(c.field_key) : undefined;
+          const trigger = c.field_key ? triggerByKey.get(c.field_key) : undefined;
           const refImages = (field?.review?.refKeys ?? [])
             .map((k) => imageForKey(k))
             .filter((im): im is CheckImage => Boolean(im));
@@ -123,6 +135,8 @@ export default async function RequestDetail({
               check={c as AmlCheckRow}
               image={image}
               refImages={refImages}
+              sectionTitle={trigger?.section}
+              fieldLabel={trigger?.question}
             />
           );
         })}
@@ -150,33 +164,75 @@ export default async function RequestDetail({
 
       {/* Formulario */}
       <Section title={t("form")}>
-        {form ? (
+        {definition ? (
           <div className="space-y-4">
-            {form.definition.sections.map((s, si) => {
+            {definition.sections.map((s, si) => {
               const fields = s.fields.filter((f) => f.type !== "note");
               if (fields.length === 0) return null;
+              const answered = fields.filter((f) => isAnswered(formData[f.key]));
+              const empty = fields.filter((f) => !isAnswered(formData[f.key]));
+
+              // Sección totalmente sin responder (típico de ramas no tomadas):
+              // colapsada entera, con bg distinto, para no ensuciar la vista.
+              if (answered.length === 0) {
+                return (
+                  <details
+                    key={si}
+                    className="rounded-xl border border-border bg-surface-2 p-4"
+                  >
+                    <summary className="cursor-pointer text-xs font-semibold uppercase tracking-wide text-muted">
+                      {resolveText(s.title, locale)} ·{" "}
+                      {t("unanswered", { count: empty.length })}
+                    </summary>
+                    <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                      {empty.map((f) => (
+                        <FieldRow
+                          key={f.id}
+                          field={f}
+                          value={formData[f.key]}
+                          locale={locale}
+                          signedUrls={signedUrls}
+                        />
+                      ))}
+                    </dl>
+                  </details>
+                );
+              }
+
               return (
                 <Card key={si} className="p-4">
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                     {resolveText(s.title, locale)}
                   </h3>
                   <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
-                    {fields.map((f) => (
-                      <div key={f.id} className="border-b border-border pb-1">
-                        <dt className="text-muted">
-                          {resolveText(f.label, locale) || f.key}
-                        </dt>
-                        <dd className="break-words text-foreground">
-                          <AnswerValue
+                    {answered.map((f) => (
+                      <FieldRow
+                        key={f.id}
+                        field={f}
+                        value={formData[f.key]}
+                        locale={locale}
+                        signedUrls={signedUrls}
+                      />
+                    ))}
+                  </dl>
+                  {empty.length > 0 && (
+                    <details className="mt-3 rounded-lg bg-surface-2 p-2">
+                      <summary className="cursor-pointer text-xs text-muted hover:text-foreground">
+                        {t("unanswered", { count: empty.length })}
+                      </summary>
+                      <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                        {empty.map((f) => (
+                          <FieldRow
+                            key={f.id}
                             field={f}
                             value={formData[f.key]}
                             locale={locale}
                             signedUrls={signedUrls}
                           />
-                        </dd>
-                      </div>
-                    ))}
-                  </dl>
+                        ))}
+                      </dl>
+                    </details>
+                  )}
                 </Card>
               );
             })}
@@ -220,21 +276,30 @@ export default async function RequestDetail({
   );
 }
 
-/** Extrae los FileRef ({path, filename}) del valor de un campo file/selfie. */
-function fileRefsOf(value: unknown): { path: string; filename: string }[] {
-  if (!Array.isArray(value)) return [];
-  return value.flatMap((r) =>
-    r && typeof r === "object" && "path" in r
-      ? [
-          {
-            path: String((r as { path: unknown }).path),
-            filename:
-              "filename" in r
-                ? String((r as { filename: unknown }).filename)
-                : "archivo",
-          },
-        ]
-      : [],
+/** Fila label/valor de una respuesta del formulario. */
+function FieldRow({
+  field,
+  value,
+  locale,
+  signedUrls,
+}: {
+  field: Field;
+  value: unknown;
+  locale: string;
+  signedUrls: Record<string, string>;
+}) {
+  return (
+    <div className="border-b border-border pb-1">
+      <dt className="text-muted">{resolveText(field.label, locale) || field.key}</dt>
+      <dd className="break-words text-foreground">
+        <AnswerValue
+          field={field}
+          value={value}
+          locale={locale}
+          signedUrls={signedUrls}
+        />
+      </dd>
+    </div>
   );
 }
 

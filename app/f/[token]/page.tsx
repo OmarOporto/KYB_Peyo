@@ -79,6 +79,7 @@ export default async function FormPage({
             definition={form.definition}
             locale={locale}
             initialAnswers={savedData}
+            returnUrl={(req as { return_url?: string | null }).return_url ?? undefined}
           />
         </main>
       </>
@@ -96,6 +97,7 @@ export default async function FormPage({
         uploaded_at: d.uploaded_at,
         storagePath: d.storage_path ?? "",
       }))}
+      returnUrl={(req as { return_url?: string | null }).return_url ?? undefined}
     />
   );
 }

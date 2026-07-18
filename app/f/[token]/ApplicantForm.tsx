@@ -22,11 +22,13 @@ export function ApplicantForm({
   definition,
   locale,
   initialAnswers,
+  returnUrl,
 }: {
   token: string;
   definition: FormDefinition;
   locale: string;
   initialAnswers: Answers;
+  returnUrl?: string;
 }) {
   const t = useTranslations("form");
 
@@ -35,6 +37,7 @@ export function ApplicantForm({
       definition={definition}
       locale={locale}
       initialAnswers={initialAnswers}
+      returnUrl={returnUrl}
       mode="live"
       onSaveDraft={async (a) => {
         await saveDraftAction(token, a as Record<string, unknown>);
@@ -99,6 +102,8 @@ export function ApplicantForm({
         invalidEmail: t("errEmail"),
         invalidNumber: t("errNumber"),
         invalid: t("errInvalid"),
+        returnCta: t("returnCta"),
+        redirecting: t("redirecting"),
       }}
     />
   );

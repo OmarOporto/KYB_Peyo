@@ -34,6 +34,8 @@ export interface DynamicFormProps {
   onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
   onSubmit?: (answers: Answers) => Promise<{ ok: boolean; error?: string }>;
+  /** Si se pasa, tras enviar se redirige el navegador a esta URL (app del cliente). */
+  returnUrl?: string;
   labels?: {
     back: string;
     continue: string;
@@ -50,6 +52,8 @@ export interface DynamicFormProps {
     invalidEmail?: string;
     invalidNumber?: string;
     invalid?: string;
+    returnCta?: string;
+    redirecting?: string;
   };
 }
 
@@ -69,6 +73,8 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   invalidEmail: "Email inválido",
   invalidNumber: "Número inválido",
   invalid: "Valor inválido",
+  returnCta: "Continuar",
+  redirecting: "Redirigiendo…",
 };
 
 export function DynamicForm({
@@ -80,6 +86,7 @@ export function DynamicForm({
   onUploadFile,
   onDeleteFile,
   onSubmit,
+  returnUrl,
   labels,
 }: DynamicFormProps) {
   const L = { ...DEFAULT_LABELS, ...labels };
@@ -109,6 +116,15 @@ export function DynamicForm({
   useEffect(() => {
     answersRef.current = answers;
   }, [answers]);
+  // Tras enviar, redirige el navegador de vuelta a la app del cliente (si hay return_url).
+  useEffect(() => {
+    if (done && returnUrl) {
+      const t = setTimeout(() => {
+        window.location.href = returnUrl;
+      }, 3000);
+      return () => clearTimeout(t);
+    }
+  }, [done, returnUrl]);
   useEffect(() => {
     if (mode !== "live" || !onSaveDraft) return;
     if (firstRun.current) {
@@ -300,6 +316,17 @@ export function DynamicForm({
         </div>
         <h2 className="font-display text-2xl font-bold text-foreground">{L.done}</h2>
         <p className="mt-2 text-muted">{L.doneBody}</p>
+        {returnUrl && (
+          <div className="mt-6">
+            <a
+              href={returnUrl}
+              className="inline-flex items-center rounded-lg bg-brand px-4 py-2 text-sm font-medium text-white hover:bg-brand-hover"
+            >
+              {L.returnCta}
+            </a>
+            <p className="mt-2 text-xs text-muted">{L.redirecting}</p>
+          </div>
+        )}
       </Card>
     );
   }

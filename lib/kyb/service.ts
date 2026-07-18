@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { getAmlProvider } from "@/lib/aml";
 import { buildAmlSubject } from "@/lib/aml/mapping";
 import { dispatchDiditReviews, type DiditCheckRow } from "@/lib/didit/verify";
+import { notifyClient } from "@/lib/kyb/webhook";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { FORM_VERSION } from "@/lib/forms/schema";
 import type { KybDecision, KybRequest, KybStatus } from "@/lib/kyb/types";
@@ -40,6 +41,11 @@ export async function createRequest(
   ttlHours = DEFAULT_TTL_HOURS,
   formId?: string | null,
   formDefinition?: unknown,
+  opts?: {
+    apiKeyId?: string | null;
+    webhookEndpointId?: string | null;
+    returnUrl?: string | null;
+  },
 ): Promise<{
   id: string;
   token: string;
@@ -62,6 +68,10 @@ export async function createRequest(
       // Snapshot de la definición para validar el envío contra lo que el
       // solicitante realmente llenó (aunque el form se edite después).
       form_definition: formDefinition ?? null,
+      // Aislamiento por cliente: la solicitud pertenece a la API key que la creó.
+      api_key_id: opts?.apiKeyId ?? null,
+      webhook_endpoint_id: opts?.webhookEndpointId ?? null,
+      return_url: opts?.returnUrl ?? null,
     })
     .select("id")
     .single();
@@ -87,6 +97,69 @@ export async function createRequest(
     id: data.id as string,
     token,
     invitationUrl: `${env.appUrl()}/f/${token}`,
+    expiresAt,
+  };
+}
+
+/**
+ * Re-emite el link de invitación de una solicitud existente (conserva el
+ * borrador). Útil si el cliente perdió el link o expiró. Rechaza solicitudes ya
+ * enviadas o cerradas.
+ */
+export async function reissueInvitation(
+  requestId: string,
+  ttlHours = DEFAULT_TTL_HOURS,
+): Promise<
+  | { ok: true; invitationUrl: string; token: string; expiresAt: string }
+  | { ok: false; error: string }
+> {
+  const supabase = createServiceClient();
+  const { data: req } = await supabase
+    .from("kyb_requests")
+    .select("id, status")
+    .eq("id", requestId)
+    .single();
+  if (!req) return { ok: false, error: "Solicitud no encontrada" };
+
+  const status = req.status as KybStatus;
+  if (!["created", "in_progress", "expired"].includes(status)) {
+    return {
+      ok: false,
+      error: "La solicitud ya fue enviada o cerrada; no admite re-emitir el link.",
+    };
+  }
+
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
+  await supabase
+    .from("kyb_requests")
+    .update({ invitation_token_hash: hashToken(token), token_expires_at: expiresAt })
+    .eq("id", requestId);
+
+  if (status === "expired") {
+    // Reactivar: in_progress si ya había borrador, si no created.
+    const { data: draft } = await supabase
+      .from("kyb_form_responses")
+      .select("data")
+      .eq("request_id", requestId)
+      .maybeSingle();
+    const hasDraft =
+      draft?.data && Object.keys(draft.data as Record<string, unknown>).length > 0;
+    await setStatus(
+      requestId,
+      hasDraft ? "in_progress" : "created",
+      "expired",
+      "system",
+      "invitation_reissued",
+    );
+  } else {
+    await logAudit({ requestId, actor: "system", action: "invitation_reissued" });
+  }
+
+  return {
+    ok: true,
+    invitationUrl: `${env.appUrl()}/f/${token}`,
+    token,
     expiresAt,
   };
 }
@@ -430,6 +503,10 @@ export async function runVerifications(
   }
 
   await setStatus(requestId, "under_review", req.status, "system", "moved_to_review");
+
+  // Push al cliente (si la solicitud tiene callback_url). Corre en el mismo
+  // contexto background (`after`) que runVerifications; no bloquea al usuario.
+  await notifyClient(requestId, "verification.completed");
 }
 
 /** Decisión del analista (approve/reject). */

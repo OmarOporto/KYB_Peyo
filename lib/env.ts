@@ -29,4 +29,13 @@ export const env = {
   diditApiUrl: () => process.env.DIDIT_API_URL ?? "",
   diditApiKey: () => process.env.DIDIT_API_KEY ?? "",
   diditWebhookSecret: () => process.env.DIDIT_WEBHOOK_SECRET ?? "",
+  // Secreto compartido para firmar el webhook saliente hacia el cliente API.
+  kybWebhookSecret: () => process.env.KYB_WEBHOOK_SECRET ?? "",
+  // Clave (32 bytes base64) para cifrar secretos de webhook por endpoint (AES-256-GCM).
+  secretEncKey: () => process.env.KYB_SECRET_ENC_KEY ?? "",
+  // Límite de tasa por defecto (req/min por API key) si la key no fija uno propio.
+  apiRateLimitDefault: () => {
+    const n = Number(process.env.API_RATE_LIMIT_DEFAULT_PER_MIN);
+    return Number.isFinite(n) && n > 0 ? n : 60;
+  },
 };
