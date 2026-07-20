@@ -29,7 +29,12 @@ export interface DynamicFormProps {
   definition: FormDefinition;
   locale: string;
   initialAnswers?: Answers;
-  mode?: "live" | "preview";
+  mode?: "live" | "preview" | "correction";
+  /** En modo corrección: preguntas a corregir (con su nota) y sección de arranque. */
+  corrections?: { key: string; note: string }[];
+  anchorSectionId?: string;
+  /** En modo corrección: bloquea la edición de las secciones previas al anchor. */
+  readOnlyBeforeAnchor?: boolean;
   onSaveDraft?: (answers: Answers) => Promise<void> | void;
   onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
@@ -54,6 +59,8 @@ export interface DynamicFormProps {
     invalid?: string;
     returnCta?: string;
     redirecting?: string;
+    correctionBanner?: string;
+    readOnlyNotice?: string;
   };
 }
 
@@ -75,6 +82,9 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   invalid: "Valor inválido",
   returnCta: "Continuar",
   redirecting: "Redirigiendo…",
+  correctionBanner:
+    "Corrige las preguntas señaladas. Las respuestas anteriores son solo de lectura.",
+  readOnlyNotice: "Respuestas anteriores (solo lectura).",
 };
 
 export function DynamicForm({
@@ -82,6 +92,9 @@ export function DynamicForm({
   locale,
   initialAnswers = {},
   mode = "live",
+  corrections,
+  anchorSectionId,
+  readOnlyBeforeAnchor = true,
   onSaveDraft,
   onUploadFile,
   onDeleteFile,
@@ -90,15 +103,47 @@ export function DynamicForm({
   labels,
 }: DynamicFormProps) {
   const L = { ...DEFAULT_LABELS, ...labels };
+  // El autosave/borrador aplica también en corrección (el solicitante re-guarda
+  // mientras corrige); solo `preview` queda fuera.
+  const isLive = mode === "live" || mode === "correction";
+  const isCorrection = mode === "correction";
   const sections = definition.sections;
   const firstId = useMemo(() => {
     const vis = visibleSections(definition, initialAnswers);
     return (vis[0] ?? sections[0])?.id ?? "";
   }, [definition, initialAnswers, sections]);
 
+  // Keys marcadas para corregir (nota por key). En corrección se tratan como
+  // requeridas (su respuesta se borró) y muestran la nota sobre el campo.
+  const noteByKey = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of corrections ?? []) m.set(c.key, c.note);
+    return m;
+  }, [corrections]);
+
+  // Arranque en corrección: el anchor (1ª pregunta marcada); las secciones
+  // alcanzables previas se pre-cargan en el stack (visibles con "Atrás", en
+  // solo-lectura) para no poder editarlas.
+  const { startId, initialStack, beforeAnchor } = useMemo(() => {
+    if (!isCorrection || !anchorSectionId) {
+      return { startId: firstId, initialStack: [] as string[], beforeAnchor: new Set<string>() };
+    }
+    const reach = reachableSections(definition, initialAnswers);
+    const idx = reach.findIndex((s) => s.id === anchorSectionId);
+    if (idx <= 0) {
+      return { startId: anchorSectionId, initialStack: [] as string[], beforeAnchor: new Set<string>() };
+    }
+    const prevIds = reach.slice(0, idx).map((s) => s.id);
+    return {
+      startId: anchorSectionId,
+      initialStack: prevIds,
+      beforeAnchor: new Set(prevIds),
+    };
+  }, [isCorrection, anchorSectionId, definition, initialAnswers, firstId]);
+
   const [answers, setAnswers] = useState<Answers>(initialAnswers);
-  const [currentId, setCurrentId] = useState<string>(firstId);
-  const [stack, setStack] = useState<string[]>([]);
+  const [currentId, setCurrentId] = useState<string>(startId);
+  const [stack, setStack] = useState<string[]>(initialStack);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [saveState, setSaveState] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const [submitting, setSubmitting] = useState(false);
@@ -126,7 +171,7 @@ export function DynamicForm({
     }
   }, [done, returnUrl]);
   useEffect(() => {
-    if (mode !== "live" || !onSaveDraft) return;
+    if (!isLive || !onSaveDraft) return;
     if (firstRun.current) {
       firstRun.current = false;
       return;
@@ -142,12 +187,12 @@ export function DynamicForm({
         setSaveState("error");
       }
     }, 1000);
-  }, [answers, mode, onSaveDraft]);
+  }, [answers, isLive, onSaveDraft]);
 
   // Guarda ya mismo (cancela el debounce). Se usa al cambiar de sección para no
   // depender de la ventana de 1s si el usuario avanza rápido.
   function flushSave() {
-    if (mode !== "live" || !onSaveDraft) return;
+    if (!isLive || !onSaveDraft) return;
     if (timer.current) {
       clearTimeout(timer.current);
       timer.current = null;
@@ -163,7 +208,7 @@ export function DynamicForm({
 
   // Flush best-effort al ocultar/cerrar la pestaña (no depende del debounce).
   useEffect(() => {
-    if (mode !== "live" || !onSaveDraft) return;
+    if (!isLive || !onSaveDraft) return;
     const onHide = () => {
       if (document.visibilityState === "hidden") void onSaveDraft(answersRef.current);
     };
@@ -174,7 +219,7 @@ export function DynamicForm({
       document.removeEventListener("visibilitychange", onHide);
       window.removeEventListener("pagehide", onPageHide);
     };
-  }, [mode, onSaveDraft]);
+  }, [isLive, onSaveDraft]);
 
   function setAnswer(key: string, value: unknown) {
     setAnswers((a) => ({ ...a, [key]: value }));
@@ -190,8 +235,10 @@ export function DynamicForm({
       const empty =
         val == null || val === "" || (Array.isArray(val) && val.length === 0);
 
-      // Requerido
-      if (f.required) {
+      // Requerido (en corrección, las preguntas marcadas se exigen aunque el
+      // campo fuera opcional: su respuesta se borró para re-contestarla).
+      const requiredNow = f.required || (isCorrection && noteByKey.has(f.key));
+      if (requiredNow) {
         if (f.type === "boolean") {
           if (val !== true) {
             next[f.key] = L.required;
@@ -336,15 +383,23 @@ export function DynamicForm({
   const visSecs = reachableSections(definition, answers);
   const stepIdx = visSecs.findIndex((s) => s.id === current.id);
   const progress = visSecs.length ? ((stepIdx + 1) / visSecs.length) * 100 : 0;
+  // Sección previa al anchor en modo corrección: visible pero no editable.
+  const readOnlyNow =
+    isCorrection && readOnlyBeforeAnchor && beforeAnchor.has(currentId);
 
   return (
     <div>
+      {isCorrection && (
+        <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
+          {L.correctionBanner}
+        </div>
+      )}
       <div className="mb-4">
         <div className="mb-2 flex items-center justify-between text-sm">
           <span className="font-medium text-foreground">
             {resolveText(current.title, locale) || `#${stepIdx + 1}`}
           </span>
-          {mode === "live" && (
+          {isLive && (
             <span className={saveState === "error" ? "text-danger" : "text-muted"}>
               {saveState === "saving"
                 ? L.saving
@@ -370,6 +425,9 @@ export function DynamicForm({
             {resolveText(current.description, locale)}
           </p>
         )}
+        {readOnlyNow && (
+          <p className="mb-3 text-xs font-medium text-muted">{L.readOnlyNotice}</p>
+        )}
         <div className="space-y-4">
           {fields.map((f) => (
             <FieldInput
@@ -378,6 +436,9 @@ export function DynamicForm({
               locale={locale}
               value={answers[f.key]}
               error={errors[f.key]}
+              disabled={readOnlyNow}
+              note={isCorrection ? noteByKey.get(f.key) : undefined}
+              markedRequired={isCorrection && noteByKey.has(f.key)}
               onChange={(v) => setAnswer(f.key, v)}
               onUploadFile={onUploadFile}
               onDeleteFile={onDeleteFile}
@@ -425,6 +486,9 @@ function FieldInput({
   locale,
   value,
   error,
+  disabled = false,
+  note,
+  markedRequired = false,
   onChange,
   onUploadFile,
   onDeleteFile,
@@ -433,6 +497,9 @@ function FieldInput({
   locale: string;
   value: unknown;
   error?: string;
+  disabled?: boolean;
+  note?: string;
+  markedRequired?: boolean;
   onChange: (v: unknown) => void;
   onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
@@ -463,8 +530,13 @@ function FieldInput({
     <div data-field={field.key}>
       <label className="mb-1 block text-sm font-medium text-foreground">
         {label || "—"}
-        {field.required && <span className="text-danger"> *</span>}
+        {(field.required || markedRequired) && <span className="text-danger"> *</span>}
       </label>
+      {note !== undefined && (
+        <p className="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs text-foreground">
+          {note || "Vuelve a responder esta pregunta."}
+        </p>
+      )}
       {field.image && (
         <HelpImage
           src={field.image}
@@ -479,6 +551,7 @@ function FieldInput({
           rows={3}
           placeholder={placeholder}
           value={String(value ?? "")}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
         />
       ) : field.type === "single_choice" ? (
@@ -489,6 +562,7 @@ function FieldInput({
                 type="radio"
                 className="accent-brand"
                 checked={String(value ?? "") === o.value}
+                disabled={disabled}
                 onChange={() => onChange(o.value)}
               />
               <span>{resolveText(o.label, locale)}</span>
@@ -512,6 +586,7 @@ function FieldInput({
                   type="checkbox"
                   className="accent-brand"
                   checked={arr.includes(o.value)}
+                  disabled={disabled}
                   onChange={(e) =>
                     onChange(
                       e.target.checked
@@ -536,6 +611,7 @@ function FieldInput({
         <select
           className={inputCls}
           value={String(value ?? "")}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
         >
           <option value="">—</option>
@@ -546,7 +622,7 @@ function FieldInput({
           ))}
         </select>
       ) : field.type === "country" ? (
-        <CountryField value={value} onChange={onChange} locale={locale} />
+        <CountryField value={value} onChange={onChange} locale={locale} disabled={disabled} />
       ) : field.type === "file" ? (
         <FileField
           field={field}
@@ -555,6 +631,7 @@ function FieldInput({
           onUploadFile={onUploadFile}
           onDeleteFile={onDeleteFile}
           locale={locale}
+          disabled={disabled}
         />
       ) : field.type === "selfie" ? (
         <SelfieField
@@ -564,6 +641,7 @@ function FieldInput({
           onUploadFile={onUploadFile}
           onDeleteFile={onDeleteFile}
           locale={locale}
+          disabled={disabled}
         />
       ) : field.type === "boolean" ? (
         <label className="flex items-center gap-2 text-sm text-foreground">
@@ -571,6 +649,7 @@ function FieldInput({
             type="checkbox"
             className="accent-brand"
             checked={Boolean(value)}
+            disabled={disabled}
             onChange={(e) => onChange(e.target.checked)}
           />
           <span>{placeholder || label}</span>
@@ -581,6 +660,7 @@ function FieldInput({
           className={inputCls}
           placeholder={placeholder}
           value={String(value ?? "")}
+          disabled={disabled}
           onChange={(e) => onChange(e.target.value)}
         />
       )}
@@ -616,10 +696,12 @@ function CountryField({
   value,
   onChange,
   locale,
+  disabled = false,
 }: {
   value: unknown;
   onChange: (v: unknown) => void;
   locale: string;
+  disabled?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -636,7 +718,8 @@ function CountryField({
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className={`${inputCls} flex items-center justify-between text-left`}
+        disabled={disabled}
+        className={`${inputCls} flex items-center justify-between text-left disabled:opacity-60`}
       >
         <span className={selected ? "" : "text-muted"}>
           {selected ? `${selected.flag} ${selected.name}` : "—"}
@@ -711,6 +794,7 @@ function FileField({
   onUploadFile,
   onDeleteFile,
   locale,
+  disabled = false,
 }: {
   field: Field;
   value: unknown;
@@ -718,6 +802,7 @@ function FileField({
   onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
   locale: string;
+  disabled?: boolean;
 }) {
   const [busy, setBusy] = useState(false);
   const [removing, setRemoving] = useState<number | null>(null);
@@ -793,7 +878,7 @@ function FileField({
           type="file"
           multiple={cfg?.multiple}
           accept={cfg?.accept?.length ? cfg.accept.join(",") : undefined}
-          disabled={busy}
+          disabled={busy || disabled}
           onChange={onFiles}
           className="hidden"
         />
@@ -812,7 +897,7 @@ function FileField({
                 type="button"
                 className="shrink-0 cursor-pointer text-xs text-danger hover:underline disabled:opacity-50"
                 onClick={() => removeAt(i)}
-                disabled={removing !== null || busy}
+                disabled={removing !== null || busy || disabled}
               >
                 {removing === i ? "…" : T.remove}
               </button>
@@ -855,6 +940,7 @@ function SelfieField({
   onUploadFile,
   onDeleteFile,
   locale,
+  disabled = false,
 }: {
   field: Field;
   value: unknown;
@@ -862,6 +948,7 @@ function SelfieField({
   onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
   locale: string;
+  disabled?: boolean;
 }) {
   const t = SELFIE_TEXT[locale === "en" ? "en" : "es"];
   const refs = Array.isArray(value) ? (value as FileRef[]) : [];
@@ -1020,12 +1107,12 @@ function SelfieField({
           <p className="text-sm text-muted">
             <span className="text-success">✓</span> {t.captured}
           </p>
-          <Button type="button" variant="outline" size="sm" onClick={retake} disabled={busy}>
+          <Button type="button" variant="outline" size="sm" onClick={retake} disabled={busy || disabled}>
             {t.retake}
           </Button>
         </div>
       ) : (
-        <Button type="button" size="sm" onClick={startCamera} disabled={busy}>
+        <Button type="button" size="sm" onClick={startCamera} disabled={busy || disabled}>
           {t.start}
         </Button>
       )}

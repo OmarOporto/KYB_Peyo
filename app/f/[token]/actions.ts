@@ -12,6 +12,7 @@ import {
   isTerminal,
   DOCUMENTS_BUCKET,
 } from "@/lib/kyb/service";
+import { notifyClient } from "@/lib/kyb/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 import { kybSubmitSchema } from "@/lib/forms/schema";
 import { resolveRequestDefinition } from "@/lib/forms/store";
@@ -214,6 +215,9 @@ export async function submitAction(
 
   try {
     await submitRequest(r.req.id, parsed.data);
+    // Aviso inmediato al cliente de que el formulario se envió (para su correo
+    // "recibimos tu solicitud"), antes de que terminen las verificaciones.
+    after(() => notifyClient(r.req.id, "request.submitted"));
     // Las verificaciones (DIDIT/AML) corren en segundo plano para no bloquear
     // la respuesta; el admin lee los checks en vivo cuando estén listos.
     after(() => runVerifications(r.req.id));
@@ -256,6 +260,9 @@ export async function submitFormAction(
 
   try {
     await submitRequest(r.req.id, answers);
+    // Aviso inmediato de envío (ver submitAction). También dispara en el reenvío
+    // tras corrección: la app deduplica por su propio estado si lo necesita.
+    after(() => notifyClient(r.req.id, "request.submitted"));
     // Verificaciones DIDIT/AML en segundo plano (ver submitAction).
     after(() => runVerifications(r.req.id));
     return { ok: true };

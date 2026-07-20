@@ -1,8 +1,10 @@
 import { getLocale, getTranslations } from "next-intl/server";
 import { getRequestByToken } from "@/lib/kyb/service";
 import { createServiceClient } from "@/lib/supabase/service";
-import { getFormForRequest } from "@/lib/forms/store";
+import { getFormForRequest, resolveRequestDefinition } from "@/lib/forms/store";
+import { reachableSections } from "@/lib/forms/logic";
 import { emptyForm } from "@/lib/forms/schema";
+import type { KybCorrections } from "@/lib/kyb/types";
 import { AppHeader } from "@/components/AppHeader";
 import { Card } from "@/components/ui/Card";
 import { ApplicantForm } from "./ApplicantForm";
@@ -63,6 +65,45 @@ export default async function FormPage({
   ]);
 
   const savedData = (draftRow?.data as Record<string, unknown>) ?? {};
+
+  // Modo corrección: el analista/cliente devolvió la solicitud para corregir
+  // preguntas puntuales. Se resuelve la definición CONGELADA (lo que el
+  // solicitante llenó) y se arranca en la 1ª pregunta marcada (el "anchor").
+  if (req.status === "changes_requested") {
+    const corrections =
+      (req as { corrections?: KybCorrections | null }).corrections ?? null;
+    const definition = await resolveRequestDefinition(
+      (req as { form_definition?: unknown }).form_definition,
+      (req as { form_id?: string | null }).form_id,
+    );
+    if (definition && corrections?.fields?.length) {
+      const locale = await getLocale();
+      const marked = new Set(corrections.fields.map((f) => f.key));
+      const reach = reachableSections(definition, savedData);
+      const anchor =
+        reach.find((s) => s.fields.some((f) => marked.has(f.key))) ?? reach[0];
+      return (
+        <>
+          <AppHeader />
+          <main className="mx-auto w-full max-w-2xl flex-1 p-6">
+            <ApplicantForm
+              token={token}
+              definition={definition}
+              locale={locale}
+              initialAnswers={savedData}
+              returnUrl={(req as { return_url?: string | null }).return_url ?? undefined}
+              mode="correction"
+              corrections={corrections.fields}
+              anchorSectionId={anchor?.id}
+            />
+          </main>
+        </>
+      );
+    }
+    // Sin definición/correcciones válidas: no debería ocurrir (requestChanges lo
+    // rechaza en legacy), pero por seguridad mostramos el aviso genérico.
+    return <Notice title={t("receivedTitle")} body={t("receivedBody")} />;
+  }
 
   // Formulario dinámico si hay uno asignado/publicado; si no, fallback al legacy.
   const form = await getFormForRequest(

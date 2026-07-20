@@ -1,4 +1,5 @@
 import "server-only";
+import { after } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateToken, hashToken } from "@/lib/tokens";
 import { env } from "@/lib/env";
@@ -7,8 +8,16 @@ import { buildAmlSubject } from "@/lib/aml/mapping";
 import { dispatchDiditReviews, type DiditCheckRow } from "@/lib/didit/verify";
 import { notifyClient } from "@/lib/kyb/webhook";
 import { resolveRequestDefinition } from "@/lib/forms/store";
+import { reachableFields } from "@/lib/forms/logic";
+import { fileRefsOf } from "@/lib/forms/answers";
 import { FORM_VERSION } from "@/lib/forms/schema";
-import type { KybDecision, KybRequest, KybStatus } from "@/lib/kyb/types";
+import type {
+  KybCorrectionField,
+  KybCorrections,
+  KybDecision,
+  KybRequest,
+  KybStatus,
+} from "@/lib/kyb/types";
 
 const DEFAULT_TTL_HOURS = 24 * 14; // 14 días
 
@@ -102,9 +111,31 @@ export async function createRequest(
 }
 
 /**
+ * Emite un token de invitación NUEVO para una solicitud (rota el hash y el
+ * vencimiento). No cambia el estado; el llamador decide la transición. Devuelve
+ * el token en claro (solo aquí) y el link. Reutilizado por `reissueInvitation`
+ * (re-emitir link) y `requestChanges` (ciclo de correcciones).
+ */
+async function issueToken(
+  requestId: string,
+  ttlHours = DEFAULT_TTL_HOURS,
+): Promise<{ token: string; expiresAt: string; invitationUrl: string }> {
+  const supabase = createServiceClient();
+  const token = generateToken();
+  const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
+  await supabase
+    .from("kyb_requests")
+    .update({ invitation_token_hash: hashToken(token), token_expires_at: expiresAt })
+    .eq("id", requestId);
+  return { token, expiresAt, invitationUrl: `${env.appUrl()}/f/${token}` };
+}
+
+/**
  * Re-emite el link de invitación de una solicitud existente (conserva el
- * borrador). Útil si el cliente perdió el link o expiró. Rechaza solicitudes ya
- * enviadas o cerradas.
+ * borrador). Útil si el cliente perdió el link o expiró. También admite
+ * `changes_requested`: tras pedir correcciones (sobre todo desde el panel del
+ * analista) la app externa necesita un link fresco que enviar al solicitante,
+ * ya que el token solo existe en claro al emitirse. Rechaza solicitudes cerradas.
  */
 export async function reissueInvitation(
   requestId: string,
@@ -122,19 +153,14 @@ export async function reissueInvitation(
   if (!req) return { ok: false, error: "Solicitud no encontrada" };
 
   const status = req.status as KybStatus;
-  if (!["created", "in_progress", "expired"].includes(status)) {
+  if (!["created", "in_progress", "expired", "changes_requested"].includes(status)) {
     return {
       ok: false,
       error: "La solicitud ya fue enviada o cerrada; no admite re-emitir el link.",
     };
   }
 
-  const token = generateToken();
-  const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
-  await supabase
-    .from("kyb_requests")
-    .update({ invitation_token_hash: hashToken(token), token_expires_at: expiresAt })
-    .eq("id", requestId);
+  const { token, expiresAt, invitationUrl } = await issueToken(requestId, ttlHours);
 
   if (status === "expired") {
     // Reactivar: in_progress si ya había borrador, si no created.
@@ -156,12 +182,42 @@ export async function reissueInvitation(
     await logAudit({ requestId, actor: "system", action: "invitation_reissued" });
   }
 
-  return {
-    ok: true,
-    invitationUrl: `${env.appUrl()}/f/${token}`,
-    token,
-    expiresAt,
-  };
+  return { ok: true, invitationUrl, token, expiresAt };
+}
+
+/**
+ * Estados "pre-envío" en los que el link de invitación todavía le importa al
+ * solicitante. Solo estos se expiran por tiempo y emiten `request.expired`.
+ */
+const PRE_SUBMIT_STATUSES: KybStatus[] = ["created", "in_progress", "changes_requested"];
+
+/**
+ * Transición atómica a `expired` (compare-and-set): solo cambia si la fila sigue
+ * en `fromStatus`. Devuelve `true` si ESTA llamada hizo la transición — así el
+ * webhook `request.expired` se emite exactamente una vez entre la ruta perezosa
+ * (`getRequestByToken`) y el barrido cron (`expireDueRequests`). Audita.
+ */
+async function expireRequest(
+  requestId: string,
+  fromStatus: KybStatus,
+): Promise<boolean> {
+  const supabase = createServiceClient();
+  const { data } = await supabase
+    .from("kyb_requests")
+    .update({ status: "expired" })
+    .eq("id", requestId)
+    .eq("status", fromStatus)
+    .select("id")
+    .maybeSingle();
+  if (!data) return false;
+  await logAudit({
+    requestId,
+    actor: "system",
+    action: "token_expired",
+    fromStatus,
+    toStatus: "expired",
+  });
+  return true;
 }
 
 /** Resuelve una solicitud a partir del token de invitación (valida expiración). */
@@ -180,11 +236,37 @@ export async function getRequestByToken(
 
   if (req.token_expires_at && new Date(req.token_expires_at) < new Date()) {
     if (req.status !== "expired" && !isTerminal(req.status)) {
-      await setStatus(req.id, "expired", req.status, "system", "token_expired");
+      const transitioned = await expireRequest(req.id, req.status);
+      // Emite el evento solo si esta llamada hizo la transición y era un estado
+      // pre-envío (donde el link aún importaba). En background para no bloquear.
+      if (transitioned && PRE_SUBMIT_STATUSES.includes(req.status)) {
+        after(() => notifyClient(req.id, "request.expired"));
+      }
     }
     return { ...req, status: "expired" };
   }
   return req;
+}
+
+/**
+ * Barrido programado (cron): expira las solicitudes cuyo link ya venció y que
+ * siguen esperando al solicitante (pre-envío). Devuelve los ids realmente
+ * expirados para que el llamador dispare el webhook `request.expired`.
+ */
+export async function expireDueRequests(): Promise<string[]> {
+  const supabase = createServiceClient();
+  const { data: due } = await supabase
+    .from("kyb_requests")
+    .select("id, status")
+    .lt("token_expires_at", new Date().toISOString())
+    .in("status", PRE_SUBMIT_STATUSES);
+
+  const expired: string[] = [];
+  for (const row of due ?? []) {
+    const ok = await expireRequest(row.id as string, row.status as KybStatus);
+    if (ok) expired.push(row.id as string);
+  }
+  return expired;
 }
 
 export function isTerminal(status: KybStatus): boolean {
@@ -320,22 +402,52 @@ export async function submitRequest(
   const supabase = createServiceClient();
   const { data: req } = await supabase
     .from("kyb_requests")
-    .select("id, status")
+    .select("id, status, form_id, form_definition")
     .eq("id", requestId)
     .single();
   if (!req) throw new Error("Solicitud no encontrada");
   if (isTerminal(req.status)) throw new Error("La solicitud ya está cerrada");
 
+  // Prune del camino inalcanzable: si el solicitante cambió una bifurcación
+  // (p. ej. en el ciclo de correcciones), descarta del blob las respuestas de
+  // ramas que ya no se recorren, para no persistir datos de un camino abandonado.
+  // Solo en el envío (respuestas finales); NUNCA en el autosave, donde una rama
+  // aún no alcanzada es legítima. Y solo para solicitudes con formulario dinámico
+  // propio (snapshot o form_id): en el legacy `resolveRequestDefinition` caería al
+  // form publicado por defecto —con otras keys— y borraría respuestas válidas.
+  let toSave = data;
+  const isDynamic =
+    !!(req as { form_definition?: unknown }).form_definition ||
+    !!(req as { form_id?: string | null }).form_id;
+  if (isDynamic) {
+    const definition = await resolveRequestDefinition(
+      (req as { form_definition?: unknown }).form_definition,
+      (req as { form_id?: string | null }).form_id,
+    );
+    if (definition) {
+      const keep = new Set(reachableFields(definition, data).map((f) => f.key));
+      toSave = Object.fromEntries(
+        Object.entries(data).filter(([k]) => keep.has(k)),
+      );
+    }
+  }
+
   await supabase
     .from("kyb_form_responses")
     .upsert(
-      { request_id: requestId, data, form_version: FORM_VERSION },
+      { request_id: requestId, data: toSave, form_version: FORM_VERSION },
       { onConflict: "request_id" },
     );
 
+  // `corrections: null` cierra la ronda de correcciones abierta (si venía de
+  // `changes_requested`); en el flujo normal ya era null.
   await supabase
     .from("kyb_requests")
-    .update({ status: "submitted", submitted_at: new Date().toISOString() })
+    .update({
+      status: "submitted",
+      submitted_at: new Date().toISOString(),
+      corrections: null,
+    })
     .eq("id", requestId);
   await logAudit({
     requestId,
@@ -509,11 +621,12 @@ export async function runVerifications(
   await notifyClient(requestId, "verification.completed");
 }
 
-/** Decisión del analista (approve/reject). */
+/** Decisión del analista (approve/reject), con motivo legible opcional. */
 export async function decideRequest(
   requestId: string,
   decision: KybDecision,
   analyst: { userId: string; email: string },
+  reason?: string,
 ): Promise<void> {
   const supabase = createServiceClient();
   const { data: req } = await supabase
@@ -525,6 +638,7 @@ export async function decideRequest(
   if (isTerminal(req.status)) throw new Error("La solicitud ya está cerrada");
 
   const to: KybStatus = decision === "approved" ? "approved" : "rejected";
+  const trimmedReason = reason?.trim() || null;
   await supabase
     .from("kyb_requests")
     .update({
@@ -532,6 +646,7 @@ export async function decideRequest(
       decision,
       decided_at: new Date().toISOString(),
       decided_by: analyst.userId,
+      decision_reason: trimmedReason,
     })
     .eq("id", requestId);
 
@@ -541,6 +656,131 @@ export async function decideRequest(
     action: "decision",
     fromStatus: req.status,
     toStatus: to,
-    metadata: { decision },
+    metadata: { decision, reason: trimmedReason },
   });
+}
+
+/**
+ * Devuelve una solicitud ya enviada al solicitante para que corrija preguntas
+ * puntuales: borra las respuestas marcadas del blob (dejándolas disponibles de
+ * nuevo), guarda el set de correcciones + notas, re-emite el link y pasa a
+ * `changes_requested`. Idempotente vía compare-and-set: solo actúa sobre
+ * `submitted`/`under_review`. NO dispara el webhook (lo hace el llamador con
+ * `after(...)`, como `decision.made`).
+ */
+export async function requestChanges(
+  requestId: string,
+  fields: { key: string; note?: string }[],
+  opts: { actor: string; source: "admin" | "api"; ttlHours?: number },
+): Promise<
+  | { ok: true; invitationUrl: string; token: string; expiresAt: string; round: number }
+  | { ok: false; error: string }
+> {
+  const supabase = createServiceClient();
+  const { data: req } = await supabase
+    .from("kyb_requests")
+    .select("id, status, corrections, form_id, form_definition")
+    .eq("id", requestId)
+    .single();
+  if (!req) return { ok: false, error: "Solicitud no encontrada" };
+
+  const from = req.status as KybStatus;
+  if (from !== "submitted" && from !== "under_review") {
+    return {
+      ok: false,
+      error: "La solicitud no admite correcciones en su estado actual.",
+    };
+  }
+
+  const definition = await resolveRequestDefinition(
+    (req as { form_definition?: unknown }).form_definition,
+    (req as { form_id?: string | null }).form_id,
+  );
+  if (!definition) {
+    return {
+      ok: false,
+      error: "El formulario no soporta correcciones por-pregunta (legacy).",
+    };
+  }
+
+  // Solo keys que existen en la definición; deduplicadas (primera nota gana).
+  const validKeys = new Set(definition.sections.flatMap((s) => s.fields.map((f) => f.key)));
+  const seen = new Set<string>();
+  const marked: KybCorrectionField[] = [];
+  for (const f of fields) {
+    if (!validKeys.has(f.key) || seen.has(f.key)) continue;
+    seen.add(f.key);
+    marked.push({ key: f.key, note: f.note?.trim() ?? "" });
+  }
+  if (marked.length === 0) {
+    return { ok: false, error: "No hay preguntas válidas para corregir." };
+  }
+
+  const prev = (req as { corrections?: KybCorrections | null }).corrections;
+  const round = (prev?.round ?? 0) + 1;
+  const corrections: KybCorrections = {
+    round,
+    requested_at: new Date().toISOString(),
+    source: opts.source,
+    requested_by: opts.actor,
+    fields: marked,
+  };
+
+  // Compare-and-set atómico: gana un solo requestChanges/decideRequest
+  // concurrente, y deja estado + correcciones consistentes de una vez.
+  const { data: locked } = await supabase
+    .from("kyb_requests")
+    .update({ status: "changes_requested", corrections })
+    .eq("id", requestId)
+    .in("status", ["submitted", "under_review"])
+    .select("id")
+    .maybeSingle();
+  if (!locked) {
+    return {
+      ok: false,
+      error: "La solicitud cambió de estado; reintenta.",
+    };
+  }
+
+  // Borra del blob las respuestas marcadas (y sus archivos, para re-subida limpia).
+  const { data: responseRow } = await supabase
+    .from("kyb_form_responses")
+    .select("data")
+    .eq("request_id", requestId)
+    .maybeSingle();
+  const answers = { ...((responseRow?.data as Record<string, unknown>) ?? {}) };
+  for (const { key } of marked) {
+    for (const ref of fileRefsOf(answers[key])) {
+      await deleteDocument({ requestId, storagePath: ref.path });
+    }
+    delete answers[key];
+  }
+  await supabase
+    .from("kyb_form_responses")
+    .upsert(
+      { request_id: requestId, data: answers, form_version: FORM_VERSION },
+      { onConflict: "request_id" },
+    );
+
+  // Re-verificar solo lo corregido: borra los aml_checks de esas preguntas.
+  await supabase
+    .from("aml_checks")
+    .delete()
+    .eq("request_id", requestId)
+    .in("field_key", marked.map((m) => m.key));
+
+  await logAudit({
+    requestId,
+    actor: opts.actor,
+    action: "changes_requested",
+    fromStatus: from,
+    toStatus: "changes_requested",
+    metadata: { round, source: opts.source, fields: marked },
+  });
+
+  const { token, expiresAt, invitationUrl } = await issueToken(
+    requestId,
+    opts.ttlHours,
+  );
+  return { ok: true, invitationUrl, token, expiresAt, round };
 }

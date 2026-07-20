@@ -3,6 +3,7 @@ export type KybStatus =
   | "in_progress"
   | "submitted"
   | "under_review"
+  | "changes_requested"
   | "approved"
   | "rejected"
   | "expired";
@@ -10,6 +11,21 @@ export type KybStatus =
 export type KybDecision = "approved" | "rejected";
 
 export type AmlStatus = "pending" | "passed" | "flagged" | "error";
+
+/** Una pregunta marcada para corregir, con la nota que ve el solicitante. */
+export interface KybCorrectionField {
+  key: string;
+  note: string;
+}
+
+/** Set ABIERTO de correcciones de la ronda vigente (se limpia al reenviar). */
+export interface KybCorrections {
+  round: number;
+  requested_at: string;
+  source: "admin" | "api";
+  requested_by: string;
+  fields: KybCorrectionField[];
+}
 
 export interface KybRequest {
   id: string;
@@ -23,6 +39,8 @@ export interface KybRequest {
   decided_at: string | null;
   decision: KybDecision | null;
   decided_by: string | null;
+  corrections: KybCorrections | null;
+  decision_reason: string | null;
 }
 
 export interface KybFormResponse {

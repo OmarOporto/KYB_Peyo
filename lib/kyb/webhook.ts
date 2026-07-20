@@ -5,7 +5,12 @@ import { generateToken } from "@/lib/tokens";
 import { open } from "@/lib/crypto/secretBox";
 import { safeWebhookFetch } from "@/lib/net/ssrfGuard";
 
-export type WebhookEvent = "verification.completed" | "decision.made";
+export type WebhookEvent =
+  | "request.submitted"
+  | "verification.completed"
+  | "decision.made"
+  | "changes.requested"
+  | "request.expired";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
@@ -25,7 +30,7 @@ export async function notifyClient(
     const { data: req } = await supabase
       .from("kyb_requests")
       .select(
-        "id, external_ref, status, decision, webhook_endpoint_id, created_at, submitted_at, decided_at",
+        "id, external_ref, status, decision, decision_reason, corrections, webhook_endpoint_id, created_at, submitted_at, decided_at",
       )
       .eq("id", requestId)
       .maybeSingle();
@@ -67,6 +72,8 @@ export async function notifyClient(
       external_ref: req.external_ref,
       status: req.status,
       decision: req.decision,
+      reason: req.decision_reason ?? null,
+      corrections: req.corrections ?? null,
       created_at: req.created_at,
       submitted_at: req.submitted_at,
       decided_at: req.decided_at,

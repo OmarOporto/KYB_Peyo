@@ -51,6 +51,22 @@ Authorization: Bearer <API_KEY>
 4. Consultas detalle: /answers, /documents, /draft según necesites
 ```
 
+**Aviso inmediato de envío:** en cuanto el usuario envía el formulario recibes
+`request.submitted` (antes de que terminen las verificaciones), ideal para mandarle
+al instante tu correo de "recibimos tu solicitud".
+
+**Ciclo de correcciones (opcional):** tras `submitted`/`under_review`, tú (o
+nuestro analista) pueden devolver la solicitud para que el usuario **corrija
+preguntas puntuales** con `POST /requests/:id/request-changes` (§4.8). Eso borra
+solo esas respuestas, pasa la solicitud a `changes_requested`, y devuelve un
+`invitationUrl` nuevo (mismo borrador para el resto). El usuario corrige desde la
+primera pregunta marcada y reenvía; el flujo vuelve a `submitted → under_review →
+decisión`. Recibes un webhook `changes.requested` al pedirlas.
+
+**Expiración y re-envío:** si el link vence sin que el usuario termine, recibes
+`request.expired` (aunque nunca vuelva a abrirlo). Para reenviarle una invitación
+nueva conservando el borrador, llama a `POST /:id/invitation` (§4.7).
+
 ---
 
 ## 4. Endpoints
@@ -129,6 +145,7 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
 {
   "id": "…", "externalRef": "emp-123",
   "status": "under_review", "decision": null,
+  "reason": null, "corrections": null,
   "createdAt": "…", "submittedAt": "…", "decidedAt": null,
   "aml": [
     { "provider": "didit", "status": "passed",
@@ -137,6 +154,11 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
   ]
 }
 ```
+
+- `reason`: motivo legible de la decisión final (string) o `null`. Se llena al
+  aprobar/rechazar con un motivo.
+- `corrections`: si `status` es `changes_requested`, el set abierto de preguntas a
+  corregir; si no, `null`. Shape: `{ round, requested_at, source, fields: [{ key, note }] }`.
 
 `404 { "error": "not_found" }` si la solicitud no existe o no es tuya.
 
@@ -194,7 +216,55 @@ link o expiró). Body opcional: `{ "ttl_hours": 168 }`.
 { "invitationUrl": "https://…/f/<nuevo-token>", "token": "…", "expiresAt": "…" }
 ```
 
-`409` si la solicitud ya fue enviada o cerrada.
+Aplica a solicitudes `created`, `in_progress`, `expired` **y `changes_requested`**.
+Este último caso es clave: cuando **nuestro analista** pide correcciones desde el
+panel, el webhook que recibes **no incluye el link** (por seguridad el token solo
+existe en claro al emitirse). Para obtener el link que enviar a tu usuario, llama a
+este endpoint tras recibir `changes.requested`. No cambia el estado ni pierde el
+borrador; solo rota el token.
+
+`409` si la solicitud ya fue enviada o cerrada (`submitted`, `under_review`,
+`approved`, `rejected`).
+
+### 4.8 Solicitar correcciones — `POST /requests/:id/request-changes`
+
+Devuelve la solicitud al usuario para que **corrija preguntas puntuales**. Borra
+solo las respuestas marcadas (sus archivos incluidos), deja el resto del borrador
+intacto, pasa el estado a `changes_requested` y **re-emite el link**. Requiere que
+la solicitud esté `submitted` o `under_review`.
+
+**Body (JSON):**
+
+| Campo | Tipo | Req. | Descripción |
+|---|---|---|---|
+| `fields` | array | **sí** | Preguntas a corregir. Cada ítem: `{ "key": "<field.key>", "note": "<qué corregir>" }` (`note` opcional). |
+| `ttl_hours` | int > 0 | no | Vigencia del nuevo link (default 14 días). |
+
+**Respuesta `200`:**
+
+```json
+{
+  "id": "…", "status": "changes_requested",
+  "invitationUrl": "https://…/f/<nuevo-token>",
+  "token": "…", "expiresAt": "…", "round": 1
+}
+```
+
+Comparte el `invitationUrl` con tu usuario. El usuario arranca en la primera
+pregunta marcada, ve (sin editar) sus respuestas anteriores, corrige y reenvía.
+Recibes un webhook `changes.requested` (ver §6).
+
+- `409` si la solicitud no está en un estado que admita correcciones.
+- `422 { "error": "invalid_body" }` si `fields` está vacío o mal formado.
+
+**Ejemplo:**
+
+```bash
+curl -X POST "$KYB_BASE_URL/api/v1/kyb/requests/$ID/request-changes" \
+  -H "Authorization: Bearer $API_KEY" \
+  -H "Content-Type: application/json" \
+  -d '{ "fields": [ { "key": "id_front", "note": "La foto está borrosa; vuelve a subirla." } ] }'
+```
 
 ---
 
@@ -216,8 +286,11 @@ y el `WEBHOOK_SECRET` (una sola vez).
 
 ### Eventos
 Hacemos `POST` a tu endpoint cuando:
-- `verification.completed` — terminaron las verificaciones (estado `under_review`).
-- `decision.made` — se aprobó/rechazó la solicitud.
+- `request.submitted` — el usuario **envió** el formulario (estado `submitted`), antes de que corran las verificaciones. Útil para mandarle al instante tu correo de "recibimos tu solicitud" sin esperar a los checks. **Ojo:** también se dispara cuando reenvía **tras una corrección**; si tu correo debe salir solo la primera vez, deduplica por tu propio estado (p. ej. tu primer `request.submitted` para ese `external_ref`).
+- `verification.completed` — terminaron las verificaciones (estado `under_review`). **Se re-dispara** cada vez que el usuario reenvía tras una corrección (vuelve a pasar por `submitted → under_review`), así te enteras de que ya corrigió.
+- `decision.made` — se aprobó/rechazó la solicitud. El body incluye `reason` (motivo legible del rechazo/aprobación, o `null`).
+- `changes.requested` — se devolvió la solicitud para corregir preguntas (estado `changes_requested`). El body incluye `corrections` (`{ round, fields: [{ key, note }] }`) para que sepas **qué preguntas** y **por qué**. **No incluye el `invitationUrl`**: si tú disparaste las correcciones vía `POST /:id/request-changes`, el link viene en la respuesta de esa llamada; si las pidió nuestro analista, obtén un link fresco con `POST /:id/invitation` (§4.7) y reenvíalo a tu usuario.
+- `request.expired` — el link/solicitud **venció** sin que el usuario terminara (estado `expired`; solo aplica a solicitudes aún **no enviadas**). Detectado por un barrido programado, así que llega aunque el usuario nunca vuelva a abrir el link. Para reenviarle una invitación nueva, llama a `POST /:id/invitation` (§4.7), que revive la solicitud conservando el borrador.
 
 ### Request que recibes
 Cabeceras:
@@ -290,6 +363,7 @@ documentos) son más estrictos.
 ## 8. Enumeraciones
 
 - **`status`**: `created` → `in_progress` → `submitted` → `under_review` → `approved` | `rejected` | `expired`.
+  - `changes_requested` es un estado **no terminal** intermedio: se entra desde `submitted`/`under_review` al pedir correcciones, y se sale a `submitted` cuando el usuario reenvía.
 - **`decision`**: `approved` | `rejected` | `null`.
 - **AML `status`** (por check): `pending` | `passed` | `flagged` | `error`.
 
@@ -304,6 +378,7 @@ documentos) son más estrictos.
 | 404 | `not_found` | La solicitud no existe o no es tuya |
 | 409 | `idempotency_key_reuse` / `request_in_progress` | Misma Idempotency-Key con body distinto / en curso |
 | 409 | (re-emitir) | La solicitud ya fue enviada o cerrada |
+| 409 | (request-changes) | La solicitud no está en un estado que admita correcciones |
 | 422 | `invalid_body` / `invalid_return_url` / `invalid_webhook_endpoint` | Validación del body |
 | 429 | `rate_limited` | Cuota excedida |
 

@@ -12,8 +12,9 @@ import {
   type CheckImage,
 } from "@/components/admin/AmlCheckCard";
 import { decideAction, rerunVerificationsAction } from "@/app/admin/actions";
+import { RequestChangesPanel } from "@/components/admin/RequestChangesPanel";
 import { isTerminal, createSignedDocUrls } from "@/lib/kyb/service";
-import type { KybStatus } from "@/lib/kyb/types";
+import type { KybCorrections, KybStatus } from "@/lib/kyb/types";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { isAnswered } from "@/lib/forms/logic";
 import { resolveText, type Field } from "@/lib/forms/definition";
@@ -52,7 +53,13 @@ export default async function RequestDetail({
   ]);
 
   const formData = (formRow?.data as Record<string, unknown>) ?? {};
-  const closed = isTerminal(request.status as KybStatus);
+  const status = request.status as KybStatus;
+  const closed = isTerminal(status);
+  // Solo se puede decidir/pedir correcciones sobre una solicitud ya enviada y
+  // aún abierta (no mientras el solicitante ya está corrigiendo).
+  const canDecide = status === "submitted" || status === "under_review";
+  const corrections = (request as { corrections?: KybCorrections | null })
+    .corrections;
   const locale = await getLocale();
   // Definición congelada del request (lo que el solicitante realmente llenó).
   const definition = await resolveRequestDefinition(
@@ -254,15 +261,54 @@ export default async function RequestDetail({
       </Section>
 
       {/* Decisión */}
-      {!closed && (
-        <div className="mt-6 flex gap-3">
-          <form action={decideAction.bind(null, id, "approved")}>
-            <Button variant="success">{t("approve")}</Button>
-          </form>
-          <form action={decideAction.bind(null, id, "rejected")}>
-            <Button variant="danger">{t("reject")}</Button>
-          </form>
+      {canDecide && (
+        <div className="mt-6 space-y-4">
+          <div className="flex flex-wrap items-start gap-3">
+            <form action={decideAction.bind(null, id, "approved")}>
+              <Button variant="success">{t("approve")}</Button>
+            </form>
+            <form action={decideAction.bind(null, id, "rejected")} className="flex flex-col gap-2">
+              <textarea
+                name="reason"
+                rows={2}
+                className="w-64 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-brand"
+                placeholder={t("rejectReason")}
+              />
+              <Button variant="danger">{t("reject")}</Button>
+            </form>
+          </div>
+          {definition && (
+            <RequestChangesPanel
+              requestId={id}
+              fields={definition.sections.flatMap((s) =>
+                s.fields
+                  .filter((f) => f.type !== "note")
+                  .map((f) => ({
+                    key: f.key,
+                    label: resolveText(f.label, locale) || f.key,
+                    section: resolveText(s.title, locale),
+                  })),
+              )}
+            />
+          )}
         </div>
+      )}
+      {status === "changes_requested" && corrections && (
+        <Card className="mt-6 p-4">
+          <p className="text-sm font-medium text-foreground">
+            {t("awaitingCorrections", { round: corrections.round })}
+          </p>
+          <ul className="mt-2 space-y-1 text-sm text-muted">
+            {corrections.fields.map((f) => (
+              <li key={f.key}>
+                <strong className="text-foreground">
+                  {triggerByKey.get(f.key)?.question ?? f.key}
+                </strong>
+                {f.note ? ` — ${f.note}` : ""}
+              </li>
+            ))}
+          </ul>
+        </Card>
       )}
       {closed && (
         <p className="mt-6 text-sm text-muted">
@@ -270,6 +316,11 @@ export default async function RequestDetail({
           <strong className="text-foreground">
             {request.decision ?? request.status}
           </strong>
+          {request.decision_reason ? (
+            <span className="mt-1 block text-foreground">
+              {request.decision_reason}
+            </span>
+          ) : null}
         </p>
       )}
     </main>

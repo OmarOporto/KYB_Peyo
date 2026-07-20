@@ -15,6 +15,7 @@ const STATUSES: KybStatus[] = [
   "in_progress",
   "submitted",
   "under_review",
+  "changes_requested",
   "approved",
   "rejected",
   "expired",

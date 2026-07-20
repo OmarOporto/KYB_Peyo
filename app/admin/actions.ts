@@ -4,22 +4,57 @@ import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { after } from "next/server";
 import { requireAnalyst } from "@/lib/auth/admin";
-import { decideRequest, runVerifications, DOCUMENTS_BUCKET } from "@/lib/kyb/service";
+import {
+  decideRequest,
+  requestChanges,
+  runVerifications,
+  DOCUMENTS_BUCKET,
+} from "@/lib/kyb/service";
 import { notifyClient } from "@/lib/kyb/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { KybDecision } from "@/lib/kyb/types";
 
-export async function decideAction(requestId: string, decision: KybDecision) {
+export async function decideAction(
+  requestId: string,
+  decision: KybDecision,
+  formData?: FormData,
+) {
   const analyst = await requireAnalyst();
-  await decideRequest(requestId, decision, {
-    userId: analyst.userId,
-    email: analyst.email,
-  });
+  const reason = formData ? String(formData.get("reason") ?? "") : undefined;
+  await decideRequest(
+    requestId,
+    decision,
+    { userId: analyst.userId, email: analyst.email },
+    reason,
+  );
   // Push al cliente en segundo plano (no bloquea la respuesta del panel).
   after(() => notifyClient(requestId, "decision.made"));
   revalidatePath(`/admin/requests/${requestId}`);
   revalidatePath("/admin");
+}
+
+/**
+ * Devuelve la solicitud al solicitante para corregir preguntas puntuales
+ * (borra sus respuestas y re-emite el link). Llamado desde el panel de detalle.
+ */
+export async function requestChangesAction(
+  requestId: string,
+  fields: { key: string; note?: string }[],
+): Promise<
+  | { ok: true; invitationUrl: string; round: number }
+  | { ok: false; error: string }
+> {
+  const analyst = await requireAnalyst();
+  const res = await requestChanges(requestId, fields, {
+    actor: analyst.email,
+    source: "admin",
+  });
+  if (!res.ok) return res;
+  after(() => notifyClient(requestId, "changes.requested"));
+  revalidatePath(`/admin/requests/${requestId}`);
+  revalidatePath("/admin");
+  return { ok: true, invitationUrl: res.invitationUrl, round: res.round };
 }
 
 /**

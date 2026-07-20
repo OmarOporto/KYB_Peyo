@@ -33,6 +33,9 @@ export const env = {
   kybWebhookSecret: () => process.env.KYB_WEBHOOK_SECRET ?? "",
   // Clave (32 bytes base64) para cifrar secretos de webhook por endpoint (AES-256-GCM).
   secretEncKey: () => process.env.KYB_SECRET_ENC_KEY ?? "",
+  // Secreto compartido para autorizar el cron de expiración (Vercel Cron envía
+  // `Authorization: Bearer $CRON_SECRET`). Sin él, la ruta cron responde 401.
+  cronSecret: () => process.env.CRON_SECRET ?? "",
   // Límite de tasa por defecto (req/min por API key) si la key no fija uno propio.
   apiRateLimitDefault: () => {
     const n = Number(process.env.API_RATE_LIMIT_DEFAULT_PER_MIN);

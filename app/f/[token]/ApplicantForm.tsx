@@ -23,12 +23,18 @@ export function ApplicantForm({
   locale,
   initialAnswers,
   returnUrl,
+  mode = "live",
+  corrections,
+  anchorSectionId,
 }: {
   token: string;
   definition: FormDefinition;
   locale: string;
   initialAnswers: Answers;
   returnUrl?: string;
+  mode?: "live" | "correction";
+  corrections?: { key: string; note: string }[];
+  anchorSectionId?: string;
 }) {
   const t = useTranslations("form");
 
@@ -38,7 +44,9 @@ export function ApplicantForm({
       locale={locale}
       initialAnswers={initialAnswers}
       returnUrl={returnUrl}
-      mode="live"
+      mode={mode}
+      corrections={corrections}
+      anchorSectionId={anchorSectionId}
       onSaveDraft={async (a) => {
         await saveDraftAction(token, a as Record<string, unknown>);
       }}
@@ -104,6 +112,8 @@ export function ApplicantForm({
         invalid: t("errInvalid"),
         returnCta: t("returnCta"),
         redirecting: t("redirecting"),
+        correctionBanner: t("correctionBanner"),
+        readOnlyNotice: t("readOnlyNotice"),
       }}
     />
   );

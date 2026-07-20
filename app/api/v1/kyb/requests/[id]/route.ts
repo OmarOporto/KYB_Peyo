@@ -30,7 +30,7 @@ export async function GET(
   const { data: request } = await supabase
     .from("kyb_requests")
     .select(
-      "id, external_ref, status, decision, created_at, submitted_at, decided_at",
+      "id, external_ref, status, decision, decision_reason, corrections, created_at, submitted_at, decided_at",
     )
     .eq("id", id)
     .eq("api_key_id", keyId)
@@ -51,6 +51,8 @@ export async function GET(
     externalRef: request.external_ref,
     status: request.status,
     decision: request.decision,
+    reason: request.decision_reason ?? null,
+    corrections: request.corrections ?? null,
     createdAt: request.created_at,
     submittedAt: request.submitted_at,
     decidedAt: request.decided_at,

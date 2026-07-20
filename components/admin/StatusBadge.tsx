@@ -7,6 +7,7 @@ const COLORS: Record<string, string> = {
   in_progress: "bg-brand/10 text-brand",
   submitted: "bg-brand/10 text-brand",
   under_review: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
+  changes_requested: "bg-orange-500/15 text-orange-600 dark:text-orange-400",
   approved: "bg-success/15 text-success",
   rejected: "bg-danger/15 text-danger",
   expired: "bg-surface-2 text-muted",
