@@ -69,6 +69,10 @@ Base: `KYB_BASE_URL/api/v1/kyb`
 | `return_url` | string (https, ≤2048) | no | A dónde redirigir el navegador del usuario tras enviar. |
 | `ttl_hours` | int > 0 | no | Vigencia del link de invitación (default 14 días). |
 
+> \* `form_id` es opcional en el esquema, pero **recomendado**: si no lo envías, se
+> usa el formulario publicado por defecto. Y sin un formulario válido no corren las
+> verificaciones DIDIT.
+
 **Cabecera opcional:** `Idempotency-Key: <valor-único>` — si reintentas con la misma
 key y el mismo body, devolvemos la respuesta original (no se duplica la solicitud).
 
