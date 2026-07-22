@@ -118,6 +118,7 @@
     "colSource": "Source",
     "colUpdated": "Updated",
     "edit": "Edit",
+    "duplicate": "Duplicate",
     "empty": "No forms yet. Create one or import from DIDIT.",
     "published": "Published",
     "draft": "Draft"

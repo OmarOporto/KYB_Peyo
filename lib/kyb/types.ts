@@ -41,6 +41,7 @@ export interface KybRequest {
   decided_by: string | null;
   corrections: KybCorrections | null;
   decision_reason: string | null;
+  expiring_notified_at: string | null;
 }
 
 export interface KybFormResponse {

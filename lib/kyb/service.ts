@@ -125,7 +125,12 @@ async function issueToken(
   const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
   await supabase
     .from("kyb_requests")
-    .update({ invitation_token_hash: hashToken(token), token_expires_at: expiresAt })
+    .update({
+      invitation_token_hash: hashToken(token),
+      token_expires_at: expiresAt,
+      // Nuevo ciclo de link → puede volver a avisar "por vencer".
+      expiring_notified_at: null,
+    })
     .eq("id", requestId);
   return { token, expiresAt, invitationUrl: `${env.appUrl()}/f/${token}` };
 }
@@ -267,6 +272,35 @@ export async function expireDueRequests(): Promise<string[]> {
     if (ok) expired.push(row.id as string);
   }
   return expired;
+}
+
+/** Ventana (días) del aviso proactivo antes del vencimiento del link. */
+const EXPIRING_WINDOW_DAYS = 3;
+
+/**
+ * Barrido programado (cron): avisa "por vencer" las solicitudes pre-envío cuyo
+ * link vence dentro de los próximos `windowDays` y que **aún no** han sido
+ * avisadas. El `UPDATE` con guard `expiring_notified_at IS NULL` es atómico y
+ * garantiza **un solo aviso** por ciclo de link (se reinicia al re-emitir el
+ * link en `issueToken`). Devuelve los ids para disparar `request.expiring`.
+ */
+export async function notifyExpiringSoonRequests(
+  windowDays = EXPIRING_WINDOW_DAYS,
+): Promise<string[]> {
+  const supabase = createServiceClient();
+  const nowIso = new Date().toISOString();
+  const windowIso = new Date(Date.now() + windowDays * 86_400_000).toISOString();
+
+  const { data } = await supabase
+    .from("kyb_requests")
+    .update({ expiring_notified_at: nowIso })
+    .in("status", PRE_SUBMIT_STATUSES)
+    .is("expiring_notified_at", null)
+    .gt("token_expires_at", nowIso) // aún NO vencido → avisamos ANTES
+    .lt("token_expires_at", windowIso) // dentro de la ventana
+    .select("id");
+
+  return (data ?? []).map((r) => r.id as string);
 }
 
 export function isTerminal(status: KybStatus): boolean {

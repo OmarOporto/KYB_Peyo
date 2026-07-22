@@ -4,6 +4,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { countFields, type FormDefinition } from "@/lib/forms/definition";
 import { FormsToolbar } from "./FormsToolbar";
+import { duplicateForm } from "./actions";
 
 export const dynamic = "force-dynamic";
 
@@ -70,12 +71,22 @@ export default async function FormsList() {
                     {new Date(f.updated_at).toLocaleString()}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <Link
-                      href={`/admin/forms/${f.id}/edit`}
-                      className="font-medium text-brand hover:underline"
-                    >
-                      {t("edit")} →
-                    </Link>
+                    <div className="flex items-center justify-end gap-3">
+                      <form action={duplicateForm.bind(null, f.id)}>
+                        <button
+                          type="submit"
+                          className="font-medium text-brand hover:underline"
+                        >
+                          {t("duplicate")}
+                        </button>
+                      </form>
+                      <Link
+                        href={`/admin/forms/${f.id}/edit`}
+                        className="font-medium text-brand hover:underline"
+                      >
+                        {t("edit")} →
+                      </Link>
+                    </div>
                   </td>
                 </tr>
               ))}

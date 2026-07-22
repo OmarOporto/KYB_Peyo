@@ -146,6 +146,7 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
   "id": "…", "externalRef": "emp-123",
   "status": "under_review", "decision": null,
   "reason": null, "corrections": null,
+  "expiresAt": "2026-08-01T12:00:00.000Z",
   "createdAt": "…", "submittedAt": "…", "decidedAt": null,
   "aml": [
     { "provider": "didit", "status": "passed",
@@ -159,6 +160,7 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
   aprobar/rechazar con un motivo.
 - `corrections`: si `status` es `changes_requested`, el set abierto de preguntas a
   corregir; si no, `null`. Shape: `{ round, requested_at, source, fields: [{ key, note }] }`.
+- `expiresAt`: vencimiento del link de invitación vigente (ISO), o `null`.
 
 `404 { "error": "not_found" }` si la solicitud no existe o no es tuya.
 
@@ -290,7 +292,9 @@ Hacemos `POST` a tu endpoint cuando:
 - `verification.completed` — terminaron las verificaciones (estado `under_review`). **Se re-dispara** cada vez que el usuario reenvía tras una corrección (vuelve a pasar por `submitted → under_review`), así te enteras de que ya corrigió.
 - `decision.made` — se aprobó/rechazó la solicitud. El body incluye `reason` (motivo legible del rechazo/aprobación, o `null`).
 - `changes.requested` — se devolvió la solicitud para corregir preguntas (estado `changes_requested`). El body incluye `corrections` (`{ round, fields: [{ key, note }] }`) para que sepas **qué preguntas** y **por qué**. **No incluye el `invitationUrl`**: si tú disparaste las correcciones vía `POST /:id/request-changes`, el link viene en la respuesta de esa llamada; si las pidió nuestro analista, obtén un link fresco con `POST /:id/invitation` (§4.7) y reenvíalo a tu usuario.
-- `request.expired` — el link/solicitud **venció** sin que el usuario terminara (estado `expired`; solo aplica a solicitudes aún **no enviadas**). Detectado por un barrido programado, así que llega aunque el usuario nunca vuelva a abrir el link. Para reenviarle una invitación nueva, llama a `POST /:id/invitation` (§4.7), que revive la solicitud conservando el borrador.
+- `request.expiring` — aviso **proactivo**: el link está **por vencer** (~3 días antes del `expires_at`), mientras la solicitud sigue **no enviada**. Se dispara **una sola vez** por ciclo de link (el marcador se reinicia si re-emites el link). El body incluye `expires_at`. Úsalo para recordarle al usuario que termine o para renovar con `POST /:id/invitation` (§4.7). Detectado por el barrido programado, así que llega aunque el usuario no vuelva a abrir el link.
+- `request.expired` — el link/solicitud **venció** sin que el usuario terminara (estado `expired`; solo aplica a solicitudes aún **no enviadas**). Detectado por el mismo barrido programado, así que llega aunque el usuario nunca vuelva a abrir el link. Para reenviarle una invitación nueva, llama a `POST /:id/invitation` (§4.7), que revive la solicitud conservando el borrador.
+  - **Timing:** `request.expired` se emite **después** de vencer; el heads-up previo es `request.expiring`. El acceso del usuario al link se corta **en tiempo real** en el instante del vencimiento (`expires_at`), independientemente del barrido. Lo que puede llegar con retraso es solo la **notificación**: con el barrido diario, ambos eventos llegan dentro de su ventana (hasta ~24 h de resolución). Si necesitas más precisión, sube la frecuencia del barrido (requiere plan que lo permita).
 
 ### Request que recibes
 Cabeceras:
@@ -301,7 +305,9 @@ x-kyb-delivery-id: dlv_…
 x-kyb-timestamp: 1784300100
 x-kyb-signature: v1=<hex>
 ```
-Body (JSON): el mismo shape que `GET /:id` + `event`, `event_id`, `sent_at`.
+Body (JSON): el mismo shape que `GET /:id` + `event`, `event_id`, `sent_at`. Incluye
+`expires_at` (vencimiento del link vigente; en snake_case dentro del webhook), además de
+`reason` y `corrections` según el evento.
 
 ### Verificación de la firma (obligatoria)
 `<hex> = HMAC-SHA256(WEBHOOK_SECRET, `x-kyb-timestamp` + "." + <body-crudo>)`

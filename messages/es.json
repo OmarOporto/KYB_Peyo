@@ -118,6 +118,7 @@
     "colSource": "Origen",
     "colUpdated": "Actualizado",
     "edit": "Editar",
+    "duplicate": "Duplicar",
     "empty": "Aún no hay formularios. Crea uno o importa desde DIDIT.",
     "published": "Publicado",
     "draft": "Borrador"

@@ -86,6 +86,37 @@ export async function setFormStatus(
   return { ok: true };
 }
 
+export async function duplicateForm(id: string) {
+  await requireAnalyst();
+  const supabase = createServiceClient();
+  const { data, error } = await supabase
+    .from("forms")
+    .select("name, source, source_ref, definition")
+    .eq("id", id)
+    .maybeSingle();
+  if (error || !data) {
+    throw new Error(error?.message ?? "Formulario no encontrado.");
+  }
+  const parsed = formDefinitionSchema.safeParse(data.definition);
+  if (!parsed.success) {
+    throw new Error("La definición del formulario no es válida.");
+  }
+  const { data: created, error: insertError } = await supabase
+    .from("forms")
+    .insert({
+      name: `${data.name} (copia)`,
+      status: "draft",
+      source: data.source,
+      source_ref: data.source_ref,
+      definition: parsed.data,
+    })
+    .select("id")
+    .single();
+  if (insertError) throw new Error(insertError.message);
+  revalidatePath("/admin/forms");
+  redirect(`/admin/forms/${created.id}/edit`);
+}
+
 export async function deleteForm(id: string) {
   await requireAnalyst();
   const supabase = createServiceClient();
