@@ -105,11 +105,16 @@ export function ApplicantForm({
         saved: t("draftSaved"),
         saveError: t("saveError"),
         submitFailed: t("submitFailed"),
-        missingFields: t("missingFields"),
+        // Plantilla cruda: DynamicForm interpola {count} por su cuenta; t() normal
+        // lanzaría FORMATTING_ERROR porque la variable ICU no se provee aquí.
+        missingFields: t.raw("missingFields"),
         required: t("errRequired"),
         invalidEmail: t("errEmail"),
         invalidNumber: t("errNumber"),
         invalid: t("errInvalid"),
+        // Plantillas crudas: DynamicForm interpola {min}/{max} (patrón missingFields).
+        tooShort: t.raw("errTooShort"),
+        tooLong: t.raw("errTooLong"),
         returnCta: t("returnCta"),
         redirecting: t("redirecting"),
         correctionBanner: t("correctionBanner"),

@@ -13,6 +13,8 @@ import KybForm from "./KybForm";
 export const dynamic = "force-dynamic";
 // Margen para el trabajo en segundo plano (`after` → runVerifications) que
 // corre tras responder el submit de este route (verificaciones DIDIT/AML).
+// La validación registral (kyb_registry, ~90s) NO corre aquí: es un ciclo
+// manual del analista desde el panel.
 export const maxDuration = 60;
 
 function Notice({ title, body }: { title: string; body: string }) {

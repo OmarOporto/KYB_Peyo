@@ -2,9 +2,11 @@ import { getTranslations } from "next-intl/server";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DocPreview } from "@/components/admin/DocPreview";
+import { KybCandidatePicker } from "@/components/admin/KybCandidatePicker";
 
 /** Fila de aml_checks (subset que consume la tarjeta). */
 export type AmlCheckRow = {
+  id: string;
   provider: string;
   status: string;
   result: unknown;
@@ -26,6 +28,7 @@ const NODE_KEYS: Record<string, string[]> = {
   age_estimation: ["age_estimation"],
   liveness: ["liveness"],
   database_validation: ["database_validation"],
+  kyb_registry: ["kyb_registry"],
 };
 
 // Features cuyo `score` es RIESGO (mayor = peor); el resto es confianza (mayor = mejor).
@@ -73,6 +76,7 @@ export async function AmlCheckCard({
   refImages,
   sectionTitle,
   fieldLabel,
+  requestId,
 }: {
   check: AmlCheckRow;
   image?: CheckImage;
@@ -81,6 +85,8 @@ export async function AmlCheckCard({
   /** Sección y pregunta del formulario que dispararon esta verificación. */
   sectionTitle?: string;
   fieldLabel?: string;
+  /** Necesario para las acciones de kyb_registry (picker / repetir búsqueda). */
+  requestId?: string;
 }) {
   const t = await getTranslations("admin");
   const tB = await getTranslations("builder");
@@ -130,8 +136,47 @@ export async function AmlCheckCard({
         push("entityType", node.entity_type);
         push("totalHits", node.total_hits);
         break;
+      case "kyb_registry":
+        push("companyName", node.company_name);
+        push("regNumber", node.registration_number);
+        push("registryStatus", node.registry_status);
+        push("registryCountry", node.country_code);
+        push("incorporationDate", node.incorporation_date);
+        push("address", node.registered_address);
+        break;
     }
   }
+
+  // Extras de kyb_registry que viven en la raíz del result (no en el nodo):
+  // fase del ciclo, datos declarados, candidatos y marca de selección.
+  const envl = (check.result && typeof check.result === "object" ? check.result : {}) as Node;
+  const isKyb = feature === "kyb_registry";
+  const kybPhase = isKyb ? fmt(envl.phase) : "";
+  const kybDeclared = isKyb ? (envl.declared as Node | undefined) : undefined;
+  const kybSelected = isKyb ? (envl.selected as Node | undefined) : undefined;
+  const kybCandidates = isKyb && Array.isArray(envl.candidates) ? envl.candidates : [];
+  const kybBlocked = isKyb ? fmt(envl.autoSelectBlockedReason) : "";
+  // Candidatos preliminares del ACK del search async: DIDIT puede adelantar
+  // empresas con fetch_status pending antes de que la búsqueda resuelva.
+  const kybSearchReg = isKyb
+    ? (((envl.kyb_search as Node | undefined)?.kyb_registry ?? {}) as Node)
+    : ({} as Node);
+  const kybPreliminary =
+    isKyb &&
+    kybPhase === "search" &&
+    check.status === "pending" &&
+    Array.isArray(kybSearchReg.companies)
+      ? (kybSearchReg.companies as Record<string, unknown>[])
+      : [];
+  // El picker solo aparece en candidate_selection y ANTES de cualquier intento
+  // de select (un intento, aunque incierto, bloquea el ciclo: pudo facturarse).
+  const showKybPicker =
+    isKyb &&
+    check.status === "pending" &&
+    kybPhase === "candidate_selection" &&
+    kybCandidates.length > 0 &&
+    kybSelected?.select_attempted !== true &&
+    Boolean(requestId);
 
   return (
     <Card className="mb-2 p-3 text-sm">
@@ -140,6 +185,51 @@ export async function AmlCheckCard({
         <StatusBadge status={amlToBadge(check.status)} />
         <span className="ml-auto text-xs text-muted">{check.provider}</span>
       </div>
+
+      {/* Fase del ciclo kyb_registry (search → candidate_selection | select → completed) */}
+      {isKyb && check.status === "error" ? (
+        <p className="mb-2 text-xs text-muted">{t("kybErrorRetry")}</p>
+      ) : (
+        isKyb &&
+        kybPhase &&
+        t.has(`kybPhase_${kybPhase}`) && (
+          <p className="mb-2 text-xs text-muted">{t(`kybPhase_${kybPhase}`)}</p>
+        )
+      )}
+      {/* Motivo del fallo (cualquier check didit en error guarda result.error) */}
+      {check.status === "error" && fmt(envl.error) && (
+        <p className="mb-2 rounded-lg bg-danger/10 px-2 py-1 text-xs text-danger">
+          {fmt(envl.error)}
+        </p>
+      )}
+
+      {/* Resultados preliminares mientras la búsqueda resuelve (solo lectura) */}
+      {kybPreliminary.length > 0 && (
+        <div className="mb-2">
+          <p className="text-xs font-medium text-foreground">{t("kybPreliminary")}</p>
+          <p className="mb-1 text-xs text-muted">{t("kybPreliminaryHint")}</p>
+          <div className="space-y-1">
+            {kybPreliminary.slice(0, 5).map((c, i) => {
+              const cand = (c ?? {}) as Node;
+              return (
+                <div key={i} className="rounded-lg border border-border p-2 text-xs opacity-80">
+                  <div className="font-medium text-foreground">{fmt(cand.name) || "—"}</div>
+                  <div className="text-muted">
+                    {[
+                      fmt(cand.registration_number),
+                      fmt(cand.type),
+                      fmt(cand.status),
+                      fmt(cand.fetch_status),
+                    ]
+                      .filter(Boolean)
+                      .join(" · ")}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+      )}
 
       {(sectionTitle || fieldLabel) && (
         <details className="mb-2 rounded-lg bg-surface-2 px-2 py-1">
@@ -197,6 +287,52 @@ export async function AmlCheckCard({
             </details>
           )}
           {feature === "aml_screening" && node && <AmlHits node={node} />}
+          {isKyb && kybDeclared && <KybDeclaredBlock declared={kybDeclared} node={node} cf={cf} t={t} />}
+          {isKyb && node && <KybRegistryPeople node={node} cf={cf} />}
+          {isKyb && envl.reason === "no_candidates" && (
+            <p className="mt-2 text-xs text-muted">{t("kybNoCandidates")}</p>
+          )}
+          {isKyb && envl.reason === "none_matched" && (
+            <p className="mt-2 text-xs text-muted">{t("kybNoneMatchedInfo")}</p>
+          )}
+          {isKyb && envl.reason === "superseded" && (
+            <p className="mt-2 text-xs text-muted">{t("kybSuperseded")}</p>
+          )}
+          {showKybPicker && kybBlocked && t.has(`kybBlocked_${kybBlocked}`) && (
+            <p className="mt-2 text-xs text-muted">{t(`kybBlocked_${kybBlocked}`)}</p>
+          )}
+          {isKyb && fmt(envl.select_error) && (
+            <p className="mt-2 text-xs text-danger">{fmt(envl.select_error)}</p>
+          )}
+          {/* Intento de select sin confirmación: pudo facturarse — sin reintentos */}
+          {isKyb &&
+            check.status === "pending" &&
+            kybSelected?.select_attempted === true &&
+            kybSelected.billing_state === "unknown" && (
+              <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-600 dark:text-amber-400">
+                {t("kybAttemptedInfo")}
+              </div>
+            )}
+          {showKybPicker && requestId && (
+            <KybCandidatePicker
+              checkId={check.id}
+              requestId={requestId}
+              candidates={kybCandidates
+                .map((c) => {
+                  const cand = (c ?? {}) as Node;
+                  return {
+                    kyb_response_id: String(cand.kyb_response_id ?? ""),
+                    name: fmt(cand.name),
+                    registration_number: fmt(cand.registration_number),
+                    status: fmt(cand.status),
+                    type: fmt(cand.type),
+                    fetch_status: fmt(cand.fetch_status),
+                    match_reason: fmt(cand.match_reason),
+                  };
+                })
+                .filter((c) => c.kyb_response_id)}
+            />
+          )}
           {node && <Warnings node={node} />}
         </div>
       </div>
@@ -274,6 +410,154 @@ function AmlHits({ node }: { node: Node }) {
         );
       })}
     </div>
+  );
+}
+
+// Normalizadores para la comparación declarado vs registro oficial.
+function normNameCmp(s: string): string {
+  return s
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+function normRegCmp(s: string): string {
+  return s.toUpperCase().replace(/[\s.\-\/]+/g, "");
+}
+
+type KybVerdict = "exact" | "different" | "review";
+
+/**
+ * "Información declarada" (lo que ingresó el solicitante) y comparación
+ * compacta contra el registro oficial cuando ya hay perfil (select hecho).
+ */
+function KybDeclaredBlock({
+  declared,
+  node,
+  cf,
+  t,
+}: {
+  declared: Node;
+  node: Node | null;
+  cf: (k: string) => string;
+  t: (k: string) => string;
+}) {
+  const decName = fmt(declared.name);
+  const decReg = fmt(declared.registration_number);
+  const decCountry = fmt(declared.country);
+  const rows = [
+    { label: cf("companyName"), value: decName },
+    { label: cf("regNumber"), value: decReg },
+    { label: cf("registryCountry"), value: decCountry },
+  ].filter((r) => r.value);
+  if (!rows.length) return null;
+
+  const cmp: { label: string; verdict: KybVerdict }[] = [];
+  if (node) {
+    const offName = fmt(node.company_name);
+    const offReg = fmt(node.registration_number);
+    const offCountry = fmt(node.country_code);
+    if (decName && offName) {
+      cmp.push({
+        label: cf("companyName"),
+        verdict: normNameCmp(decName) === normNameCmp(offName) ? "exact" : "review",
+      });
+    }
+    if (decReg && offReg) {
+      cmp.push({
+        label: cf("regNumber"),
+        verdict: normRegCmp(decReg) === normRegCmp(offReg) ? "exact" : "different",
+      });
+    }
+    if (decCountry && offCountry) {
+      cmp.push({
+        label: cf("registryCountry"),
+        verdict: decCountry.toUpperCase() === offCountry.toUpperCase() ? "exact" : "different",
+      });
+    }
+  }
+  const verdictCls: Record<KybVerdict, string> = {
+    exact: "bg-success/15 text-success",
+    different: "bg-danger/15 text-danger",
+    review: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+  };
+  const verdictLabel: Record<KybVerdict, string> = {
+    exact: t("kybMatchExact"),
+    different: t("kybMatchDifferent"),
+    review: t("kybMatchReview"),
+  };
+
+  return (
+    <div className="mt-2">
+      <p className="text-xs font-medium text-foreground">{t("kybDeclared")}</p>
+      <dl className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+        {rows.map((r) => (
+          <div key={r.label} className="flex flex-col">
+            <dt className="text-muted">{r.label}</dt>
+            <dd className="break-words text-foreground">{r.value}</dd>
+          </div>
+        ))}
+      </dl>
+      {cmp.length > 0 && (
+        <div className="mt-2">
+          <p className="text-xs font-medium text-foreground">{t("kybCompare")}</p>
+          <div className="mt-1 flex flex-wrap gap-1.5">
+            {cmp.map((c) => (
+              <span
+                key={c.label}
+                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${verdictCls[c.verdict]}`}
+              >
+                {c.label}: {verdictLabel[c.verdict]}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+/** Directivos y beneficiarios finales del perfil registral (kyb_registry). */
+function KybRegistryPeople({ node, cf }: { node: Node; cf: (k: string) => string }) {
+  const officers = Array.isArray(node.officers) ? node.officers : [];
+  const owners = Array.isArray(node.beneficial_owners) ? node.beneficial_owners : [];
+  if (!officers.length && !owners.length) return null;
+  const renderList = (title: string, items: unknown[]) => {
+    if (!items.length) return null;
+    return (
+      <div className="mt-2">
+        <p className="text-xs font-medium text-foreground">{title}</p>
+        <div className="mt-1 space-y-1">
+          {items.slice(0, 15).map((p, i) => {
+            const o = (p ?? {}) as Node;
+            const detail = [
+              fmt(o.designation) || fmt(o.role),
+              fmt(o.ownership_percentage) && `${fmt(o.ownership_percentage)}%`,
+            ]
+              .filter(Boolean)
+              .join(" · ");
+            return (
+              <div
+                key={i}
+                className={`rounded-lg border border-border p-2 text-xs ${
+                  o.is_active === false ? "opacity-60" : ""
+                }`}
+              >
+                <span className="font-medium text-foreground">{fmt(o.name) || "—"}</span>
+                {detail && <span className="text-muted"> · {detail}</span>}
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+  return (
+    <>
+      {renderList(cf("officers"), officers)}
+      {renderList(cf("beneficialOwners"), owners)}
+    </>
   );
 }
 

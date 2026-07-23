@@ -161,6 +161,17 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
 - `corrections`: si `status` es `changes_requested`, el set abierto de preguntas a
   corregir; si no, `null`. Shape: `{ round, requested_at, source, fields: [{ key, note }] }`.
 - `expiresAt`: vencimiento del link de invitación vigente (ISO), o `null`.
+- `aml[]`: un elemento por verificación. Además de los checks por persona, puede
+  incluir la **validación registral de empresa** (`feature: "kyb_registry"`).
+  Este check NO corre al enviar el formulario: lo dispara un analista desde el
+  panel (la búsqueda registral tarda ~90s y la consulta del perfil es
+  facturable). Puede haber varias filas (una por ciclo de validación); cada una
+  lleva `result.phase` (`search` → `candidate_selection` | `select` →
+  `completed`) y, con el perfil ya consultado, `result.kyb_registry` (razón
+  social, número y estado registral, fecha de constitución, domicilio,
+  `officers[]` y `beneficial_owners[]`) más `result.declared` (lo ingresado en
+  el formulario). Un check `pending` en `candidate_selection` espera que el
+  analista elija la empresa correcta.
 
 `404 { "error": "not_found" }` si la solicitud no existe o no es tuya.
 

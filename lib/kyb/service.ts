@@ -797,11 +797,15 @@ export async function requestChanges(
     );
 
   // Re-verificar solo lo corregido: borra los aml_checks de esas preguntas.
+  // EXCEPTO kyb_registry: un ciclo facturado es evidencia y nunca se borra ni
+  // se repite automáticamente — la re-validación es un nuevo run manual del
+  // analista. (`or` en vez de `neq` para no excluir filas con feature NULL.)
   await supabase
     .from("aml_checks")
     .delete()
     .eq("request_id", requestId)
-    .in("field_key", marked.map((m) => m.key));
+    .in("field_key", marked.map((m) => m.key))
+    .or("feature.is.null,feature.neq.kyb_registry");
 
   await logAudit({
     requestId,

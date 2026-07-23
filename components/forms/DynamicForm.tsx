@@ -57,6 +57,9 @@ export interface DynamicFormProps {
     invalidEmail?: string;
     invalidNumber?: string;
     invalid?: string;
+    /** Plantillas con {min}/{max}; se interpolan aquí. */
+    tooShort?: string;
+    tooLong?: string;
     returnCta?: string;
     redirecting?: string;
     correctionBanner?: string;
@@ -80,6 +83,8 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   invalidEmail: "Email inválido",
   invalidNumber: "Número inválido",
   invalid: "Valor inválido",
+  tooShort: "Mínimo {min} caracteres.",
+  tooLong: "Máximo {max} caracteres.",
   returnCta: "Continuar",
   redirecting: "Redirigiendo…",
   correctionBanner:
@@ -262,12 +267,11 @@ export function DynamicForm({
           next[f.key] = L.invalid;
       } else if (f.type === "short_text" || f.type === "long_text") {
         const s = String(val);
-        if (
-          (v.minLen != null && s.length < v.minLen) ||
-          (v.maxLen != null && s.length > v.maxLen) ||
-          (v.pattern && !new RegExp(v.pattern).test(s))
-        )
-          next[f.key] = L.invalid;
+        if (v.minLen != null && s.length < v.minLen)
+          next[f.key] = L.tooShort.replace("{min}", String(v.minLen));
+        else if (v.maxLen != null && s.length > v.maxLen)
+          next[f.key] = L.tooLong.replace("{max}", String(v.maxLen));
+        else if (v.pattern && !new RegExp(v.pattern).test(s)) next[f.key] = L.invalid;
       }
     }
     return next;

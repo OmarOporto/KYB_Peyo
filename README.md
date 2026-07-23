@@ -48,7 +48,10 @@ Studio de Supabase: http://127.0.0.1:54323
 Ver `.env.example`. Claves relevantes:
 
 - `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
-- `NEXT_PUBLIC_APP_URL` — base para construir el `invitationUrl`
+- `NEXT_PUBLIC_APP_URL` — base para construir el `invitationUrl` y el callback de
+  la búsqueda registral (`/api/webhooks/didit/kyb-search`). Para la validación de
+  empresa (kyb_registry) debe ser **públicamente alcanzable**: en dev local usa un
+  túnel (ngrok / cloudflared) o la búsqueda quedará en "Buscando…" hasta reintentar.
 - `AML_PROVIDER` — `mock` (local) | `didit` (prod)
 - `DIDIT_API_URL`, `DIDIT_API_KEY`, `DIDIT_WEBHOOK_SECRET` — solo con `AML_PROVIDER=didit`
 

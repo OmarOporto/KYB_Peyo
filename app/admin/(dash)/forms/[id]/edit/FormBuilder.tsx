@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useRef, useState } from "react";
+import { Fragment, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -9,6 +9,7 @@ import {
   DIDIT_FEATURE_COMPAT,
   isChoiceType,
   isDiditCompatible,
+  KYB_COUNTRY_RES,
   newField,
   newSection,
   resolveText,
@@ -542,6 +543,28 @@ function ConfirmModal({
   );
 }
 
+// Select "+ Agregar campo": reutilizable debajo de cada pregunta y en secciones vacías.
+function AddFieldSelect({ t, onAdd }: { t: TFn; onAdd: (type: FieldType) => void }) {
+  return (
+    <select
+      className={smallInput}
+      value=""
+      onChange={(e) => {
+        const type = e.target.value as FieldType;
+        if (type) onAdd(type);
+        e.target.value = "";
+      }}
+    >
+      <option value="">+ {t("addField")}</option>
+      {FIELD_TYPES.map((ft) => (
+        <option key={ft} value={ft}>
+          {t(`type_${ft}`)}
+        </option>
+      ))}
+    </select>
+  );
+}
+
 function SectionCard({
   section,
   index,
@@ -631,39 +654,37 @@ function SectionCard({
       {/* Campos */}
       <div className="mt-4 space-y-3">
         {section.fields.map((field, fi) => (
-          <FieldCard
-            key={field.id}
-            field={field}
-            si={index}
-            fi={fi}
-            fieldCount={section.fields.length}
-            locale={locale}
-            allFieldKeys={allFieldKeys}
-            t={t}
-            update={update}
-            askConfirm={askConfirm}
-          />
+          <Fragment key={field.id}>
+            <FieldCard
+              field={field}
+              si={index}
+              fi={fi}
+              fieldCount={section.fields.length}
+              locale={locale}
+              allFieldKeys={allFieldKeys}
+              t={t}
+              update={update}
+              askConfirm={askConfirm}
+            />
+            {/* Insertar una pregunta justo debajo de esta */}
+            <AddFieldSelect
+              t={t}
+              onAdd={(type) =>
+                update((d) => d.sections[index].fields.splice(fi + 1, 0, newField(type)))
+              }
+            />
+          </Fragment>
         ))}
       </div>
 
-      <div className="mt-3 flex items-center gap-2">
-        <select
-          className={smallInput}
-          value=""
-          onChange={(e) => {
-            const type = e.target.value as FieldType;
-            if (type) update((d) => d.sections[index].fields.push(newField(type)));
-            e.target.value = "";
-          }}
-        >
-          <option value="">+ {t("addField")}</option>
-          {FIELD_TYPES.map((ft) => (
-            <option key={ft} value={ft}>
-              {t(`type_${ft}`)}
-            </option>
-          ))}
-        </select>
-      </div>
+      {section.fields.length === 0 && (
+        <div className="mt-3 flex items-center gap-2">
+          <AddFieldSelect
+            t={t}
+            onAdd={(type) => update((d) => d.sections[index].fields.push(newField(type)))}
+          />
+        </div>
+      )}
 
       {/* Saltos de sección */}
       <NavRulesEditor
@@ -680,36 +701,78 @@ function SectionCard({
 }
 
 // ---------- Editor de revisión DIDIT (popover por campo) ----------
+
+/** ⓘ con tooltip CSS-only (hover + focus de teclado). */
+function InfoTip({ text }: { text: string }) {
+  return (
+    <span tabIndex={0} className="group relative inline-flex shrink-0 items-center outline-none">
+      <span
+        aria-hidden
+        className="flex h-4 w-4 cursor-help items-center justify-center rounded-full border border-border text-[10px] leading-none text-muted group-hover:border-brand group-hover:text-brand group-focus-visible:border-brand group-focus-visible:text-brand"
+      >
+        i
+      </span>
+      <span
+        role="tooltip"
+        className="pointer-events-none absolute right-0 bottom-full z-30 mb-1 hidden w-56 rounded-lg border border-border bg-surface-card p-2 text-left text-[11px] font-normal whitespace-normal text-foreground shadow-lg group-hover:block group-focus-visible:block"
+      >
+        {text}
+      </span>
+    </span>
+  );
+}
+
 function DiditReviewEditor({
   field,
   imageFields,
+  kybCountryFields,
+  kybRegNumberFields,
+  hasCountryCandidate,
+  kybFirstTaggedKey,
   t,
   onChange,
 }: {
   field: Field;
   imageFields: { key: string; label: string }[];
+  /** Candidatas para el binding explícito de kyb_registry. */
+  kybCountryFields: { key: string; label: string }[];
+  kybRegNumberFields: { key: string; label: string }[];
+  /** ¿El form puede resolver el país sin binding (tipo país o convención de key)? */
+  hasCountryCandidate: boolean;
+  /** Key de la PRIMERA pregunta del form etiquetada kyb_registry (o null). */
+  kybFirstTaggedKey: string | null;
   t: TFn;
   onChange: (review: FieldReview | undefined) => void;
 }) {
   const [open, setOpen] = useState(false);
   const current = field.review?.feature;
   const compatible = current ? isDiditCompatible(current, field.type) : true;
+  // kyb_registry sin país resoluble (ni binding ni candidata) no puede correr.
+  const kybCountryOk =
+    current !== "kyb_registry" || Boolean(field.review?.kybCountryKey) || hasCountryCandidate;
+  // Solo se ejecuta la PRIMERA pregunta etiquetada kyb_registry del formulario;
+  // cualquier tag adicional queda inerte → advertir.
+  const kybDuplicate =
+    current === "kyb_registry" && kybFirstTaggedKey !== null && kybFirstTaggedKey !== field.key;
+  const healthy = compatible && kybCountryOk && !kybDuplicate;
 
   return (
-    <div className="relative">
+    <div className="relative flex items-center gap-1">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
         className={`rounded-full border px-2 py-0.5 text-xs font-medium ${
           current
-            ? compatible
+            ? healthy
               ? "border-brand/40 bg-brand/10 text-brand"
               : "border-danger/40 bg-danger/10 text-danger"
             : "border-border bg-surface text-muted hover:bg-surface-2"
         }`}
       >
-        {current ? `DIDIT: ${t(`didit_${current}`)}${compatible ? "" : " ⚠"}` : `+ ${t("diditReview")}`}
+        {current ? `DIDIT: ${t(`didit_${current}`)}${healthy ? "" : " ⚠"}` : `+ ${t("diditReview")}`}
       </button>
+      {/* Requisitos de la revisión aplicada, visibles sin abrir el popover */}
+      {current && <InfoTip text={t(`diditReq_${current}`)} />}
       {open && (
         <>
           <button
@@ -738,31 +801,36 @@ function DiditReviewEditor({
             {DIDIT_FEATURES.map((f) => {
               const ok = isDiditCompatible(f, field.type);
               return (
-                <button
-                  key={f}
-                  type="button"
-                  disabled={!ok}
-                  onClick={() => {
-                    const isFace = f === "face_match";
-                    onChange({
-                      provider: "didit",
-                      feature: f,
-                      ...(isFace && field.review?.refKeys ? { refKeys: field.review.refKeys } : {}),
-                    });
-                    if (!isFace) setOpen(false);
-                  }}
-                  className={`block w-full rounded px-2 py-1 text-left text-xs ${
-                    ok ? "hover:bg-surface-2" : "cursor-not-allowed opacity-40"
-                  } ${current === f ? "font-semibold text-brand" : "text-foreground"}`}
-                >
-                  {t(`didit_${f}`)}
-                  {!ok && (
-                    <span className="mt-0.5 block text-[10px] text-muted">
-                      {t("diditRequiresType")}:{" "}
-                      {DIDIT_FEATURE_COMPAT[f].map((ty) => t(`type_${ty}`)).join(", ")}
-                    </span>
-                  )}
-                </button>
+                // El ⓘ va FUERA del botón: los botones deshabilitados (tipo
+                // incompatible) suprimen el hover, y ahí es donde más se
+                // necesita leer qué requiere la feature.
+                <div key={f} className="flex items-center gap-1 pr-1">
+                  <button
+                    type="button"
+                    disabled={!ok}
+                    onClick={() => {
+                      const isFace = f === "face_match";
+                      onChange({
+                        provider: "didit",
+                        feature: f,
+                        ...(isFace && field.review?.refKeys ? { refKeys: field.review.refKeys } : {}),
+                      });
+                      if (!isFace) setOpen(false);
+                    }}
+                    className={`block min-w-0 flex-1 rounded px-2 py-1 text-left text-xs ${
+                      ok ? "hover:bg-surface-2" : "cursor-not-allowed opacity-40"
+                    } ${current === f ? "font-semibold text-brand" : "text-foreground"}`}
+                  >
+                    {t(`didit_${f}`)}
+                    {!ok && (
+                      <span className="mt-0.5 block text-[10px] text-muted">
+                        {t("diditRequiresType")}:{" "}
+                        {DIDIT_FEATURE_COMPAT[f].map((ty) => t(`type_${ty}`)).join(", ")}
+                      </span>
+                    )}
+                  </button>
+                  <InfoTip text={t(`diditReq_${f}`)} />
+                </div>
               );
             })}
             {current === "face_match" && (
@@ -803,6 +871,64 @@ function DiditReviewEditor({
                       </label>
                     );
                   })
+                )}
+              </div>
+            )}
+            {current === "kyb_registry" && (
+              <div className="mt-1 border-t border-border pt-1">
+                {/* Binding explícito de país y nº de registro (prioridad sobre
+                    la detección por convención de key). */}
+                <p className="px-1 text-[10px] font-semibold text-muted">{t("kybCountryField")}</p>
+                <select
+                  className={`${smallInput} mt-0.5 w-full`}
+                  value={field.review?.kybCountryKey ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      provider: "didit",
+                      feature: "kyb_registry",
+                      ...(e.target.value ? { kybCountryKey: e.target.value } : {}),
+                      ...(field.review?.kybRegNumberKey
+                        ? { kybRegNumberKey: field.review.kybRegNumberKey }
+                        : {}),
+                    })
+                  }
+                >
+                  <option value="">{t("kybAutoDetect")}</option>
+                  {kybCountryFields.map((f) => (
+                    <option key={f.key} value={f.key}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                <p className="mt-1 px-1 text-[10px] font-semibold text-muted">
+                  {t("kybRegNumberField")}
+                </p>
+                <select
+                  className={`${smallInput} mt-0.5 w-full`}
+                  value={field.review?.kybRegNumberKey ?? ""}
+                  onChange={(e) =>
+                    onChange({
+                      provider: "didit",
+                      feature: "kyb_registry",
+                      ...(field.review?.kybCountryKey
+                        ? { kybCountryKey: field.review.kybCountryKey }
+                        : {}),
+                      ...(e.target.value ? { kybRegNumberKey: e.target.value } : {}),
+                    })
+                  }
+                >
+                  <option value="">{t("kybAutoDetect")}</option>
+                  {kybRegNumberFields.map((f) => (
+                    <option key={f.key} value={f.key}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+                {!field.review?.kybCountryKey && !hasCountryCandidate && (
+                  <p className="mt-1 px-1 text-[10px] text-danger">{t("kybNoCountryWarning")}</p>
+                )}
+                {kybDuplicate && (
+                  <p className="mt-1 px-1 text-[10px] text-danger">{t("kybDuplicateWarning")}</p>
                 )}
               </div>
             )}
@@ -860,12 +986,82 @@ function FieldCard({
           />
           {t("required")}
         </label>
+        {/* Largo mín./máx. de la respuesta (solo texto). Escribe validation.minLen/maxLen
+            preservando otras claves; DynamicForm ya valida y muestra el mensaje. */}
+        {(field.type === "short_text" || field.type === "long_text") && (
+          <>
+            <input
+              type="number"
+              min={1}
+              className={`${smallInput} w-28`}
+              placeholder={t("minLenLabel")}
+              title={t("minLenLabel")}
+              value={field.validation?.minLen ?? ""}
+              onChange={(e) =>
+                mut((f) => {
+                  const n = e.target.value === "" ? NaN : Number(e.target.value);
+                  const v = { ...(f.validation ?? {}) };
+                  if (Number.isFinite(n) && n > 0) v.minLen = Math.floor(n);
+                  else delete v.minLen;
+                  if (Object.keys(v).length) f.validation = v;
+                  else delete f.validation;
+                })
+              }
+            />
+            <input
+              type="number"
+              min={1}
+              className={`${smallInput} w-28`}
+              placeholder={t("maxLenLabel")}
+              title={t("maxLenLabel")}
+              value={field.validation?.maxLen ?? ""}
+              onChange={(e) =>
+                mut((f) => {
+                  const n = e.target.value === "" ? NaN : Number(e.target.value);
+                  const v = { ...(f.validation ?? {}) };
+                  if (Number.isFinite(n) && n > 0) v.maxLen = Math.floor(n);
+                  else delete v.maxLen;
+                  if (Object.keys(v).length) f.validation = v;
+                  else delete f.validation;
+                })
+              }
+            />
+          </>
+        )}
         {field.type !== "note" && (
           <DiditReviewEditor
             field={field}
             imageFields={allFieldKeys
               .filter((k) => (k.field.type === "file" || k.field.type === "selfie") && k.key !== field.key)
               .map((k) => ({ key: k.key, label: k.label }))}
+            kybCountryFields={allFieldKeys
+              .filter(
+                (k) =>
+                  (k.field.type === "country" ||
+                    k.field.type === "dropdown" ||
+                    k.field.type === "short_text") &&
+                  k.key !== field.key,
+              )
+              .map((k) => ({ key: k.key, label: k.label }))}
+            kybRegNumberFields={allFieldKeys
+              .filter(
+                (k) =>
+                  (k.field.type === "short_text" || k.field.type === "number") &&
+                  k.key !== field.key,
+              )
+              .map((k) => ({ key: k.key, label: k.label }))}
+            hasCountryCandidate={allFieldKeys.some(
+              (k) =>
+                k.field.type === "country" ||
+                KYB_COUNTRY_RES.some((s) => s.re.test(k.key) && !s.exclude?.test(k.key)),
+            )}
+            kybFirstTaggedKey={
+              allFieldKeys.find(
+                (k) =>
+                  k.field.review?.provider === "didit" &&
+                  k.field.review.feature === "kyb_registry",
+              )?.key ?? null
+            }
             t={t}
             onChange={(review) =>
               mut((f) => {

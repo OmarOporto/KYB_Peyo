@@ -13,6 +13,8 @@ import {
 } from "@/components/admin/AmlCheckCard";
 import { decideAction, rerunVerificationsAction } from "@/app/admin/actions";
 import { RequestChangesPanel } from "@/components/admin/RequestChangesPanel";
+import { RunKybRegistryButton } from "@/components/admin/RunKybRegistryButton";
+import { extractKybDeclared } from "@/lib/didit/verify";
 import { isTerminal, createSignedDocUrls } from "@/lib/kyb/service";
 import type { KybCorrections, KybStatus } from "@/lib/kyb/types";
 import { resolveRequestDefinition } from "@/lib/forms/store";
@@ -21,6 +23,9 @@ import { resolveText, type Field } from "@/lib/forms/definition";
 import { renderAnswer, fileRefsOf } from "@/lib/forms/answers";
 
 export const dynamic = "force-dynamic";
+// Las acciones de este detalle pueden llamar a DIDIT (re-verificar, seleccionar
+// candidato KYB); las búsquedas registrales tardan hasta ~90s.
+export const maxDuration = 180;
 
 export default async function RequestDetail({
   params,
@@ -47,7 +52,7 @@ export default async function RequestDetail({
       .eq("request_id", id),
     supabase
       .from("aml_checks")
-      .select("provider, status, result, created_at, feature, field_key, score")
+      .select("id, provider, status, result, created_at, feature, field_key, score")
       .eq("request_id", id)
       .order("created_at", { ascending: false }),
   ]);
@@ -66,6 +71,33 @@ export default async function RequestDetail({
     (request as { form_definition?: unknown }).form_definition,
     (request as { form_id?: string | null }).form_id,
   );
+
+  // Validación registral (kyb_registry): ciclo manual del analista.
+  const hasKybField = Boolean(
+    definition?.sections.some((s) =>
+      s.fields.some(
+        (f) => f.review?.provider === "didit" && f.review.feature === "kyb_registry",
+      ),
+    ),
+  );
+  // Datos declarados que enviaría el ciclo (misma función que el run real):
+  // alimentan el tooltip del botón para que el analista vea qué se mandará.
+  const kybDeclared = hasKybField && definition ? extractKybDeclared(definition, formData) : null;
+  // Bloqueado mientras hay búsqueda en curso o un select en vuelo/incierto.
+  // (Una fila pending en candidate_selection NO bloquea: un run nuevo la
+  // supersede — equivale a "repetir búsqueda".)
+  const kybCycleLocked = (aml ?? []).some((c) => {
+    if (c.feature !== "kyb_registry" || c.status !== "pending") return false;
+    const res = (c.result ?? {}) as {
+      phase?: string;
+      selected?: { select_attempted?: boolean };
+    };
+    return (
+      res.phase === "search" ||
+      res.phase === "select" ||
+      Boolean(res.selected?.select_attempted)
+    );
+  });
 
   // Firma una sola vez las URLs de todos los archivos (documentos + campos
   // file/selfie del formulario) para mostrar miniaturas inline.
@@ -121,11 +153,30 @@ export default async function RequestDetail({
 
       {/* AML */}
       <Section title={t("amlResult")}>
-        <form action={rerunVerificationsAction.bind(null, id)} className="mb-2">
-          <Button type="submit" variant="outline" size="sm">
-            {t("reverify")}
-          </Button>
-        </form>
+        <div className="mb-2 flex flex-wrap items-start gap-2">
+          <form action={rerunVerificationsAction.bind(null, id)}>
+            <Button type="submit" variant="outline" size="sm">
+              {t("reverify")}
+            </Button>
+          </form>
+          {/* Validación registral: ciclo manual (search gratis ~90s; el select
+              facturable queda detrás del picker o del match exacto) */}
+          {hasKybField && (
+            <RunKybRegistryButton
+              requestId={id}
+              disabled={kybCycleLocked}
+              declared={
+                kybDeclared
+                  ? {
+                      name: kybDeclared.name,
+                      registrationNumber: kybDeclared.registrationNumber ?? null,
+                      country: kybDeclared.country ?? null,
+                    }
+                  : null
+              }
+            />
+          )}
+        </div>
         {(aml ?? []).length === 0 && (
           <p className="text-sm text-muted">{t("noChecks")}</p>
         )}
@@ -144,6 +195,7 @@ export default async function RequestDetail({
               refImages={refImages}
               sectionTitle={trigger?.section}
               fieldLabel={trigger?.question}
+              requestId={id}
             />
           );
         })}

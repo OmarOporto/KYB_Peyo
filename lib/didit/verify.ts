@@ -1,8 +1,15 @@
 import "server-only";
+import { randomUUID } from "crypto";
 import { env } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/service";
 import type { AmlStatus } from "@/lib/kyb/types";
 import type { DiditFeature, Field, FormDefinition, Section } from "@/lib/forms/definition";
+import {
+  KYB_REG_NUMBER_RE,
+  KYB_REG_NUMBER_EXCLUDE_RE,
+  KYB_COUNTRY_RES,
+} from "@/lib/forms/definition";
+import { alpha3ToAlpha2 } from "@/lib/forms/countries";
 
 // Bucket privado donde viven los archivos/selfies (igual que lib/kyb/service.ts).
 const DOCUMENTS_BUCKET = "kyb-documents";
@@ -38,13 +45,17 @@ function logDiditCall(path: string, status: number, json: unknown): void {
 // Corta una llamada DIDIT colgada para que no estire el trabajo en background.
 const DIDIT_TIMEOUT_MS = 30_000;
 
-async function postJson(path: string, body: unknown): Promise<Record<string, unknown>> {
+async function postJson(
+  path: string,
+  body: unknown,
+  timeoutMs = DIDIT_TIMEOUT_MS,
+): Promise<Record<string, unknown>> {
   const res = await fetch(`${base()}${path}`, {
     method: "POST",
     headers: { "x-api-key": apiKey(), "content-type": "application/json", accept: "application/json" },
     body: JSON.stringify(body),
     cache: "no-store",
-    signal: AbortSignal.timeout(DIDIT_TIMEOUT_MS),
+    signal: AbortSignal.timeout(timeoutMs),
   });
   const json = (await res.json().catch(() => ({}))) as Record<string, unknown>;
   logDiditCall(path, res.status, json);
@@ -130,6 +141,396 @@ function siblingText(section: Section, answers: Record<string, unknown>) {
     personalNumber: get(/personal_number|curp/i),
     issuingState: get(/issuing_state|issuing/i),
   };
+}
+
+// ------------------------------------------------------------
+// KYB Registry (registro mercantil de empresas)
+// ------------------------------------------------------------
+// Search (POST /v3/kyb/search/) es GRATIS y no crea registros en la consola
+// DIDIT; select (POST /v3/kyb/select/) es FACTURABLE y crea una sesión
+// empresarial (Manual Check). El ciclo es MANUAL (runKybRegistryCheck, botón
+// del analista) con fases en result.phase: search → candidate_selection |
+// select → completed. Auto-select SOLO con nº de registro declarado + match
+// exacto único; nunca por nombre con un único resultado (NAME_ONLY_MATCH).
+// El search se envía en modo async (webhook_url): DIDIT responde al instante y
+// resuelve en ~90s llamando a /api/webhooks/didit/kyb-search. No hay polling:
+// sin webhook la búsqueda es efímera del lado de DIDIT.
+const KYB_SELECT_TIMEOUT_MS = 60_000;
+
+// Convenciones de detección (KYB_REG_NUMBER_RE, KYB_COUNTRY_RES…) compartidas
+// con el builder: viven en lib/forms/definition.ts. El binding explícito del
+// review (kybCountryKey/kybRegNumberKey) tiene prioridad sobre la convención.
+
+/** Como siblingText, pero busca primero en la sección del campo y luego en todo el form. */
+function formText(
+  sections: Section[],
+  si: number,
+  answers: Record<string, unknown>,
+  re: RegExp,
+  exclude?: RegExp,
+): string | undefined {
+  const scan = (fields: Field[]): string | undefined => {
+    for (const f of fields) {
+      if (!re.test(f.key) || exclude?.test(f.key)) continue;
+      const v = textAnswer(answers, f.key);
+      if (v) return v;
+    }
+    return undefined;
+  };
+  const own = scan(sections[si]?.fields ?? []);
+  if (own) return own;
+  for (let i = 0; i < sections.length; i++) {
+    if (i === si) continue;
+    const v = scan(sections[i].fields);
+    if (v) return v;
+  }
+  return undefined;
+}
+
+/** Acepta alpha-3 (los campos tipo `country` guardan alpha-3) o alpha-2 directo. */
+function toAlpha2(v: string): string | undefined {
+  const s = v.trim().toUpperCase();
+  if (/^[A-Z]{2}$/.test(s)) return s;
+  if (/^[A-Z]{3}$/.test(s)) return alpha3ToAlpha2(s);
+  return undefined;
+}
+
+function kybCountryAlpha2(
+  sections: Section[],
+  si: number,
+  answers: Record<string, unknown>,
+): string | undefined {
+  for (const spec of KYB_COUNTRY_RES) {
+    const v = formText(sections, si, answers, spec.re, spec.exclude);
+    if (v) {
+      const a2 = toAlpha2(v);
+      if (a2) return a2;
+    }
+  }
+  return undefined;
+}
+
+/** Normaliza números de registro para comparación exacta (sin espacios/guiones/puntos). */
+function normalizeRegNumber(s: string): string {
+  return s.toUpperCase().replace(/[\s.\-\/]+/g, "");
+}
+
+const KYB_ACTIVE_RE = /^(active|registered|live|(in\s?)?good\s?standing)/i;
+const KYB_INACTIVE_RE =
+  /^(dissolved|inactive|liquidat|struck|removed|cancel|revoked|terminated|closed|deregistered)/i;
+
+/** Estado del perfil registral (nodo `kyb_registry` del select) → enum de aml_checks. */
+export function mapKybRegistryStatus(node: Record<string, unknown>): AmlStatus {
+  if (node.data_resolved === false) return "pending";
+  const reg = String(node.registry_status ?? "").trim();
+  if (KYB_ACTIVE_RE.test(reg)) return "passed";
+  if (KYB_INACTIVE_RE.test(reg)) return "flagged";
+  return mapDiditStatus(node.status);
+}
+
+/**
+ * POST /v3/kyb/select/ — FACTURABLE: trae el perfil registral completo del
+ * candidato y crea una sesión empresarial en la consola DIDIT. También lo usa
+ * la server action del panel admin (selección manual de candidato).
+ */
+export async function kybSelect(
+  kybResponseId: string,
+  vendorData: string,
+): Promise<{
+  status: AmlStatus;
+  externalRef: string | null;
+  node: Record<string, unknown>;
+  raw: Record<string, unknown>;
+}> {
+  const json = await postJson(
+    "/v3/kyb/select/",
+    { kyb_response_id: kybResponseId, vendor_data: vendorData },
+    KYB_SELECT_TIMEOUT_MS,
+  );
+  const node = (json.kyb_registry ?? {}) as Record<string, unknown>;
+  return {
+    status: mapKybRegistryStatus(node),
+    externalRef: (json.request_id as string) || null,
+    node,
+    raw: json,
+  };
+}
+
+export type KybDeclared = {
+  fieldKey: string;
+  name: string;
+  registrationNumber?: string;
+  country?: string; // alpha-2
+};
+
+/** Localiza el campo etiquetado kyb_registry y arma los datos declarados del form. */
+export function extractKybDeclared(
+  definition: FormDefinition,
+  answers: Record<string, unknown>,
+): KybDeclared | null {
+  const sections = definition.sections;
+  for (let si = 0; si < sections.length; si++) {
+    for (const f of sections[si].fields) {
+      if (f.review?.provider !== "didit" || f.review.feature !== "kyb_registry") continue;
+      const declared: KybDeclared = { fieldKey: f.key, name: textAnswer(answers, f.key) };
+      // Binding explícito del builder primero; convención de keys como fallback.
+      const explicitReg = f.review.kybRegNumberKey
+        ? textAnswer(answers, f.review.kybRegNumberKey)
+        : "";
+      const reg =
+        explicitReg ||
+        formText(sections, si, answers, KYB_REG_NUMBER_RE, KYB_REG_NUMBER_EXCLUDE_RE);
+      if (reg) declared.registrationNumber = reg;
+      const explicitCountry = f.review.kybCountryKey
+        ? toAlpha2(textAnswer(answers, f.review.kybCountryKey))
+        : undefined;
+      const country = explicitCountry ?? kybCountryAlpha2(sections, si, answers);
+      if (country) declared.country = country;
+      return declared;
+    }
+  }
+  return null;
+}
+
+// fetch_status del candidato no indica indisponibilidad conocida.
+function kybFetchable(c: Record<string, unknown>): boolean {
+  return !/(unavailable|not_available|failed|error)/i.test(String(c.fetch_status ?? ""));
+}
+
+/**
+ * Resuelve una búsqueda registral COMPLETADA (respuesta inmediata del search o
+ * payload del callback `kyb.registry_search.resolved`): anota candidatos con su
+ * match_reason, aplica las razones de bloqueo del auto-select estricto y, si
+ * procede, ejecuta el select FACTURABLE con reserva atómica. Compartida entre
+ * `runKybRegistryCheck` y el webhook /api/webhooks/didit/kyb-search.
+ */
+export async function resolveKybSearch(input: {
+  checkId: string;
+  declaredJson: Record<string, unknown>;
+  /** Respuesta del search o body del callback (ambos traen `kyb_registry`). */
+  search: Record<string, unknown>;
+  searchRef: string | null;
+  /** external_ref de la solicitud (vendor_data para el select). */
+  vendorData: string;
+}): Promise<void> {
+  const supabase = createServiceClient();
+  const { checkId, declaredJson, search, searchRef, vendorData } = input;
+  const setRow = (patch: Record<string, unknown>) =>
+    supabase.from("aml_checks").update(patch).eq("id", checkId);
+
+  const regNode = (search.kyb_registry ?? {}) as Record<string, unknown>;
+  const companies = (
+    Array.isArray(regNode.companies) ? regNode.companies : []
+  ) as Record<string, unknown>[];
+  if (!companies.length) {
+    await setRow({
+      status: "flagged",
+      external_ref: searchRef,
+      result: { phase: "completed", declared: declaredJson, kyb_search: search, reason: "no_candidates" },
+    });
+    return;
+  }
+
+  // Candidatos anotados con el motivo de coincidencia (para el picker).
+  const declaredReg =
+    typeof declaredJson.registration_number === "string" ? declaredJson.registration_number : "";
+  const target = declaredReg ? normalizeRegNumber(declaredReg) : null;
+  const candidates: Record<string, unknown>[] = companies.slice(0, 25).map((c) => ({
+    ...c,
+    match_reason:
+      target && normalizeRegNumber(String(c.registration_number ?? "")) === target
+        ? "exact_registration_number"
+        : "name_result",
+  }));
+  const exact = candidates.filter((c) => c.match_reason === "exact_registration_number");
+
+  // Auto-select estricto. companies.length === 1 por nombre NO basta: un único
+  // resultado por nombre puede ser la empresa equivocada.
+  let blocked: string | null = null;
+  if (!target) blocked = "NAME_ONLY_MATCH";
+  else if (exact.length === 0) blocked = "NO_EXACT_REGISTRATION_MATCH";
+  else if (exact.length > 1) blocked = "MULTIPLE_EXACT_MATCHES";
+  else if (!kybFetchable(exact[0])) blocked = "CANDIDATE_NOT_FETCHABLE";
+
+  const baseResult = { declared: declaredJson, kyb_search: search, candidates };
+  if (blocked) {
+    await setRow({
+      external_ref: searchRef,
+      result: { phase: "candidate_selection", ...baseResult, autoSelectBlockedReason: blocked },
+    });
+    return;
+  }
+
+  // --- reserva atómica ANTES del select facturable ---
+  const chosen = exact[0];
+  const kybResponseId = String(chosen.kyb_response_id ?? "");
+  const selected = {
+    kyb_response_id: kybResponseId,
+    by: "auto",
+    at: new Date().toISOString(),
+    select_attempted: true,
+    billing_state: "unknown",
+  };
+  const { data: reserved } = await supabase
+    .from("aml_checks")
+    .update({ external_ref: searchRef, result: { phase: "select", ...baseResult, selected } })
+    .eq("id", checkId)
+    .eq("status", "pending")
+    .select("id");
+  if (!reserved?.length) return; // otro proceso resolvió la fila
+
+  try {
+    const sel = await kybSelect(kybResponseId, vendorData);
+    await setRow({
+      status: sel.status,
+      external_ref: sel.externalRef ?? searchRef,
+      result: {
+        phase: sel.status === "pending" ? "select" : "completed",
+        ...baseResult,
+        selected: { ...selected, billing_state: "charged" },
+        kyb_registry: sel.node,
+      },
+    });
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    if (/\s4\d\d:/.test(msg)) {
+      // DIDIT rechazó el select (no facturó): el ciclo termina en error y un
+      // nuevo run parte de cero (search gratis).
+      await setRow({ status: "error", result: { phase: "search", ...baseResult, error: msg } });
+    } else {
+      // Enviado sin confirmación: pudo facturarse. Queda pending/select/unknown
+      // — sin reintentos automáticos ni manuales (verificar en consola DIDIT).
+      await setRow({
+        result: { phase: "select", ...baseResult, selected: { ...selected, error: msg } },
+      });
+    }
+  }
+}
+
+/**
+ * Ciclo MANUAL de validación registral (lo dispara el analista). Maneja su
+ * propia fila en aml_checks con fases explícitas y reserva atómica antes del
+ * select facturable:
+ * - search sin candidatos → flagged/completed (reason no_candidates)
+ * - candidatos sin auto-select → pending/candidate_selection (el analista elige)
+ * - auto-select (nº exacto único) → reserva (select_attempted, billing unknown)
+ *   → select → completed; fallo ambiguo queda pending/select SIN reintentos.
+ * Un run nuevo con una fila pending en candidate_selection la cierra como
+ * `superseded` (error, gratis); una fila pending con select_attempted bloquea.
+ */
+export async function runKybRegistryCheck(input: {
+  requestId: string;
+  externalRef: string;
+  definition: FormDefinition;
+  answers: Record<string, unknown>;
+}): Promise<{ ok: true } | { ok: false; error: string }> {
+  const supabase = createServiceClient();
+  const declared = extractKybDeclared(input.definition, input.answers);
+  if (!declared) return { ok: false, error: "no_tagged_field" };
+  if (!declared.country) return { ok: false, error: "missing_country" };
+  if (!declared.name && !declared.registrationNumber) return { ok: false, error: "missing_name" };
+
+  // Ciclos en vuelo: select ya intentado → intocable; candidate_selection → se
+  // supersede (cerrarla es gratis; el historial queda como evidencia).
+  const { data: inflight } = await supabase
+    .from("aml_checks")
+    .select("id, result")
+    .eq("request_id", input.requestId)
+    .eq("provider", "didit")
+    .eq("feature", "kyb_registry")
+    .eq("status", "pending");
+  for (const row of inflight ?? []) {
+    const res = (row.result ?? {}) as Record<string, unknown>;
+    const sel = res.selected as Record<string, unknown> | undefined;
+    if (sel?.select_attempted) return { ok: false, error: "cycle_in_progress" };
+    await supabase
+      .from("aml_checks")
+      .update({ status: "error", result: { ...res, phase: "completed", reason: "superseded" } })
+      .eq("id", row.id)
+      .eq("status", "pending");
+  }
+
+  const declaredJson = {
+    name: declared.name,
+    registration_number: declared.registrationNumber ?? null,
+    country: declared.country,
+  };
+
+  // Fase search: la fila existe desde el inicio (la búsqueda tarda ~90s y así
+  // el panel puede mostrar "Buscando empresa" si se refresca).
+  const { data: inserted, error: insertError } = await supabase
+    .from("aml_checks")
+    .insert({
+      request_id: input.requestId,
+      provider: "didit",
+      feature: "kyb_registry",
+      field_key: declared.fieldKey,
+      external_ref: null,
+      status: "pending",
+      score: null,
+      result: { phase: "search", declared: declaredJson },
+    })
+    .select("id")
+    .single();
+  if (insertError || !inserted) {
+    return { ok: false, error: insertError?.message ?? "insert_failed" };
+  }
+  const checkId = inserted.id as string;
+  const setRow = (patch: Record<string, unknown>) =>
+    supabase.from("aml_checks").update(patch).eq("id", checkId);
+
+  // --- search async (gratis): DIDIT responde al instante y resuelve en ~90s
+  // llamando a nuestro webhook con el token por-búsqueda. Sin webhook_url la
+  // búsqueda sería efímera (no hay polling).
+  const searchToken = randomUUID();
+  let search: Record<string, unknown>;
+  try {
+    const body: Record<string, unknown> = {
+      country_code: declared.country,
+      vendor_data: input.externalRef,
+      webhook_url: `${env.appUrl().replace(/\/+$/, "")}/api/webhooks/didit/kyb-search?t=${searchToken}`,
+    };
+    if (declared.registrationNumber) body.registration_number = declared.registrationNumber;
+    else body.name = declared.name;
+    search = await postJson("/v3/kyb/search/", body);
+  } catch (e) {
+    await setRow({
+      status: "error",
+      result: {
+        phase: "search",
+        declared: declaredJson,
+        error: e instanceof Error ? e.message : String(e),
+      },
+    });
+    return { ok: true };
+  }
+  const regNode = (search.kyb_registry ?? {}) as Record<string, unknown>;
+  const searchRef = (search.request_id as string) || null;
+
+  if (search.search_resolved === true || regNode.search_resolved === true) {
+    // Resolución inmediata (registro cacheado): mismo camino que el callback.
+    await resolveKybSearch({
+      checkId,
+      declaredJson,
+      search,
+      searchRef,
+      vendorData: input.externalRef,
+    });
+    return { ok: true };
+  }
+
+  // Pendiente: la fila espera el callback kyb.registry_search.resolved. El
+  // token autentica el callback (viene sin firma de DIDIT).
+  await setRow({
+    external_ref: searchRef,
+    result: {
+      phase: "search",
+      declared: declaredJson,
+      kyb_search: search,
+      search_token: searchToken,
+    },
+  });
+  return { ok: true };
 }
 
 // ------------------------------------------------------------
@@ -419,6 +820,9 @@ export async function dispatchDiditReviews(input: {
       };
     });
   }
+
+  // Nota: kyb_registry NO se despacha aquí — es un ciclo manual del analista
+  // (runKybRegistryCheck), disparado desde el panel de la solicitud.
 
   // Ejecuta todas las verificaciones encoladas en paralelo (cada una aísla su error).
   await Promise.all(tasks);

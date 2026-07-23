@@ -35,6 +35,7 @@ type FieldInput = {
   visibleIf?: Condition;
   file?: Field["file"];
   validation?: Field["validation"];
+  review?: Field["review"];
 };
 
 function field(input: FieldInput): Field {
@@ -51,6 +52,7 @@ function field(input: FieldInput): Field {
   if (input.visibleIf) f.visibleIf = input.visibleIf;
   if (input.file) f.file = input.file;
   if (input.validation) f.validation = input.validation;
+  if (input.review) f.review = input.review;
   return f;
 }
 
@@ -201,7 +203,8 @@ const sections: Section[] = [
     { es: "Datos del negocio (Bridge KYB)", en: "Business details (Bridge KYB)" },
     [
       field({ key: "note_bridge_kyb", type: "note", label: { es: "Información requerida por Bridge para KYB", en: "Information required by Bridge for KYB" }, help: { es: "Estos campos corresponden al alta de un negocio en Bridge (POST /v0/customers, type: business). Puedes editarlos o quitarlos según tu caso.", en: "These fields map to creating a business customer in Bridge (POST /v0/customers, type: business). Edit or remove them as needed." } }),
-      field({ key: "business_legal_name", type: "short_text", label: { es: "Razón social (nombre legal)", en: "Legal business name" }, required: true }),
+      field({ key: "business_legal_name", type: "short_text", label: { es: "Razón social (nombre legal)", en: "Legal business name" }, required: true, review: { provider: "didit", feature: "kyb_registry", kybCountryKey: "registered_address.country", kybRegNumberKey: "registration_number" } }),
+      field({ key: "registration_number", type: "short_text", label: { es: "Número de registro mercantil", en: "Company registration number" }, help: { es: "Número en el registro de sociedades. Mejora la precisión de la validación registral.", en: "Number in the companies registry. Improves the registry validation match." } }),
       field({ key: "business_trade_name", type: "short_text", label: { es: "Nombre comercial (DBA)", en: "Trade name (DBA)" } }),
       field({ key: "business_description", type: "long_text", label: { es: "Descripción / naturaleza del negocio", en: "Business description / nature" }, required: true }),
       field({ key: "business_type", type: "dropdown", label: { es: "Tipo de entidad", en: "Business type" }, options: BUSINESS_TYPE_OPTIONS, required: true }),

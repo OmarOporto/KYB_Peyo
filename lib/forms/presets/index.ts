@@ -14,6 +14,7 @@ import {
 } from "@/lib/forms/definition";
 import { bridgeKybPreset } from "./bridge-kyb";
 import { diditKycPreset } from "./didit-kyc";
+import { diditKybPreset } from "./didit-kyb";
 
 export type FieldPreset = {
   id: string;
@@ -23,7 +24,7 @@ export type FieldPreset = {
 };
 
 /** Packs disponibles en el selector del builder. */
-export const FIELD_PRESETS: FieldPreset[] = [bridgeKybPreset, diditKycPreset];
+export const FIELD_PRESETS: FieldPreset[] = [bridgeKybPreset, diditKycPreset, diditKybPreset];
 
 // ------------------------------------------------------------
 // Condiciones: refs y combinación

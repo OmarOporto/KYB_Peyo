@@ -60,6 +60,7 @@ export const DIDIT_FEATURES = [
   "age_estimation",
   "liveness",
   "face_match",
+  "kyb_registry",
 ] as const;
 export const diditFeatureSchema = z.enum(DIDIT_FEATURES);
 export type DiditFeature = (typeof DIDIT_FEATURES)[number];
@@ -75,6 +76,9 @@ export const DIDIT_FEATURE_COMPAT: Record<DiditFeature, FieldType[]> = {
   age_estimation: ["selfie", "file"],
   liveness: ["selfie"],
   face_match: ["selfie"],
+  // Se etiqueta sobre el campo de razón social; nº de registro y país se toman
+  // de campos hermanos por convención de key (ver lib/didit/verify.ts).
+  kyb_registry: ["short_text"],
 };
 
 /** ¿El tipo de campo satisface el input que requiere la feature de DIDIT? */
@@ -87,8 +91,40 @@ export const reviewSchema = z.object({
   feature: diditFeatureSchema,
   // Solo para face_match: keys del documento de referencia (frente + reverso opcional).
   refKeys: z.array(z.string()).max(2).optional(),
+  // Solo para kyb_registry: binding explícito de las preguntas de soporte.
+  // Sin binding se cae a la detección por convención de key (regexes de abajo).
+  kybCountryKey: z.string().optional(),
+  kybRegNumberKey: z.string().optional(),
 });
 export type FieldReview = z.infer<typeof reviewSchema>;
+
+// ------------------------------------------------------------
+// Convenciones de detección para kyb_registry (compartidas entre el builder
+// y el dispatch server-side — única fuente de verdad, client-safe).
+// ------------------------------------------------------------
+// Nº de registro por key. NO matchea `identifying_information.*` (tax id tipo
+// EIN/VAT — suele diferir del nº registral).
+export const KYB_REG_NUMBER_RE = /registration_number|company_number|registry_number|reg_number/i;
+export const KYB_REG_NUMBER_EXCLUDE_RE = /identifying_information/i;
+
+// País del registro, por prioridad: incorporación explícita → dirección
+// registrada → cualquier `country` que no sea de un emisor de documento.
+export const KYB_COUNTRY_RES: { re: RegExp; exclude?: RegExp }[] = [
+  { re: /incorporation_country|country_of_incorporation|registration_country/i },
+  { re: /registered_address\.country/i },
+  { re: /(^|[._])country$/i, exclude: /issuing/i },
+];
+
+/** ¿Alguna pregunta del form puede resolver el país (por tipo o convención de key)? */
+export function hasKybCountryCandidate(def: FormDefinition): boolean {
+  return def.sections.some((s) =>
+    s.fields.some(
+      (f) =>
+        f.type === "country" ||
+        KYB_COUNTRY_RES.some((spec) => spec.re.test(f.key) && !spec.exclude?.test(f.key)),
+    ),
+  );
+}
 
 // ============================================================
 // Condiciones (lógica)
