@@ -92,6 +92,23 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   readOnlyNotice: "Respuestas anteriores (solo lectura).",
 };
 
+/** Bloque de preguntas: un `note` abre un bloque nuevo y actúa como su título. */
+type FieldGroup = { header: Field | null; fields: Field[] };
+
+/** Parte los campos visibles en bloques por cada `note`. Puro (presentacional). */
+function groupByNote(list: Field[]): FieldGroup[] {
+  const groups: FieldGroup[] = [];
+  for (const f of list) {
+    if (f.type === "note") {
+      groups.push({ header: f, fields: [] });
+    } else {
+      if (groups.length === 0) groups.push({ header: null, fields: [] });
+      groups[groups.length - 1].fields.push(f);
+    }
+  }
+  return groups;
+}
+
 export function DynamicForm({
   definition,
   locale,
@@ -390,21 +407,29 @@ export function DynamicForm({
   // Sección previa al anchor en modo corrección: visible pero no editable.
   const readOnlyNow =
     isCorrection && readOnlyBeforeAnchor && beforeAnchor.has(currentId);
+  const groups = groupByNote(fields);
+  // El preview del builder se monta sin padding propio, así que ahí no se fija
+  // la barra ni se aplica el sangrado `-mx-6` (que asume el `p-6` del shell).
+  const sticky = mode !== "preview";
+  const barCls = sticky ? "sticky z-20 -mx-6 bg-background px-6" : "";
 
   return (
-    <div>
+    <div className="pb-2">
       {isCorrection && (
         <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
           {L.correctionBanner}
         </div>
       )}
-      <div className="mb-4">
-        <div className="mb-2 flex items-center justify-between text-sm">
-          <span className="font-medium text-foreground">
+
+      <div className={`${barCls} top-0 border-b border-border py-3`}>
+        <div className="mb-2 flex items-baseline justify-between gap-3">
+          <h2 className="font-display text-lg font-bold text-foreground">
             {resolveText(current.title, locale) || `#${stepIdx + 1}`}
-          </span>
+          </h2>
           {isLive && (
-            <span className={saveState === "error" ? "text-danger" : "text-muted"}>
+            <span
+              className={`shrink-0 text-xs ${saveState === "error" ? "text-danger" : "text-muted"}`}
+            >
               {saveState === "saving"
                 ? L.saving
                 : saveState === "saved"
@@ -415,66 +440,85 @@ export function DynamicForm({
             </span>
           )}
         </div>
-        <div className="h-1.5 w-full overflow-hidden rounded-full bg-surface-2">
-          <div
-            className="h-1.5 rounded-full bg-linear-to-r from-brand to-accent transition-all"
-            style={{ width: `${progress}%` }}
-          />
+        <div className="flex items-center gap-3">
+          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+            <div
+              className="h-1.5 rounded-full bg-linear-to-r from-brand to-accent transition-all"
+              style={{ width: `${progress}%` }}
+            />
+          </div>
+          <span className="shrink-0 text-xs tabular-nums text-muted">
+            {stepIdx + 1}/{visSecs.length}
+          </span>
         </div>
       </div>
 
-      <Card className="p-6">
-        {current.description && (
-          <p className="mb-4 text-sm text-muted">
-            {resolveText(current.description, locale)}
-          </p>
-        )}
-        {readOnlyNow && (
-          <p className="mb-3 text-xs font-medium text-muted">{L.readOnlyNotice}</p>
-        )}
-        <div className="space-y-4">
-          {fields.map((f) => (
-            <FieldInput
-              key={f.id}
-              field={f}
-              locale={locale}
-              value={answers[f.key]}
-              error={errors[f.key]}
-              disabled={readOnlyNow}
-              note={isCorrection ? noteByKey.get(f.key) : undefined}
-              markedRequired={isCorrection && noteByKey.has(f.key)}
-              onChange={(v) => setAnswer(f.key, v)}
-              onUploadFile={onUploadFile}
-              onDeleteFile={onDeleteFile}
-            />
-          ))}
-          {fields.length === 0 && (
-            <p className="text-sm text-muted">—</p>
-          )}
-        </div>
+      {current.description && (
+        <p className="mt-4 text-sm text-muted">
+          {resolveText(current.description, locale)}
+        </p>
+      )}
+      {readOnlyNow && (
+        <p className="mt-2 text-xs font-medium text-muted">{L.readOnlyNotice}</p>
+      )}
 
-        {submitError && <p className="mt-4 text-sm text-danger">{submitError}</p>}
+      {/* Una card por pregunta: `space-y-8` separa bloques, `space-y-4` preguntas. */}
+      <div className="mt-6 space-y-8">
+        {groups.map((g, gi) => (
+          <section key={g.header?.id ?? `g${gi}`} className="space-y-4">
+            {g.header && <GroupHeader field={g.header} locale={locale} />}
+            {g.fields.map((f) => {
+              const marked = isCorrection && noteByKey.has(f.key);
+              const state = errors[f.key]
+                ? "border-danger/50 ring-1 ring-danger/20"
+                : marked
+                  ? "border-warning/50 ring-1 ring-warning/20"
+                  : "border-border";
+              return (
+                <div key={f.id} data-field={f.key} className={`${QUESTION_CARD} ${state}`}>
+                  <FieldInput
+                    field={f}
+                    locale={locale}
+                    value={answers[f.key]}
+                    error={errors[f.key]}
+                    disabled={readOnlyNow}
+                    note={isCorrection ? noteByKey.get(f.key) : undefined}
+                    markedRequired={marked}
+                    onChange={(v) => setAnswer(f.key, v)}
+                    onUploadFile={onUploadFile}
+                    onDeleteFile={onDeleteFile}
+                  />
+                </div>
+              );
+            })}
+          </section>
+        ))}
+        {fields.length === 0 && <p className="text-sm text-muted">—</p>}
+      </div>
 
-        <div className="mt-6 flex items-center justify-between">
-          <Button
-            type="button"
-            variant="ghost"
-            disabled={stack.length === 0}
-            onClick={goBack}
-          >
-            ← {L.back}
+      {submitError && <p className="mt-4 text-sm text-danger">{submitError}</p>}
+
+      <div
+        className={`${barCls} bottom-0 mt-6 flex items-center justify-between gap-3 border-t border-border py-4`}
+      >
+        <Button
+          type="button"
+          variant="ghost"
+          disabled={stack.length === 0}
+          onClick={goBack}
+        >
+          ← {L.back}
+        </Button>
+        {isLast ? (
+          <Button type="button" onClick={submit} disabled={submitting}>
+            {submitting ? L.submitting : L.submit}
           </Button>
-          {isLast ? (
-            <Button type="button" onClick={submit} disabled={submitting}>
-              {submitting ? L.submitting : L.submit}
-            </Button>
-          ) : (
-            <Button type="button" onClick={goNext}>
-              {L.continue} →
-            </Button>
-          )}
-        </div>
-      </Card>
+        ) : (
+          <Button type="button" onClick={goNext}>
+            {L.continue} →
+          </Button>
+        )}
+      </div>
     </div>
   );
 }
@@ -482,6 +526,11 @@ export function DynamicForm({
 // ============================================================
 // Campo individual
 // ============================================================
+// No se reutiliza <Card>: aquí hace falta otro radio y un borde por estado, y
+// sin tailwind-merge las clases en conflicto resolverían por orden del CSS.
+const QUESTION_CARD =
+  "rounded-xl border bg-surface p-4 shadow-sm transition-colors sm:p-5";
+
 const inputCls =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted outline-none transition-colors focus:border-brand focus:ring-2 focus:ring-brand/30";
 
@@ -513,25 +562,8 @@ function FieldInput({
   const help = resolveText(field.help, locale);
   const options = field.options ?? [];
 
-  // Nota / encabezado: solo texto, sin input ni respuesta.
-  if (field.type === "note") {
-    return (
-      <div className="border-b border-border pb-1 pt-2">
-        <p className="text-sm font-semibold uppercase tracking-wide text-muted">{label}</p>
-        {help && <p className="mt-0.5 text-xs text-muted">{help}</p>}
-        {field.image && (
-          <HelpImage
-            src={field.image}
-            wrapperClassName="mt-2 block w-fit"
-            className="max-h-56 rounded-lg border border-border"
-          />
-        )}
-      </div>
-    );
-  }
-
   return (
-    <div data-field={field.key}>
+    <div>
       <label className="mb-1 block text-sm font-medium text-foreground">
         {label || "—"}
         {(field.required || markedRequired) && <span className="text-danger"> *</span>}
@@ -671,6 +703,30 @@ function FieldInput({
 
       {help && <p className="mt-1 text-xs text-muted">{help}</p>}
       {error && <p className="mt-1 text-sm text-danger">{error}</p>}
+    </div>
+  );
+}
+
+/**
+ * Encabezado de bloque (campo `note`): solo texto, sin input ni respuesta. Va
+ * *entre* las cards de pregunta, no dentro, para que separe visualmente.
+ */
+function GroupHeader({ field, locale }: { field: Field; locale: string }) {
+  const label = resolveText(field.label, locale);
+  const help = resolveText(field.help, locale);
+  return (
+    <div className="px-1">
+      <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </p>
+      {help && <p className="mt-1 text-sm text-muted">{help}</p>}
+      {field.image && (
+        <HelpImage
+          src={field.image}
+          wrapperClassName="mt-2 block w-fit"
+          className="max-h-56 rounded-lg border border-border"
+        />
+      )}
     </div>
   );
 }

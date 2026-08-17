@@ -10,6 +10,12 @@ export type SerializedAnswer = {
   value: string; // legible (renderAnswer)
   raw: unknown; // valor crudo tal como se guardó
   files?: { filename: string; url: string | null }[];
+  /**
+   * Traducción del texto libre que escribió el solicitante, si se pidió y el
+   * cliente la tiene habilitada. Campo ADITIVO: su ausencia es el
+   * comportamiento histórico, así que no rompe a los consumidores actuales.
+   */
+  valueTranslated?: string;
 };
 
 function isEmpty(v: unknown): boolean {
@@ -35,6 +41,8 @@ export function serializeAnswers(
   data: Record<string, unknown>,
   signedUrls: Record<string, string>,
   locale: string,
+  /** field_key -> texto traducido (ver lib/i18n-ai/answers.ts). Opcional. */
+  translations?: Record<string, string>,
 ): SerializedAnswer[] {
   if (!definition) {
     // Sin definición (solicitud vieja): exponer el data crudo.
@@ -64,6 +72,8 @@ export function serializeAnswers(
           url: signedUrls[r.path] ?? null,
         }));
       }
+      const translated = translations?.[field.key];
+      if (translated) entry.valueTranslated = translated;
       out.push(entry);
     }
   }

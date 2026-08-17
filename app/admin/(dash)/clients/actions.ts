@@ -89,6 +89,26 @@ export async function setDefaultFormAction(
   return { ok: true };
 }
 
+/**
+ * Habilita/deshabilita la traducción con IA de las respuestas de este cliente.
+ * Arranca apagado: traducir respuestas manda datos del solicitante (PII) a un
+ * proveedor externo, así que requiere una decisión explícita por cliente.
+ */
+export async function setAiTranslationAction(
+  id: string,
+  allow: boolean,
+): Promise<Result> {
+  await requireAnalyst();
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("api_keys")
+    .update({ allow_ai_translation: allow })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/clients");
+  return { ok: true };
+}
+
 /** Fija (o limpia con null) el rate limit por-key. */
 export async function setRateLimitAction(
   id: string,

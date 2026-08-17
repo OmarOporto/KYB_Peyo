@@ -9,6 +9,7 @@ import {
   createApiKeyAction,
   revokeApiKeyAction,
   rotateApiKeyAction,
+  setAiTranslationAction,
   setRateLimitAction,
 } from "./actions";
 
@@ -21,6 +22,8 @@ export type ClientRow = {
   total: number;
   rateLimit: number | null; // null = usa el default global
   revoked: boolean;
+  /** Opt-in a traducir respuestas con IA (manda PII al proveedor). */
+  aiTranslation: boolean;
 };
 
 export function ClientsPanel({
@@ -103,6 +106,7 @@ export function ClientsPanel({
                 <th className="px-4 py-2.5 font-medium">{t("colUsage")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("colLastUsed")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("colLimit")}</th>
+                <th className="px-4 py-2.5 font-medium">{t("colAiTranslation")}</th>
                 <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
@@ -112,7 +116,7 @@ export function ClientsPanel({
               ))}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-4 py-10 text-center text-muted">
+                  <td colSpan={7} className="px-4 py-10 text-center text-muted">
                     {t("empty")}
                   </td>
                 </tr>
@@ -209,6 +213,21 @@ function ClientRowView({
               {t("save")}
             </button>
           </div>
+        )}
+      </td>
+      <td className="px-4 py-2.5">
+        {row.revoked ? (
+          <span className="text-muted">{row.aiTranslation ? t("on") : t("off")}</span>
+        ) : (
+          <label className="flex items-center gap-1.5 text-xs text-muted" title={t("aiTranslationHint")}>
+            <input
+              type="checkbox"
+              className="accent-brand"
+              checked={row.aiTranslation}
+              onChange={(e) => onRun(() => setAiTranslationAction(row.id, e.target.checked))}
+            />
+            {row.aiTranslation ? t("on") : t("off")}
+          </label>
         )}
       </td>
       <td className="px-4 py-2.5 text-right whitespace-nowrap">

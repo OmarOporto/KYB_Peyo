@@ -2,6 +2,12 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { getAnalyst } from "@/lib/auth/admin";
+import {
+  clientAllowsTranslation,
+  translatableLocales,
+  translateAnswers,
+} from "@/lib/i18n-ai/answers";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
@@ -29,12 +35,15 @@ export const maxDuration = 180;
 
 export default async function RequestDetail({
   params,
+  searchParams,
 }: {
   params: Promise<{ id: string }>;
+  searchParams: Promise<{ tr?: string }>;
 }) {
   const t = await getTranslations("admin");
   const tCommon = await getTranslations("common");
   const { id } = await params;
+  const { tr } = await searchParams;
   const supabase = await createServerSupabase();
 
   const { data: request } = await supabase
@@ -135,6 +144,34 @@ export default async function RequestDetail({
       : undefined;
   };
 
+  // ---------- Traducción de respuestas (texto libre) ----------
+  // Se gatea con el opt-in del cliente DUEÑO de la solicitud: el consentimiento
+  // es sobre el dato, no sobre quién lo mira, así que un analista tampoco puede
+  // mandar a un proveedor externo lo que el cliente no habilitó. Los intakes
+  // públicos (`/forms/[id]`) no tienen dueño y quedan permitidos: son los
+  // formularios propios del operador.
+  const ownerKeyId = (request as { api_key_id?: string | null }).api_key_id ?? null;
+  const trLocales = translatableLocales(definition);
+  const trTarget = tr && trLocales.includes(tr) ? tr : null;
+  const trAllowed = ownerKeyId ? await clientAllowsTranslation(ownerKeyId) : true;
+
+  let answerTranslations: Record<string, string> | undefined;
+  if (trTarget && trAllowed) {
+    // El layout de (dash) ya exige analista; esto es solo para el actor del audit.
+    const analyst = await getAnalyst();
+    try {
+      const out = await translateAnswers(id, definition, formData, trTarget, {
+        actor: analyst?.email ?? "analyst",
+      });
+      answerTranslations = out.byKey;
+    } catch (e) {
+      console.error(
+        "[i18n-ai] answers translation failed",
+        e instanceof Error ? e.message : e,
+      );
+    }
+  }
+
   return (
     <main className="mx-auto w-full max-w-3xl p-6">
       <Link href="/admin" className="text-sm text-brand hover:underline">
@@ -222,7 +259,38 @@ export default async function RequestDetail({
       </Section>
 
       {/* Formulario */}
-      <Section title={t("form")}>
+      <Section
+        title={t("form")}
+        action={
+          trLocales.length > 0 ? (
+            trAllowed ? (
+              <div className="flex items-center gap-2 text-xs">
+                {trTarget ? (
+                  <Link href={`/admin/requests/${id}`} className="text-brand hover:underline">
+                    {t("showOriginal")}
+                  </Link>
+                ) : null}
+                {trLocales
+                  .filter((l) => l !== trTarget)
+                  .map((l) => (
+                    <Link
+                      key={l}
+                      href={`/admin/requests/${id}?tr=${l}`}
+                      className="text-brand hover:underline"
+                    >
+                      {t("translateAnswersTo", { locale: l.toUpperCase() })}
+                    </Link>
+                  ))}
+                {trTarget && <span className="text-muted">{t("translatedNote")}</span>}
+              </div>
+            ) : (
+              <span className="text-xs text-muted" title={t("translateDisabledHint")}>
+                {t("translateDisabled")}
+              </span>
+            )
+          ) : undefined
+        }
+      >
         {definition ? (
           <div className="space-y-4">
             {definition.sections.map((s, si) => {
@@ -251,6 +319,7 @@ export default async function RequestDetail({
                           value={formData[f.key]}
                           locale={locale}
                           signedUrls={signedUrls}
+                          translated={answerTranslations?.[f.key]}
                         />
                       ))}
                     </dl>
@@ -271,6 +340,7 @@ export default async function RequestDetail({
                         value={formData[f.key]}
                         locale={locale}
                         signedUrls={signedUrls}
+                        translated={answerTranslations?.[f.key]}
                       />
                     ))}
                   </dl>
@@ -287,6 +357,7 @@ export default async function RequestDetail({
                             value={formData[f.key]}
                             locale={locale}
                             signedUrls={signedUrls}
+                            translated={answerTranslations?.[f.key]}
                           />
                         ))}
                       </dl>
@@ -385,11 +456,14 @@ function FieldRow({
   value,
   locale,
   signedUrls,
+  translated,
 }: {
   field: Field;
   value: unknown;
   locale: string;
   signedUrls: Record<string, string>;
+  /** Traducción del texto libre, si se pidió. */
+  translated?: string;
 }) {
   return (
     <div className="border-b border-border pb-1">
@@ -401,6 +475,11 @@ function FieldRow({
           locale={locale}
           signedUrls={signedUrls}
         />
+        {/* El original queda como valor principal: es el registro de lo que
+            declaró el solicitante. La traducción es una ayuda de lectura. */}
+        {translated && (
+          <span className="mt-0.5 block text-xs italic text-muted">{translated}</span>
+        )}
       </dd>
     </div>
   );
@@ -440,10 +519,26 @@ function AnswerValue({
 function Section({
   title,
   children,
+  action,
 }: {
   title: string;
   children: React.ReactNode;
+  /** Control opcional alineado a la derecha del encabezado. */
+  action?: React.ReactNode;
 }) {
+  if (action) {
+    return (
+      <section className="mb-6">
+        <div className="mb-2 flex flex-wrap items-baseline gap-2">
+          <h2 className="text-sm font-semibold tracking-wide text-muted uppercase">
+            {title}
+          </h2>
+          <div className="ml-auto">{action}</div>
+        </div>
+        {children}
+      </section>
+    );
+  }
   return (
     <section className="mb-6">
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">

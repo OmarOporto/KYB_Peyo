@@ -22,6 +22,34 @@ export function resolveText(
   return typeof first === "string" ? first : "";
 }
 
+/**
+ * Texto de UN locale exacto, SIN fallback. A diferencia de `resolveText`, un
+ * string plano se considera del locale por defecto del formulario: sirve para
+ * distinguir "no traducido" de "traducido", que es lo que `resolveText` oculta.
+ */
+export function getLoc(
+  v: LocalizedText | undefined,
+  locale: string,
+  plainLocale = "es",
+): string {
+  if (v == null) return "";
+  if (typeof v === "string") return locale === plainLocale ? v : "";
+  return v[locale] ?? "";
+}
+
+/** Escribe un locale preservando los demás; normaliza string plano a objeto. */
+export function setLoc(
+  v: LocalizedText | undefined,
+  locale: string,
+  val: string,
+  plainLocale = "es",
+): Record<string, string> {
+  const base =
+    typeof v === "string" ? { [plainLocale]: v } : v && typeof v === "object" ? { ...v } : {};
+  base[locale] = val;
+  return base;
+}
+
 // ============================================================
 // Tipos de campo
 // ============================================================
@@ -221,12 +249,34 @@ export const sectionSchema = z.object({
 });
 export type Section = z.infer<typeof sectionSchema>;
 
+// ------------------------------------------------------------
+// Procedencia de traducciones (i18n): distingue lo que escribió una persona de
+// lo que generó la IA, por `path` estable (ver lib/i18n-ai/walk.ts) y locale.
+// Vive dentro del `definition` (jsonb) — no requiere migración.
+// ------------------------------------------------------------
+export const i18nProvenanceSchema = z.object({
+  source: z.enum(["ai", "human"]),
+  model: z.string().optional(),
+  at: z.string().optional(),
+});
+export type I18nProvenance = z.infer<typeof i18nProvenanceSchema>;
+
+/** path -> locale -> procedencia */
+export const i18nMetaSchema = z.record(
+  z.string(),
+  z.record(z.string(), i18nProvenanceSchema),
+);
+export type I18nMeta = z.infer<typeof i18nMetaSchema>;
+
+export const formMetaSchema = z.object({ i18n: i18nMetaSchema.optional() });
+
 export const formDefinitionSchema = z.object({
   version: z.literal(1).default(1),
   title: localizedTextSchema,
   locales: z.array(z.string()).min(1).default(["es", "en"]),
   defaultLocale: z.string().default("es"),
   sections: z.array(sectionSchema),
+  meta: formMetaSchema.optional(),
 });
 export type FormDefinition = z.infer<typeof formDefinitionSchema>;
 

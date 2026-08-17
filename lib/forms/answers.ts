@@ -2,6 +2,14 @@ import { resolveText, type Field } from "./definition";
 
 export type FileRef = { path: string; filename: string };
 
+// Sí/No por locale: `renderAnswer` alimenta el panel Y la respuesta de
+// `GET /api/v1/kyb/requests/:id/answers?locale=`, así que hardcodear español
+// devolvía texto en el idioma equivocado a los clientes de la API.
+const BOOLEAN_TEXT = {
+  es: { yes: "Sí", no: "No" },
+  en: { yes: "Yes", no: "No" },
+} as const;
+
 /** Extrae los FileRef ({path, filename}) del valor de un campo file/selfie. */
 export function fileRefsOf(value: unknown): FileRef[] {
   if (!Array.isArray(value)) return [];
@@ -58,7 +66,7 @@ export function renderAnswer(
       );
     }
     case "boolean":
-      return value === true ? "Sí" : "No";
+      return BOOLEAN_TEXT[locale === "en" ? "en" : "es"][value === true ? "yes" : "no"];
     default:
       return String(value);
   }

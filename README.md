@@ -139,6 +139,63 @@ corto; hasta 3 reintentos; el polling del `GET` es el respaldo. Entregas en
   de `callback_url` (webhook server-to-server); `return_url` es el redirect del
   **navegador** del usuario final.
 
+## Traducción con IA
+
+El motor vive en `lib/i18n-ai/` y sirve a dos superficies. Proveedor configurable
+(`TRANSLATE_PROVIDER=mock|openai`); `mock` pseudo-traduce sin llamar a nadie, así que
+en local se puede probar todo el flujo sin gastar tokens.
+
+### 1. Formularios (`/admin/forms/<id>/edit`)
+
+Botón **Traducir** en la barra del builder: traduce los textos del formulario al locale
+elegido, sección por sección, y los aplica **sobre el borrador** (no publica nada). Los
+textos que puso la IA quedan marcados con un badge `auto`; al corregirlos a mano el badge
+desaparece y un re-pase en modo "solo lo que falta" ya no los toca. La procedencia se
+guarda en `definition.meta.i18n` (path → locale → `{source, model, at}`).
+
+El indicador de cobertura (`EN 92% · 41 sin traducir`) importa porque `resolveText` cae al
+locale por defecto en silencio: sin medirlo, un formulario a medio traducir se ve completo
+y sale a producción con español filtrado. Al publicar se avisa si algún locale está incompleto.
+
+Lo que la IA **nunca** ve, y por lo tanto no puede romper: `field.key`, `option.value`,
+los `id` y `validation.pattern`. Solo se le mandan strings, y se aplican por path. Como
+`visibleIf` compara contra `option.value` (no contra la etiqueta), traducir no afecta la
+lógica de ramificación ni las respuestas ya guardadas.
+
+**Calidad.** El glosario y las reglas de estilo viven en `lib/i18n-ai/glossary.json`,
+derivados de los pares ES/EN escritos a mano en `lib/forms/presets/*.ts`. Esos mismos pares
+son el set de evaluación:
+
+```bash
+TRANSLATE_PROVIDER=openai npm run i18n:eval          # todo el corpus (~118 pares)
+TRANSLATE_PROVIDER=openai npm run i18n:eval -- --limit 30
+```
+
+Imprime coincidencia exacta/normalizada y los diffs. La coincidencia exacta no es el
+objetivo (hay varias traducciones válidas): los diffs son lo que hay que leer. Corrélo
+cada vez que toques el glosario.
+
+### 2. Respuestas (opt-in por cliente)
+
+Traduce el **texto libre** que escribió el solicitante (`short_text` / `long_text`); el
+resto ya es bilingüe vía `option.label`. Se cachea en `answer_translations` por
+`(solicitud, campo, locale, hash del origen)`: se paga una vez, y si el solicitante corrige
+su respuesta el hash cambia y se re-traduce solo.
+
+- **API**: `GET /api/v1/kyb/requests/:id/answers?locale=en&translate=1` agrega
+  `valueTranslated` a cada respuesta (campo aditivo: sin `translate=1` la respuesta es
+  idéntica a la histórica).
+- **Panel**: en el detalle de la solicitud, *Ver en EN* muestra la traducción bajo cada
+  valor. El original queda como valor principal: es el registro de lo que se declaró.
+
+> **PII.** Esto manda datos del solicitante a un proveedor externo, así que es **opt-in por
+> cliente** (`api_keys.allow_ai_translation`, apagado por defecto) y se activa en el panel
+> **Clientes API**. El gate aplica también a la vista del analista: el consentimiento es
+> sobre el dato, no sobre quién lo mira. Los intakes públicos (`/forms/[id]`) no tienen
+> cliente dueño y quedan permitidos. Cada traducción se registra en `audit_log`
+> (`answer_translation`). Antes de activarlo en producción hace falta resolver la parte
+> legal (retención cero / términos enterprise / DPA con el proveedor).
+
 ## DIDIT (AML) — por definir
 
 La integración está aislada en `lib/aml/` (`provider.ts`, `didit.ts`, `mock.ts`, `mapping.ts`).

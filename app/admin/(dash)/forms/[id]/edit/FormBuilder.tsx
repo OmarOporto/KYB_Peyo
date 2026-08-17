@@ -7,12 +7,14 @@ import {
   FIELD_TYPES,
   DIDIT_FEATURES,
   DIDIT_FEATURE_COMPAT,
+  getLoc,
   isChoiceType,
   isDiditCompatible,
   KYB_COUNTRY_RES,
   newField,
   newSection,
   resolveText,
+  setLoc,
   type Condition,
   type ConditionOp,
   type Field,
@@ -22,6 +24,19 @@ import {
   type LocalizedText,
   type Section,
 } from "@/lib/forms/definition";
+import {
+  applyTranslations,
+  coverage,
+  fieldPath,
+  FORM_SCOPE,
+  isMachineTranslated,
+  markHuman,
+  optionPath,
+  renameProvenance,
+  sectionPath,
+  type Coverage,
+} from "@/lib/i18n-ai/walk";
+import type { TranslateResult } from "@/lib/i18n-ai/provider";
 import {
   FIELD_PRESETS,
   presetCategories,
@@ -35,20 +50,66 @@ import { ImageUpload } from "@/components/forms/ImageUpload";
 import { saveForm, setFormStatus, deleteForm } from "../../actions";
 
 // ---------- helpers de LocalizedText ----------
-function getLoc(v: LocalizedText | undefined, locale: string): string {
-  if (v == null) return "";
-  if (typeof v === "string") return v;
-  return v[locale] ?? "";
-}
-function setLoc(
-  v: LocalizedText | undefined,
+// `getLoc`/`setLoc` viven en lib/forms/definition.ts: los comparte el walker de
+// traducción (lib/i18n-ai/walk.ts) para que "vacío en este locale" signifique lo
+// mismo en el editor y en la medición de cobertura.
+
+/**
+ * Escribe un texto por edición MANUAL: además de `setLoc`, borra el rastro de
+ * IA del path. Así el badge `auto` desaparece al corregir y un re-pase en modo
+ * "solo faltantes" respeta lo que revisó una persona.
+ */
+function writeLoc(
+  d: FormDefinition,
+  path: string,
   locale: string,
-  val: string,
+  current: LocalizedText | undefined,
+  value: string,
 ): Record<string, string> {
-  const base = typeof v === "object" && v ? { ...v } : {};
-  base[locale] = val;
-  return base;
+  markHuman(d, path, locale);
+  return setLoc(current, locale, value, d.defaultLocale || "es");
 }
+
+/**
+ * Marca visual de traducción automática sin revisar. `align="top"` para
+ * textareas, donde centrar verticalmente quedaría flotando en el medio.
+ */
+function AutoTag({
+  show,
+  tip,
+  align = "center",
+}: {
+  show: boolean;
+  tip: string;
+  align?: "center" | "top";
+}) {
+  if (!show) return null;
+  return (
+    <span
+      title={tip}
+      className={`pointer-events-none absolute right-2 rounded bg-warning/15 px-1.5 py-0.5 text-[10px] leading-none font-semibold tracking-wide text-warning uppercase ${
+        align === "top" ? "top-2" : "top-1/2 -translate-y-1/2"
+      }`}
+    >
+      auto
+    </span>
+  );
+}
+
+/** Reserva espacio a la derecha del input para que el badge no tape el texto. */
+const autoPad = (auto: boolean) => (auto ? " pr-14" : "");
+
+/**
+ * Contexto i18n que bajan las tarjetas. Va junto a propósito: `src` debe ser el
+ * MISMO locale de origen que usa lib/i18n-ai/walk.ts, o el indicador de
+ * cobertura diría una cosa y el input mostraría otra.
+ */
+type I18nCtx = {
+  /** Locale de origen del formulario (`def.defaultLocale`). */
+  src: string;
+  /** ¿El texto de este path lo puso la IA y nadie lo revisó? */
+  isAuto: (path: string) => boolean;
+};
 
 const inputCls =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted outline-none focus:border-brand focus:ring-2 focus:ring-brand/30";
@@ -79,6 +140,10 @@ export function FormBuilder({
   const [busy, setBusy] = useState(false);
   const [pickerPresetId, setPickerPresetId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState(0);
+  const [showTranslate, setShowTranslate] = useState(false);
+  const [translating, setTranslating] = useState<{ done: number; total: number } | null>(
+    null,
+  );
   const [dragOver, setDragOver] = useState<number | null>(null);
   const dragFrom = useRef<number | null>(null);
   const [confirmState, setConfirmState] = useState<{
@@ -112,8 +177,99 @@ export function FormBuilder({
     const res = await setFormStatus(id, next);
     if (res.ok) {
       setStatus(next);
-      setMsg(next === "published" ? t("published") : t("unpublished"));
+      // Avisar (sin bloquear) si se publica con locales a medio traducir:
+      // `resolveText` cae al locale por defecto en silencio, así que un hueco
+      // no se nota en pantalla pero sale a producción.
+      const gaps = targetLocales
+        .map((l) => ({ l, c: coverage(def, l) }))
+        .filter((x) => x.c.missing > 0);
+      if (next === "published" && gaps.length) {
+        setMsg(
+          `${t("published")} — ${gaps
+            .map((g) => `${g.l.toUpperCase()} ${g.c.percent}% (${g.c.missing} ${t("coverageMissing")})`)
+            .join(", ")}`,
+        );
+      } else setMsg(next === "published" ? t("published") : t("unpublished"));
     } else setMsg(res.error);
+  }
+
+  // ---------- Traducción con IA ----------
+  /**
+   * Manda una definición recortada al scope pedido: el endpoint solo necesita
+   * esa sección para extraer textos y armar el contexto, así no viaja el
+   * formulario entero (que puede pesar >100 KB) en cada una de las N llamadas.
+   */
+  function scopeDefinition(scope: string): FormDefinition {
+    return {
+      ...def,
+      sections: scope === FORM_SCOPE ? [] : def.sections.filter((s) => s.id === scope),
+    };
+  }
+
+  async function onTranslate(to: string, force: boolean) {
+    setShowTranslate(false);
+    setMsg(null);
+
+    // El título del formulario no cuelga de ninguna sección: FORM_SCOPE lo cubre.
+    const scopes = [FORM_SCOPE, ...def.sections.map((s) => s.id)];
+    setTranslating({ done: 0, total: scopes.length });
+
+    let requested = 0;
+    let unanswered = 0;
+    let failed = 0;
+    const at = new Date().toISOString();
+
+    // Pool de 3. La concurrencia real es posible porque el endpoint es un Route
+    // Handler: Next 16 serializa las Server Actions por cliente.
+    let cursor = 0;
+    const worker = async () => {
+      while (cursor < scopes.length) {
+        const scope = scopes[cursor++];
+        try {
+          const res = await fetch("/api/admin/forms/translate", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ definition: scopeDefinition(scope), sectionId: scope, to, force }),
+          });
+          const data = (await res.json()) as {
+            results?: TranslateResult[];
+            requested?: number;
+            missing?: number;
+            model?: string;
+            error?: string;
+          };
+          if (!res.ok) {
+            failed++;
+          } else {
+            requested += data.requested ?? 0;
+            unanswered += data.missing ?? 0;
+            if (data.results?.length) {
+              update((d) => applyTranslations(d, data.results!, { to, model: data.model, at }));
+            }
+          }
+        } catch {
+          failed++;
+        }
+        setTranslating((p) => (p ? { ...p, done: p.done + 1 } : p));
+      }
+    };
+
+    await Promise.all(
+      Array.from({ length: Math.min(3, scopes.length) }, () => worker()),
+    );
+
+    setTranslating(null);
+    setActiveLocale(to);
+
+    if (requested === 0 && failed === 0) {
+      setMsg(t("translateNothing"));
+      return;
+    }
+    const parts = [`${t("translateDone")}: ${requested - unanswered}/${requested}`];
+    if (unanswered) parts.push(`${unanswered} ${t("translateUnanswered")}`);
+    if (failed) parts.push(`${failed} ${t("translateFailedSections")}`);
+    parts.push(t("translateReviewHint"));
+    setMsg(parts.join(" · "));
   }
 
   function onExport() {
@@ -172,6 +328,16 @@ export function FormBuilder({
   );
   const activeIdx = Math.min(Math.max(activeSection, 0), Math.max(def.sections.length - 1, 0));
 
+  // ---------- i18n: locale de origen, cobertura y procedencia ----------
+  const srcLocale = def.defaultLocale || "es";
+  const targetLocales = def.locales.filter((l) => l !== srcLocale);
+  /** Cobertura del locale que se está editando (null si es el de origen). */
+  const cov: Coverage | null = locale === srcLocale ? null : coverage(def, locale);
+  const i18nCtx: I18nCtx = {
+    src: srcLocale,
+    isAuto: (path) => locale !== srcLocale && isMachineTranslated(def, path, locale),
+  };
+
   return (
     <main className="mx-auto w-full max-w-5xl p-6">
       {/* Toolbar */}
@@ -200,6 +366,24 @@ export function FormBuilder({
           </a>
         )}
         <div className="ml-auto flex flex-wrap items-center gap-2">
+          {/* Cobertura del locale activo: hace visible lo que `resolveText`
+              esconde al caer al locale de origen. */}
+          {cov && (
+            <span
+              className={`text-xs font-medium ${
+                cov.missing > 0 ? "text-warning" : "text-success"
+              }`}
+              title={
+                cov.machine > 0
+                  ? `${cov.machine} ${t("coverageMachine")}`
+                  : undefined
+              }
+            >
+              {locale.toUpperCase()} {cov.percent}%
+              {cov.missing > 0 && ` · ${cov.missing} ${t("coverageMissing")}`}
+              {cov.machine > 0 && ` · ${cov.machine} auto`}
+            </span>
+          )}
           {/* Locale tabs */}
           <div className="flex overflow-hidden rounded-lg border border-border">
             {def.locales.map((l) => (
@@ -214,6 +398,43 @@ export function FormBuilder({
               </button>
             ))}
           </div>
+          {targetLocales.length > 0 && (
+            <div className="relative">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={Boolean(translating)}
+                onClick={() => setShowTranslate((v) => !v)}
+              >
+                {translating
+                  ? `${t("translating")} ${translating.done}/${translating.total}`
+                  : `${t("translate")} ▾`}
+              </Button>
+              {showTranslate && (
+                <div className="absolute right-0 z-30 mt-1 w-60 rounded-lg border border-border bg-surface-card p-1 shadow-lg">
+                  {targetLocales.map((l) => (
+                    <Fragment key={l}>
+                      <button
+                        className="block w-full rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-2"
+                        onClick={() => onTranslate(l, false)}
+                      >
+                        {t("translateMissing")} → {l.toUpperCase()}
+                      </button>
+                      <button
+                        className="block w-full rounded-md px-2 py-1.5 text-left text-xs text-muted hover:bg-surface-2"
+                        onClick={() => onTranslate(l, true)}
+                      >
+                        {t("translateForce")} → {l.toUpperCase()}
+                      </button>
+                    </Fragment>
+                  ))}
+                  <p className="border-t border-border px-2 pt-1.5 pb-1 text-[11px] leading-snug text-muted">
+                    {t("translateHint")}
+                  </p>
+                </div>
+              )}
+            </div>
+          )}
           <Button variant="outline" size="sm" onClick={() => setPreview((p) => !p)}>
             {preview ? t("edit") : t("preview")}
           </Button>
@@ -321,6 +542,7 @@ export function FormBuilder({
               update={update}
               onMove={moveSection}
               askConfirm={askConfirm}
+              i18n={i18nCtx}
             />
           )}
           <Button
@@ -576,6 +798,7 @@ function SectionCard({
   update,
   onMove,
   askConfirm,
+  i18n,
 }: {
   section: Section;
   index: number;
@@ -587,7 +810,10 @@ function SectionCard({
   update: (mut: (d: FormDefinition) => void) => void;
   onMove: (from: number, to: number) => void;
   askConfirm: (message: string) => Promise<boolean>;
+  i18n: I18nCtx;
 }) {
+  const titlePath = sectionPath(section.id, "title");
+  const descPath = sectionPath(section.id, "desc");
   return (
     <div className="rounded-2xl border border-border bg-surface-card p-4 shadow-md ring-1 ring-black/5 dark:ring-white/10">
       <div className="mb-3 flex items-center gap-2">
@@ -616,30 +842,44 @@ function SectionCard({
         </div>
       </div>
 
-      <input
-        className={inputCls}
-        placeholder={t("sectionTitle")}
-        value={getLoc(section.title, locale)}
-        onChange={(e) =>
-          update((d) => {
-            d.sections[index].title = setLoc(d.sections[index].title, locale, e.target.value);
-          })
-        }
-      />
-      <input
-        className={`${inputCls} mt-2`}
-        placeholder={t("sectionDescription")}
-        value={getLoc(section.description, locale)}
-        onChange={(e) =>
-          update((d) => {
-            d.sections[index].description = setLoc(
-              d.sections[index].description,
-              locale,
-              e.target.value,
-            );
-          })
-        }
-      />
+      <div className="relative">
+        <input
+          className={inputCls + autoPad(i18n.isAuto(titlePath))}
+          placeholder={t("sectionTitle")}
+          value={getLoc(section.title, locale, i18n.src)}
+          onChange={(e) =>
+            update((d) => {
+              d.sections[index].title = writeLoc(
+                d,
+                titlePath,
+                locale,
+                d.sections[index].title,
+                e.target.value,
+              );
+            })
+          }
+        />
+        <AutoTag show={i18n.isAuto(titlePath)} tip={t("autoTip")} />
+      </div>
+      <div className="relative mt-2">
+        <input
+          className={inputCls + autoPad(i18n.isAuto(descPath))}
+          placeholder={t("sectionDescription")}
+          value={getLoc(section.description, locale, i18n.src)}
+          onChange={(e) =>
+            update((d) => {
+              d.sections[index].description = writeLoc(
+                d,
+                descPath,
+                locale,
+                d.sections[index].description,
+                e.target.value,
+              );
+            })
+          }
+        />
+        <AutoTag show={i18n.isAuto(descPath)} tip={t("autoTip")} />
+      </div>
 
       {/* visibleIf de sección */}
       <ConditionRow
@@ -665,6 +905,8 @@ function SectionCard({
               t={t}
               update={update}
               askConfirm={askConfirm}
+              i18n={i18n}
+              sectionId={section.id}
             />
             {/* Insertar una pregunta justo debajo de esta */}
             <AddFieldSelect
@@ -949,6 +1191,8 @@ function FieldCard({
   t,
   update,
   askConfirm,
+  i18n,
+  sectionId,
 }: {
   field: Field;
   si: number;
@@ -959,9 +1203,27 @@ function FieldCard({
   t: TFn;
   update: (mut: (d: FormDefinition) => void) => void;
   askConfirm: (message: string) => Promise<boolean>;
+  i18n: I18nCtx;
+  sectionId: string;
 }) {
   const mut = (fn: (f: Field) => void) =>
     update((d) => fn(d.sections[si].fields[fi]));
+
+  /** setLoc + markHuman sobre un texto del campo, por `part`. */
+  const mutLoc = (
+    part: "label" | "help" | "ph",
+    read: (f: Field) => LocalizedText | undefined,
+    write: (f: Field, v: Record<string, string>) => void,
+    value: string,
+  ) =>
+    update((d) => {
+      const f = d.sections[si].fields[fi];
+      write(f, writeLoc(d, fieldPath(sectionId, field.id, part), locale, read(f), value));
+    });
+
+  const labelPath = fieldPath(sectionId, field.id, "label");
+  const phPath = fieldPath(sectionId, field.id, "ph");
+  const helpPath = fieldPath(sectionId, field.id, "help");
 
   return (
     <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
@@ -1105,12 +1367,17 @@ function FieldCard({
         </div>
       </div>
 
-      <input
-        className={inputCls}
-        placeholder={t("fieldLabel")}
-        value={getLoc(field.label, locale)}
-        onChange={(e) => mut((f) => (f.label = setLoc(f.label, locale, e.target.value)))}
-      />
+      <div className="relative">
+        <input
+          className={inputCls + autoPad(i18n.isAuto(labelPath))}
+          placeholder={t("fieldLabel")}
+          value={getLoc(field.label, locale, i18n.src)}
+          onChange={(e) =>
+            mutLoc("label", (f) => f.label, (f, v) => (f.label = v), e.target.value)
+          }
+        />
+        <AutoTag show={i18n.isAuto(labelPath)} tip={t("autoTip")} />
+      </div>
       <div className="mt-2 flex flex-wrap gap-2">
         <input
           className={`${smallInput} flex-1`}
@@ -1118,24 +1385,37 @@ function FieldCard({
           value={field.key}
           onChange={(e) => mut((f) => (f.key = e.target.value.replace(/\s+/g, "_")))}
         />
-        <input
-          className={`${smallInput} flex-1`}
-          placeholder={t("placeholder")}
-          value={getLoc(field.placeholder, locale)}
-          onChange={(e) =>
-            mut((f) => (f.placeholder = setLoc(f.placeholder, locale, e.target.value)))
-          }
-        />
+        <div className="relative flex-1">
+          <input
+            className={`${smallInput} w-full${autoPad(i18n.isAuto(phPath))}`}
+            placeholder={t("placeholder")}
+            value={getLoc(field.placeholder, locale, i18n.src)}
+            onChange={(e) =>
+              mutLoc(
+                "ph",
+                (f) => f.placeholder,
+                (f, v) => (f.placeholder = v),
+                e.target.value,
+              )
+            }
+          />
+          <AutoTag show={i18n.isAuto(phPath)} tip={t("autoTip")} />
+        </div>
       </div>
 
       {/* Descripción de la pregunta (se muestra bajo el input) */}
-      <textarea
-        className={`${inputCls} mt-2`}
-        rows={2}
-        placeholder={t("fieldDescription")}
-        value={getLoc(field.help, locale)}
-        onChange={(e) => mut((f) => (f.help = setLoc(f.help, locale, e.target.value)))}
-      />
+      <div className="relative mt-2">
+        <textarea
+          className={inputCls + autoPad(i18n.isAuto(helpPath))}
+          rows={2}
+          placeholder={t("fieldDescription")}
+          value={getLoc(field.help, locale, i18n.src)}
+          onChange={(e) =>
+            mutLoc("help", (f) => f.help, (f, v) => (f.help = v), e.target.value)
+          }
+        />
+        <AutoTag show={i18n.isAuto(helpPath)} tip={t("autoTip")} align="top" />
+      </div>
 
       {/* Imagen de ayuda de la pregunta */}
       <ImageUpload
@@ -1146,7 +1426,16 @@ function FieldCard({
 
       {/* Opciones */}
       {isChoiceType(field.type) && (
-        <OptionsEditor field={field} si={si} fi={fi} locale={locale} t={t} update={update} />
+        <OptionsEditor
+          field={field}
+          si={si}
+          fi={fi}
+          locale={locale}
+          t={t}
+          update={update}
+          i18n={i18n}
+          sectionId={sectionId}
+        />
       )}
 
       {/* Config de archivo */}
@@ -1174,6 +1463,8 @@ function OptionsEditor({
   locale,
   t,
   update,
+  i18n,
+  sectionId,
 }: {
   field: Field;
   si: number;
@@ -1181,6 +1472,8 @@ function OptionsEditor({
   locale: string;
   t: TFn;
   update: (mut: (d: FormDefinition) => void) => void;
+  i18n: I18nCtx;
+  sectionId: string;
 }) {
   const options = field.options ?? [];
   return (
@@ -1190,24 +1483,47 @@ function OptionsEditor({
         {options.map((o, oi) => (
           <div key={oi} className="rounded-md border border-border/60 p-1.5">
             <div className="flex items-center gap-2">
-            <input
-              className={`${smallInput} min-w-0 flex-1`}
-              placeholder={t("optionLabel")}
-              value={getLoc(o.label, locale)}
-              onChange={(e) =>
-                update((d) => {
-                  const opt = d.sections[si].fields[fi].options![oi];
-                  opt.label = setLoc(opt.label, locale, e.target.value);
-                  if (!opt.value) opt.value = e.target.value.trim().slice(0, 40) || `opt_${oi}`;
-                })
-              }
-            />
+            <div className="relative min-w-0 flex-1">
+              <input
+                className={`${smallInput} w-full${autoPad(i18n.isAuto(optionPath(sectionId, field.id, o.value)))}`}
+                placeholder={t("optionLabel")}
+                value={getLoc(o.label, locale, i18n.src)}
+                onChange={(e) =>
+                  update((d) => {
+                    const opt = d.sections[si].fields[fi].options![oi];
+                    opt.label = writeLoc(
+                      d,
+                      optionPath(sectionId, field.id, opt.value),
+                      locale,
+                      opt.label,
+                      e.target.value,
+                    );
+                    if (!opt.value)
+                      opt.value = e.target.value.trim().slice(0, 40) || `opt_${oi}`;
+                  })
+                }
+              />
+              <AutoTag
+                show={i18n.isAuto(optionPath(sectionId, field.id, o.value))}
+                tip={t("autoTip")}
+              />
+            </div>
             <input
               className={`${smallInput} w-32`}
               placeholder="value"
               value={o.value}
               onChange={(e) =>
-                update((d) => (d.sections[si].fields[fi].options![oi].value = e.target.value))
+                update((d) => {
+                  const opt = d.sections[si].fields[fi].options![oi];
+                  // El `value` es parte del path de procedencia: al renombrarlo
+                  // hay que mover la marca, o el badge desaparecería solo.
+                  renameProvenance(
+                    d,
+                    optionPath(sectionId, field.id, opt.value),
+                    optionPath(sectionId, field.id, e.target.value),
+                  );
+                  opt.value = e.target.value;
+                })
               }
             />
             <IconBtn

@@ -36,6 +36,13 @@ export const env = {
   // Secreto compartido para autorizar el cron de expiración (Vercel Cron envía
   // `Authorization: Bearer $CRON_SECRET`). Sin él, la ruta cron responde 401.
   cronSecret: () => process.env.CRON_SECRET ?? "",
+  // --- Traducción con IA (formularios y respuestas) ---
+  // `mock` por defecto: un entorno sin configurar nunca gasta tokens.
+  translateProvider: () => process.env.TRANSLATE_PROVIDER ?? "mock",
+  openaiApiKey: () => process.env.OPENAI_API_KEY ?? "",
+  // El glosario carga el peso de la calidad, así que un modelo mini suele
+  // alcanzar y sale ~4x más barato. Medí con `npm run i18n:eval` antes de bajar.
+  translateModel: () => process.env.OPENAI_TRANSLATE_MODEL ?? "gpt-4.1",
   // Límite de tasa por defecto (req/min por API key) si la key no fija uno propio.
   apiRateLimitDefault: () => {
     const n = Number(process.env.API_RATE_LIMIT_DEFAULT_PER_MIN);

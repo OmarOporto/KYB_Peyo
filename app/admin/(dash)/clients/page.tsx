@@ -16,7 +16,9 @@ export default async function ClientsPage() {
   const [{ data: keys }, { data: usage }] = await Promise.all([
     supabase
       .from("api_keys")
-      .select("id, label, created_at, revoked_at, last_used_at, rate_limit_per_min")
+      .select(
+        "id, label, created_at, revoked_at, last_used_at, rate_limit_per_min, allow_ai_translation",
+      )
       .order("created_at", { ascending: false }),
     supabase.from("api_key_usage").select("api_key_id, day, count"),
   ]);
@@ -39,6 +41,7 @@ export default async function ClientsPage() {
     total: totals.get(k.id as string) ?? 0,
     rateLimit: (k.rate_limit_per_min as number | null) ?? null,
     revoked: Boolean(k.revoked_at),
+    aiTranslation: k.allow_ai_translation === true,
   }));
 
   return (

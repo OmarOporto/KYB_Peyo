@@ -8,13 +8,15 @@ export interface Analyst {
   role: "analyst" | "admin";
 }
 
-/** Exige un analista autenticado; redirige a /admin/login si no lo hay. */
-export async function requireAnalyst(): Promise<Analyst> {
+/** Sesión sin autenticar (`signedIn: false`) vs autenticada sin fila de analista. */
+type AuthState = { signedIn: boolean; analyst: Analyst | null };
+
+async function resolveAnalyst(): Promise<AuthState> {
   const supabase = await createServerSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) redirect("/admin/login");
+  if (!user) return { signedIn: false, analyst: null };
 
   const { data: analyst } = await supabase
     .from("analysts")
@@ -22,11 +24,29 @@ export async function requireAnalyst(): Promise<Analyst> {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (!analyst) redirect("/admin/login?error=forbidden");
+  if (!analyst) return { signedIn: true, analyst: null };
 
   return {
-    userId: analyst.user_id as string,
-    email: analyst.email as string,
-    role: analyst.role as "analyst" | "admin",
+    signedIn: true,
+    analyst: {
+      userId: analyst.user_id as string,
+      email: analyst.email as string,
+      role: analyst.role as "analyst" | "admin",
+    },
   };
+}
+
+/**
+ * Analista autenticado, o `null`. Variante sin redirect para Route Handlers,
+ * que deben responder 401 JSON a un `fetch` en vez de mandar un redirect.
+ */
+export async function getAnalyst(): Promise<Analyst | null> {
+  return (await resolveAnalyst()).analyst;
+}
+
+/** Exige un analista autenticado; redirige a /admin/login si no lo hay. */
+export async function requireAnalyst(): Promise<Analyst> {
+  const { signedIn, analyst } = await resolveAnalyst();
+  if (!analyst) redirect(signedIn ? "/admin/login?error=forbidden" : "/admin/login");
+  return analyst;
 }

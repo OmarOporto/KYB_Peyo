@@ -1,0 +1,78 @@
+{
+  "_comment": "Datos del prompt de traducción. Vive en JSON para que lo lean tanto lib/i18n-ai/glossary.ts (runtime) como scripts/i18n-eval.mjs (evaluación), sin duplicar contenido ni parsear TypeScript. Los términos se derivaron de los pares ES/EN escritos a mano en lib/forms/presets/*.ts, que son la fuente de verdad de nuestra terminología.",
+
+  "styleRules": [
+    "Registro: formulario de onboarding empresarial (KYB/AML). Formal pero directo, sin florituras.",
+    "Etiquetas de campo: concisas y nominales. El plural cortés del español pasa al singular natural del inglés: «Nombre(s)» → «First name», «Apellido(s)» → «Last name».",
+    "No agregues ni quites información. No expandas siglas que el original deja como sigla, ni introduzcas siglas que el original no usa.",
+    "Preservá exactamente: números, códigos (NAICS, ISO, EIN, SSN), URLs, nombres de campos de API en snake_case o con notación de punto (p. ej. signed_agreement_id, POST /v0/customers) y los nombres de productos o empresas (Bridge, DIDIT).",
+    "Los EJEMPLOS pueden adaptarse al mercado destino en vez de traducirse literal: un teléfono de ejemplo «+5215555555555» pasa a «+12223334444». Un valor de ejemplo que es puro número o código NO cambia.",
+    "Preservá el formato circundante: los signos de apertura «¿» y «¡» solo existen en español («¿Es propietario/a?» → «Is an owner?»), los paréntesis, «(opcional)» → «(optional)», los símbolos %, ≥ y las unidades.",
+    "Preservá marcadores de plantilla como {campo} o {count} exactamente, sin traducir su contenido.",
+    "El género marcado con barras del español («propietario/a», «el/la solicitante») se resuelve al inglés neutro natural, que no marca género."
+  ],
+
+  "outputContract": [
+    "Devolvé EXACTAMENTE un objeto por cada item de entrada, con su mismo `id`.",
+    "No inventes ids, no omitas ninguno, no reordenes ni agrupes.",
+    "`text`: la traducción. `keepSource`: true SOLO si el texto no debe traducirse (nombre propio de empresa o producto, código, número puro, identificador técnico); en ese caso devolvé `text` idéntico al original.",
+    "El campo `hint` de cada item es contexto para desambiguar: NO lo traduzcas ni lo incluyas en la salida."
+  ],
+
+  "terms": {
+    "es": {
+      "en": {
+        "razón social": "legal business name",
+        "nombre legal": "legal name",
+        "nombre comercial": "trade name (DBA)",
+        "número de registro mercantil": "company registration number",
+        "registro mercantil": "company registry",
+        "registro de sociedades": "companies registry",
+        "beneficiario final": "beneficial owner",
+        "beneficiarios finales": "beneficial owners",
+        "persona de control": "control person",
+        "firmante autorizado": "authorized signer",
+        "representante legal": "legal representative",
+        "documento de constitución": "business formation document",
+        "acta constitutiva": "articles of incorporation",
+        "fecha de constitución": "incorporation date",
+        "país de constitución": "country of incorporation",
+        "domicilio registrado": "registered address",
+        "domicilio físico": "physical address",
+        "comprobante de domicilio": "proof of address",
+        "identificación fiscal": "tax identification",
+        "tipo de identificación fiscal": "tax ID type",
+        "tipo de identificación": "ID type",
+        "número de identificación": "ID number",
+        "país emisor": "issuing country",
+        "tipo de entidad": "entity type",
+        "estructura accionaria": "ownership information",
+        "% de propiedad": "ownership %",
+        "umbral de propiedad": "ownership threshold",
+        "origen de los fondos": "source of funds",
+        "propósito de la cuenta": "account purpose",
+        "ingresos anuales estimados": "estimated annual revenue",
+        "estado / provincia": "state / subdivision",
+        "calle y número": "street line",
+        "código postal": "postal code",
+        "correo electrónico": "email",
+        "fecha de nacimiento": "date of birth",
+        "cargo / título": "title",
+        "persona expuesta políticamente": "politically exposed person (PEP)",
+        "debida diligencia": "due diligence",
+        "lavado de dinero": "money laundering",
+        "lavado de activos": "money laundering",
+        "declaración jurada": "sworn statement",
+        "persona jurídica": "legal entity",
+        "persona natural": "natural person",
+        "accionista": "shareholder",
+        "junta directiva": "board of directors",
+        "estado de cuenta": "bank statement",
+        "actividad económica": "business activity",
+        "solicitante": "applicant",
+        "cumplimiento": "compliance",
+        "documentos": "documents"
+      }
+    }
+  }
+}
