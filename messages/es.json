@@ -149,6 +149,8 @@
     "translate": "Traducir",
     "translateMissing": "Traducir lo que falta",
     "translateForce": "Re-traducir todo",
+    "translateScopeForm": "Todo el formulario",
+    "translateScopeSection": "Solo esta sección",
     "translateHint": "Traduce con IA sobre el borrador. Revisá y guardá: los textos automáticos quedan marcados.",
     "translating": "Traduciendo",
     "translateDone": "Traducción aplicada",

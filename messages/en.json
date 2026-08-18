@@ -149,6 +149,8 @@
     "translate": "Translate",
     "translateMissing": "Translate what's missing",
     "translateForce": "Re-translate everything",
+    "translateScopeForm": "Whole form",
+    "translateScopeSection": "This section only",
     "translateHint": "Translates with AI onto the draft. Review and save: machine text stays flagged.",
     "translating": "Translating",
     "translateDone": "Translation applied",

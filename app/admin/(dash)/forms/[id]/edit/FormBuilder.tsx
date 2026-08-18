@@ -111,6 +111,10 @@ type I18nCtx = {
   isAuto: (path: string) => boolean;
 };
 
+/** Alcance de la traducción: todo el formulario o solo la sección visible. */
+const TRANSLATE_SCOPES = ["form", "section"] as const;
+type TranslateScope = (typeof TRANSLATE_SCOPES)[number];
+
 const inputCls =
   "w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-foreground placeholder:text-muted outline-none focus:border-brand focus:ring-2 focus:ring-brand/30";
 const smallInput =
@@ -141,6 +145,7 @@ export function FormBuilder({
   const [pickerPresetId, setPickerPresetId] = useState<string | null>(null);
   const [activeSection, setActiveSection] = useState(0);
   const [showTranslate, setShowTranslate] = useState(false);
+  const [translateScope, setTranslateScope] = useState<TranslateScope>("form");
   const [translating, setTranslating] = useState<{ done: number; total: number } | null>(
     null,
   );
@@ -193,6 +198,9 @@ export function FormBuilder({
     } else setMsg(res.error);
   }
 
+  // Índice de la sección visible; acotado por si se borró la última.
+  const activeIdx = Math.min(Math.max(activeSection, 0), Math.max(def.sections.length - 1, 0));
+
   // ---------- Traducción con IA ----------
   /**
    * Manda una definición recortada al scope pedido: el endpoint solo necesita
@@ -206,12 +214,23 @@ export function FormBuilder({
     };
   }
 
-  async function onTranslate(to: string, force: boolean) {
+  async function onTranslate(to: string, force: boolean, scope: TranslateScope) {
     setShowTranslate(false);
     setMsg(null);
 
-    // El título del formulario no cuelga de ninguna sección: FORM_SCOPE lo cubre.
-    const scopes = [FORM_SCOPE, ...def.sections.map((s) => s.id)];
+    // "section" traduce solo la sección visible. "form" agrega FORM_SCOPE, que
+    // cubre el título del formulario — no cuelga de ninguna sección.
+    const active = def.sections[activeIdx];
+    const scopes =
+      scope === "section"
+        ? active
+          ? [active.id]
+          : []
+        : [FORM_SCOPE, ...def.sections.map((s) => s.id)];
+    if (scopes.length === 0) {
+      setMsg(t("translateNothing"));
+      return;
+    }
     setTranslating({ done: 0, total: scopes.length });
 
     let requested = 0;
@@ -265,7 +284,13 @@ export function FormBuilder({
       setMsg(t("translateNothing"));
       return;
     }
-    const parts = [`${t("translateDone")}: ${requested - unanswered}/${requested}`];
+    // Con scope de sección se nombra cuál: el mensaje no debe leerse como si
+    // se hubiera traducido el formulario entero (el título sigue sin tocar).
+    const scopeLabel =
+      scope === "section" && active
+        ? `${resolveText(active.title, locale) || `${t("section")} ${activeIdx + 1}`} — `
+        : "";
+    const parts = [`${scopeLabel}${t("translateDone")}: ${requested - unanswered}/${requested}`];
     if (unanswered) parts.push(`${unanswered} ${t("translateUnanswered")}`);
     if (failed) parts.push(`${failed} ${t("translateFailedSections")}`);
     parts.push(t("translateReviewHint"));
@@ -326,7 +351,6 @@ export function FormBuilder({
   const allFieldKeys = def.sections.flatMap((s) =>
     s.fields.map((f) => ({ key: f.key, label: resolveText(f.label, locale) || f.key, field: f })),
   );
-  const activeIdx = Math.min(Math.max(activeSection, 0), Math.max(def.sections.length - 1, 0));
 
   // ---------- i18n: locale de origen, cobertura y procedencia ----------
   const srcLocale = def.defaultLocale || "es";
@@ -411,24 +435,49 @@ export function FormBuilder({
                   : `${t("translate")} ▾`}
               </Button>
               {showTranslate && (
-                <div className="absolute right-0 z-30 mt-1 w-60 rounded-lg border border-border bg-surface-card p-1 shadow-lg">
+                <div className="absolute right-0 z-30 mt-1 w-64 rounded-lg border border-border bg-surface-card p-1 shadow-lg">
+                  {/* El alcance aplica a las dos acciones de abajo: así el menú
+                      no se duplica por cada idioma destino. */}
+                  <div className="mb-1 flex overflow-hidden rounded-md border border-border">
+                    {TRANSLATE_SCOPES.map((s) => (
+                      <button
+                        key={s}
+                        disabled={s === "section" && def.sections.length === 0}
+                        onClick={() => setTranslateScope(s)}
+                        className={`flex-1 px-2 py-1 text-[11px] font-medium disabled:opacity-40 ${
+                          translateScope === s
+                            ? "bg-brand text-white"
+                            : "bg-surface text-muted hover:bg-surface-2"
+                        }`}
+                      >
+                        {s === "form" ? t("translateScopeForm") : t("translateScopeSection")}
+                      </button>
+                    ))}
+                  </div>
                   {targetLocales.map((l) => (
                     <Fragment key={l}>
                       <button
                         className="block w-full rounded-md px-2 py-1.5 text-left text-xs text-foreground hover:bg-surface-2"
-                        onClick={() => onTranslate(l, false)}
+                        onClick={() => onTranslate(l, false, translateScope)}
                       >
                         {t("translateMissing")} → {l.toUpperCase()}
                       </button>
                       <button
                         className="block w-full rounded-md px-2 py-1.5 text-left text-xs text-muted hover:bg-surface-2"
-                        onClick={() => onTranslate(l, true)}
+                        onClick={() => onTranslate(l, true, translateScope)}
                       >
                         {t("translateForce")} → {l.toUpperCase()}
                       </button>
                     </Fragment>
                   ))}
                   <p className="border-t border-border px-2 pt-1.5 pb-1 text-[11px] leading-snug text-muted">
+                    {translateScope === "section" && def.sections[activeIdx] && (
+                      <span className="block font-medium text-foreground">
+                        {activeIdx + 1}.{" "}
+                        {resolveText(def.sections[activeIdx].title, locale) ||
+                          `${t("section")} ${activeIdx + 1}`}
+                      </span>
+                    )}
                     {t("translateHint")}
                   </p>
                 </div>
