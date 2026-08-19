@@ -6,6 +6,25 @@ import { ClientsPanel, type ClientRow } from "./ClientsPanel";
 
 export const dynamic = "force-dynamic";
 
+/** Etiqueta visible de la versión desplegada. Editar a mano en cada entrega. */
+const BUILD_LABEL = "2nd version";
+
+/**
+ * Marcador de build: confirma de un vistazo QUÉ versión está sirviendo, algo
+ * que se volvió necesario tras el cambio de cuenta de Vercel. El commit lo
+ * inyecta Vercel solo (el proyecto tiene `autoExposeSystemEnvs`), así que el
+ * badge no depende de acordarse de actualizar nada.
+ */
+function BuildBadge() {
+  const sha = process.env.VERCEL_GIT_COMMIT_SHA?.slice(0, 7);
+  return (
+    <span className="rounded-full bg-brand/15 px-2 py-0.5 text-xs font-semibold text-brand">
+      {BUILD_LABEL}
+      {sha ? ` · ${sha}` : " · local"}
+    </span>
+  );
+}
+
 export default async function ClientsPage() {
   await requireAnalyst();
   const t = await getTranslations("clients");
@@ -46,7 +65,10 @@ export default async function ClientsPage() {
 
   return (
     <main className="mx-auto w-full max-w-4xl p-6">
-      <h1 className="mb-1 font-display text-2xl font-bold text-foreground">{t("title")}</h1>
+      <div className="mb-1 flex items-center gap-2">
+        <h1 className="font-display text-2xl font-bold text-foreground">{t("title")}</h1>
+        <BuildBadge />
+      </div>
       <p className="mb-4 text-sm text-muted">{t("subtitle")}</p>
       <ClientsPanel rows={rows} defaultLimit={env.apiRateLimitDefault()} />
     </main>
