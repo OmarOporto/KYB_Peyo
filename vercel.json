@@ -1,5 +1,11 @@
 {
   "crons": [
-    { "path": "/api/cron/expire-requests", "schedule": "0 3 * * *" }
-  ]
+    { "path": "/api/cron/expire-requests", "schedule": "0 3 * * *" },
+    { "path": "/api/cron/deliver-webhooks", "schedule": "* * * * *" }
+  ],
+  "git": {
+    "deploymentEnabled": {
+      "main": false
+    }
+  }
 }

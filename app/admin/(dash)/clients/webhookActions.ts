@@ -6,6 +6,8 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { generateToken } from "@/lib/tokens";
 import { seal } from "@/lib/crypto/secretBox";
 import { assertPublicHttpsUrl } from "@/lib/net/ssrfGuard";
+import { resendDelivery } from "@/lib/kyb/webhook";
+import { logAudit } from "@/lib/kyb/service";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
 
@@ -83,6 +85,28 @@ export async function setWebhookEnabledAction(
     .update({ enabled })
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+  revalidatePath(`/admin/clients/${apiKeyId}/webhooks`);
+  return { ok: true };
+}
+
+/**
+ * Reencola una entrega fallida. No entrega en el acto: la deja `pending` y el
+ * cron la toma en la próxima corrida (dentro del minuto). El `event_id` no
+ * cambia, así que el receptor la sigue deduplicando contra intentos previos.
+ */
+export async function resendWebhookDeliveryAction(
+  deliveryId: string,
+  apiKeyId: string,
+): Promise<Result> {
+  const analyst = await requireAnalyst();
+  const ok = await resendDelivery(deliveryId);
+  if (!ok) return { ok: false, error: "No se pudo reencolar la entrega." };
+  await logAudit({
+    requestId: null,
+    actor: analyst.email,
+    action: "webhook_delivery_resent",
+    metadata: { deliveryId, apiKeyId },
+  });
   revalidatePath(`/admin/clients/${apiKeyId}/webhooks`);
   return { ok: true };
 }

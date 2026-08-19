@@ -65,21 +65,30 @@ export async function setFormStatus(
 ): Promise<Result> {
   await requireAnalyst();
   const supabase = createServiceClient();
-  // Al publicar, validar que la definición guardada sea correcta.
+
+  const update: Record<string, unknown> = {
+    status,
+    updated_at: new Date().toISOString(),
+  };
+
+  // Al publicar, validar que la definición guardada sea correcta e incrementar
+  // la revisión. Publicar es el límite natural de una revisión: es un acto
+  // deliberado e infrecuente, a diferencia del guardado de borradores. El
+  // cliente fija su mapeo de campos contra este número y lo recibe en
+  // `form_revision` (ver 0018_form_revision.sql).
   if (status === "published") {
     const { data } = await supabase
       .from("forms")
-      .select("definition")
+      .select("definition, version")
       .eq("id", id)
       .maybeSingle();
     if (!formDefinitionSchema.safeParse(data?.definition).success) {
       return { ok: false, error: "El formulario no es válido para publicar." };
     }
+    update.version = ((data?.version as number | null) ?? 0) + 1;
   }
-  const { error } = await supabase
-    .from("forms")
-    .update({ status, updated_at: new Date().toISOString() })
-    .eq("id", id);
+
+  const { error } = await supabase.from("forms").update(update).eq("id", id);
   if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/forms");
   revalidatePath(`/admin/forms/${id}/edit`);

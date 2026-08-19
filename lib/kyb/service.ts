@@ -44,6 +44,28 @@ export async function logAudit(input: AuditInput) {
   });
 }
 
+/**
+ * Revisión vigente (`forms.version`) del formulario que usará la solicitud.
+ * Espeja la resolución de `getFormForRequest`: por id si se pidió uno, o el
+ * publicado por defecto. `null` si no hay formulario que resolver — es
+ * información honesta, y mejor que estampar una revisión inventada.
+ */
+async function resolveFormRevision(
+  formId: string | null | undefined,
+): Promise<number | null> {
+  const supabase = createServiceClient();
+  const { data } = formId
+    ? await supabase.from("forms").select("version").eq("id", formId).maybeSingle()
+    : await supabase
+        .from("forms")
+        .select("version")
+        .eq("status", "published")
+        .order("updated_at", { ascending: false })
+        .limit(1)
+        .maybeSingle();
+  return (data?.version as number | null) ?? null;
+}
+
 /** Crea una solicitud KYB y devuelve el token en claro (solo aquí). */
 export async function createRequest(
   externalRef: string,
@@ -77,6 +99,9 @@ export async function createRequest(
       // Snapshot de la definición para validar el envío contra lo que el
       // solicitante realmente llenó (aunque el form se edite después).
       form_definition: formDefinition ?? null,
+      // Revisión del formulario al crear: el cliente fija su mapeo de campos
+      // contra este número (ver 0018_form_revision.sql).
+      form_revision: await resolveFormRevision(formId),
       // Aislamiento por cliente: la solicitud pertenece a la API key que la creó.
       api_key_id: opts?.apiKeyId ?? null,
       webhook_endpoint_id: opts?.webhookEndpointId ?? null,

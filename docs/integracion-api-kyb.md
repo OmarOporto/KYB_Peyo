@@ -17,6 +17,7 @@ Antes de integrar, te proporcionamos:
 | `FORM_ID` | UUID del formulario publicado que usarán tus usuarios. |
 | `WEBHOOK_ENDPOINT_ID` + `WEBHOOK_SECRET` | (Opcional, si usarás webhooks) Se generan cuando registramos **tu** URL de webhook. El secreto se muestra una sola vez. |
 | Rate limit | Cuota de req/min de tu key (por defecto 60). |
+| Traducción de respuestas | Desactivada por defecto. Si la necesitás (`?translate=1` en §4.4), pedila y la habilitamos para tu key. |
 
 > **Nunca** pongas la `API_KEY` en el frontend ni en repositorios. Solo server-to-server, siempre por HTTPS.
 
@@ -146,6 +147,7 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
   "id": "…", "externalRef": "emp-123",
   "status": "under_review", "decision": null,
   "reason": null, "corrections": null,
+  "formId": "…", "formRevision": 7,
   "expiresAt": "2026-08-01T12:00:00.000Z",
   "createdAt": "…", "submittedAt": "…", "decidedAt": null,
   "aml": [
@@ -160,6 +162,9 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
   aprobar/rechazar con un motivo.
 - `corrections`: si `status` es `changes_requested`, el set abierto de preguntas a
   corregir; si no, `null`. Shape: `{ round, requested_at, source, fields: [{ key, note }] }`.
+- `formId` / `formRevision`: el formulario y la **revisión** con los que se creó la
+  solicitud. Úsalos para elegir el mapeo de campos correcto (§4.9). `formRevision` es
+  `null` en solicitudes anteriores a que existiera el campo.
 - `expiresAt`: vencimiento del link de invitación vigente (ISO), o `null`.
 - `aml[]`: un elemento por verificación. Además de los checks por persona, puede
   incluir la **validación registral de empresa** (`feature: "kyb_registry"`).
@@ -177,8 +182,20 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
 
 ### 4.4 Respuestas del formulario — `GET /requests/:id/answers`
 
-Query: `?locale=es|en` (default: idioma del formulario). Los campos de archivo/selfie
-incluyen **URLs firmadas temporales**.
+Query:
+
+- `?locale=es|en` (default: idioma del formulario). Traduce las **etiquetas** (`label`)
+  y las opciones de selección, que ya vienen escritas en cada idioma.
+- `?translate=1` (opcional). Traduce además los **valores de texto libre** que escribió
+  el solicitante. Ver abajo.
+
+Los campos de archivo/selfie incluyen **URLs firmadas temporales**.
+
+Cada respuesta puede traer **`skipped: true`**: significa que la lógica del formulario
+**nunca le pidió ese campo** al solicitante — quedó fuera por una condición o por una rama
+que no tomó. Distingue "no aplicó" de "lo dejó vacío", que antes eran indistinguibles.
+Su ausencia significa que el campo sí aplicaba. **No trates un `skipped` como dato faltante**
+ni lo cuentes contra la completitud del expediente.
 
 ```json
 {
@@ -192,6 +209,53 @@ incluyen **URLs firmadas temporales**.
   ]
 }
 ```
+
+#### Traducción de las respuestas (`?translate=1`)
+
+`locale` por sí solo **no traduce lo que el usuario escribió**: las etiquetas salen en
+inglés y los valores quedan en el idioma en que se llenó el formulario. Para traducir
+también los valores, agregá `translate=1`.
+
+**Requiere habilitación previa.** Viene **desactivado** para todas las API keys porque
+envía datos del solicitante a un proveedor de IA externo. Pedinos que lo activemos para
+tu key; hasta entonces el parámetro **se ignora en silencio** y la respuesta es idéntica
+a la de siempre (no falla, no cambia de forma).
+
+Qué se traduce: solo campos de texto libre (`short_text`, `long_text`) con al menos 2
+caracteres. Fechas, números, países, archivos y opciones de selección no pasan por el
+proveedor — las opciones ya se resuelven con `locale`. Los nombres propios y los códigos
+se detectan y se dejan intactos.
+
+La traducción **se agrega** en `valueTranslated`; `value` y `raw` nunca cambian. Si un
+campo no aparece con `valueTranslated`, usá `value`.
+
+```json
+{
+  "id": "…", "externalRef": "emp-123", "status": "under_review",
+  "translatedTo": "en",
+  "answers": [
+    { "key": "legal_name", "label": "Legal name", "type": "short_text",
+      "value": "ACME S.A.", "raw": "ACME S.A." },
+    { "key": "activity", "label": "Business activity", "type": "long_text",
+      "value": "Venta de repuestos automotrices al por mayor",
+      "raw": "Venta de repuestos automotrices al por mayor",
+      "valueTranslated": "Wholesale of automotive spare parts" }
+  ]
+}
+```
+
+`translatedTo` aparece **solo si tu key tiene la traducción habilitada**. Es la forma de
+confirmar que el opt-in está activo: si pediste `translate=1` y no viene, todavía no te
+lo activamos.
+
+Notas de operación:
+
+- **Cacheado** por solicitud, campo e idioma. La primera consulta paga la traducción; las
+  siguientes son inmediatas. Si el solicitante corrige una respuesta, se retraduce sola.
+- **Nunca tumba la lectura.** Si el proveedor falla, la respuesta llega igual, completa,
+  solo sin `valueTranslated`. Reintentá más tarde.
+- Si `locale` coincide con el idioma del formulario, no hay nada que traducir.
+- Cada traducción queda registrada en nuestra auditoría (qué campos y cuándo).
 
 ### 4.5 Documentos — `GET /requests/:id/documents`
 
@@ -219,6 +283,12 @@ Cuánto lleva lleno el usuario, sin esperar a que envíe:
   "fields": [ { "key": "legal_name", "label": "Razón social", "filled": true, "required": true } ]
 }
 ```
+
+`total` y `fields[]` cuentan **solo los campos que la lógica le va a pedir a este usuario**,
+siguiendo sus respuestas actuales: no incluyen los ocultos por condición ni los de ramas que
+no tomó. Es el mismo conjunto que validamos al enviar, así que `percent: 100` significa que
+puede enviar. Como el denominador depende de las respuestas, **puede cambiar** mientras el
+usuario avanza y elige una rama u otra.
 
 ### 4.7 Re-emitir link — `POST /requests/:id/invitation`
 
@@ -281,6 +351,45 @@ curl -X POST "$KYB_BASE_URL/api/v1/kyb/requests/$ID/request-changes" \
 
 ---
 
+### 4.9 Contrato del formulario — `GET /forms/:id`
+
+Las claves que produce el formulario publicado, con su tipo, obligatoriedad, etiquetas y
+opciones. Existe para que **montes un chequeo en CI** que compare este esquema contra las
+claves que tu código consume y falle **antes** de desplegar.
+
+```json
+{
+  "id": "…", "revision": 7, "locales": ["es","en"], "defaultLocale": "es",
+  "fields": [
+    { "key": "legal_name", "type": "short_text", "required": true, "section": "empresa",
+      "label": { "es": "Razón social", "en": "Legal name" } },
+    { "key": "business_type", "type": "dropdown", "required": true, "section": "empresa",
+      "label": { "es": "Tipo de empresa", "en": "Business type" },
+      "options": [ { "value": "llc", "label": { "es": "S. de R.L.", "en": "LLC" } } ] }
+  ]
+}
+```
+
+- Solo formularios **publicados** (`404` si está en borrador o no existe).
+- Las etiquetas viajan como objeto por locale, sin resolver, para que compares sin
+  ambigüedad de idioma.
+- Las **`options[].value`** son los valores que vas a recibir en las respuestas y son
+  independientes del idioma. Si mapeas enums hacia un tercero (p. ej. Bridge), compáralos
+  contra esta lista: es la fuente de verdad de lo que el formulario puede producir.
+
+#### `form_revision`: cómo fijar tu mapeo
+
+`revision` es el número de revisión del formulario **publicado hoy**. Cada publicación lo
+incrementa.
+
+Las solicitudes llevan la revisión con la que **se crearon**, en `formRevision`
+(`GET /:id`, `GET /:id/answers`) y `form_revision` (webhook). Esa es la que debes usar para
+elegir el mapeo de campos: una solicitud creada bajo la revisión 6 sigue reportando 6
+aunque el formulario ya vaya por la 8.
+
+> `formRevision` es `null` en solicitudes creadas antes de que existiera este campo. Trátalo
+> como "revisión desconocida" y cae a tu mapeo por defecto — no asumas la revisión 1.
+
 ## 5. Flujo del usuario final y reanudación
 
 - Redirige a tu usuario al `invitationUrl`. Llena el formulario (documentos, selfie, etc.).
@@ -317,8 +426,8 @@ x-kyb-timestamp: 1784300100
 x-kyb-signature: v1=<hex>
 ```
 Body (JSON): el mismo shape que `GET /:id` + `event`, `event_id`, `sent_at`. Incluye
-`expires_at` (vencimiento del link vigente; en snake_case dentro del webhook), además de
-`reason` y `corrections` según el evento.
+`expires_at` (vencimiento del link vigente; en snake_case dentro del webhook) y
+`form_revision` (§4.9), además de `reason` y `corrections` según el evento.
 
 ### Verificación de la firma (obligatoria)
 `<hex> = HMAC-SHA256(WEBHOOK_SECRET, `x-kyb-timestamp` + "." + <body-crudo>)`
@@ -326,8 +435,34 @@ Body (JSON): el mismo shape que `GET /:id` + `event`, `event_id`, `sent_at`. Inc
 Tu receptor **debe**:
 1. Recomputar la firma sobre el **body crudo** y comparar en **tiempo constante**.
 2. **Rechazar** si `x-kyb-timestamp` tiene más de ~5 minutos (anti-replay).
-3. **Deduplicar** por `event_id` (podemos reintentar hasta 3 veces).
+3. **Deduplicar** por `event_id`. **Obligatorio, no opcional**: la entrega es
+   *at-least-once* por diseño (ver "Reintentos").
 4. Procesar de forma **idempotente** y responder `2xx` rápido.
+
+### Reintentos
+
+Si tu endpoint no responde `2xx`, reintentamos hasta **10 veces durante ~24 horas**:
+
+| Intento | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 |
+|---|---|---|---|---|---|---|---|---|---|---|
+| Tras | — | 1 min | 5 min | 15 min | 30 min | 1 h | 2 h | 4 h | 8 h | 8 h |
+
+Dos propiedades que tu receptor necesita conocer:
+
+- **El `event_id` es el mismo en todos los intentos** del mismo evento; el
+  `x-kyb-delivery-id` **cambia** en cada uno. Deduplica por `event_id`, nunca por
+  `delivery-id`.
+- **Cada intento se firma de nuevo, con un `x-kyb-timestamp` fresco.** No cacheés ni
+  compares contra la firma de un intento previo: un reintento a las 6 horas trae un
+  timestamp actual, precisamente para que siga pasando tu chequeo anti-replay de 5 minutos.
+
+El body **no cambia entre intentos**: se congela cuando ocurre el evento. Un `decision.made`
+entregado seis horas tarde describe la decisión tal como fue, no el estado actual de la
+solicitud. Si necesitas el estado presente, consulta `GET /:id`.
+
+Agotados los 10 intentos, la entrega queda marcada como fallida de nuestro lado y se puede
+**reenviar manualmente** desde nuestro panel (avísanos). El polling de `GET /:id` sigue
+siendo el respaldo definitivo.
 
 **Ejemplo (Node.js / Express):**
 
@@ -384,6 +519,20 @@ documentos) son más estrictos.
 - **`decision`**: `approved` | `rejected` | `null`.
 - **AML `status`** (por check): `pending` | `passed` | `flagged` | `error`.
 
+### Vocabulario: verificación vs activación
+
+Dos decisiones distintas que conviene no mezclar, porque viven en sistemas distintos:
+
+| | Quién | Qué es |
+|---|---|---|
+| **Verificación** | Nosotros (este servicio) | Nuestro analista determina si la documentación y los checks respaldan la identidad de la empresa. Es lo que viaja en `decision` y en el evento `decision.made`. |
+| **Activación** | Tú | Dar de alta la cuenta y habilitar operación. Es una decisión **comercial y regulatoria tuya**, con tus propios requisitos (contratos, referidos, estado de KYC). |
+
+Nuestra verificación es un **insumo** de tu activación, nunca un sustituto. Un
+`decision: "approved"` no significa "activa la cuenta": significa "la verificación pasó".
+Evita llamar "approve" a las dos cosas en tu código — es el atajo que termina cableando una
+a la otra.
+
 ---
 
 ## 9. Errores
@@ -410,3 +559,5 @@ documentos) son más estrictos.
 - [ ] Persistir el `invitationUrl` (para reanudación) y el `id` (para consultas).
 - [ ] Definir tu `external_ref` y (opcional) tu `return_url` https.
 - [ ] Manejar `429` con `Retry-After` y usar `Idempotency-Key` en la creación.
+- [ ] Si vas a leer las respuestas traducidas (`?translate=1`): pedirnos la habilitación,
+      confirmar que llega `translatedTo`, y leer `valueTranslated` con fallback a `value`.

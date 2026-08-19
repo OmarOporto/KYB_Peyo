@@ -1,7 +1,7 @@
 import "server-only";
 import { resolveText, type FormDefinition } from "@/lib/forms/definition";
 import { renderAnswer, fileRefsOf } from "@/lib/forms/answers";
-import { allVisibleFields, type Answers } from "@/lib/forms/logic";
+import { reachableFields, type Answers } from "@/lib/forms/logic";
 
 export type SerializedAnswer = {
   key: string;
@@ -16,6 +16,13 @@ export type SerializedAnswer = {
    * comportamiento histórico, así que no rompe a los consumidores actuales.
    */
   valueTranslated?: string;
+  /**
+   * `true` si la lógica del formulario nunca le pidió este campo al solicitante
+   * (quedó fuera por `visibleIf` o por una rama no tomada). Distingue "no
+   * aplicó" de "lo dejó vacío", que antes eran indistinguibles. Campo ADITIVO:
+   * su ausencia significa que el campo sí aplicaba.
+   */
+  skipped?: true;
 };
 
 function isEmpty(v: unknown): boolean {
@@ -54,6 +61,13 @@ export function serializeAnswers(
       raw,
     }));
   }
+  // Campos que la lógica realmente le pidió al solicitante: respeta `visibleIf`
+  // y los saltos entre secciones. Es el mismo cálculo que valida el envío, así
+  // que `skipped` coincide con lo que nunca se exigió.
+  const applicable = new Set(
+    reachableFields(definition, data as Answers).map((f) => f.key),
+  );
+
   const out: SerializedAnswer[] = [];
   for (const section of definition.sections) {
     for (const field of section.fields) {
@@ -66,6 +80,7 @@ export function serializeAnswers(
         value: renderAnswer(field, raw, locale),
         raw,
       };
+      if (!applicable.has(field.key)) entry.skipped = true;
       if (field.type === "file" || field.type === "selfie") {
         entry.files = fileRefsOf(raw).map((r) => ({
           filename: r.filename,
@@ -109,10 +124,13 @@ export function computeDraftProgress(
       fields,
     };
   }
-  const visible = allVisibleFields(definition, data as Answers).filter(
+  // `reachableFields` y no `allVisibleFields`: así el denominador coincide con
+  // los campos que la validación de envío va a exigir. Una sección a la que
+  // solo se llega por una rama no tomada no cuenta contra el progreso.
+  const applicable = reachableFields(definition, data as Answers).filter(
     (f) => f.type !== "note",
   );
-  const fields = visible.map((f) => ({
+  const fields = applicable.map((f) => ({
     key: f.key,
     label: resolveText(f.label, locale) || f.key,
     filled: !isEmpty(data[f.key]),

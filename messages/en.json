@@ -86,7 +86,19 @@
     "secretOnceBody": "This is the only time it is shown. Store it to verify the x-kyb-signature; it cannot be recovered later.",
     "copy": "Copy",
     "copyId": "Copy ID",
-    "done": "Done"
+    "done": "Done",
+    "deliveries": "Recent deliveries",
+    "deliveriesHint": "Up to 10 staggered attempts over ~24 h. Failed ones can be resent.",
+    "deliveriesEmpty": "No deliveries yet.",
+    "colEvent": "Event",
+    "colAttempts": "Attempts",
+    "colWhen": "When",
+    "colDetail": "Detail",
+    "status_delivered": "Delivered",
+    "status_pending": "Pending",
+    "status_failed": "Failed",
+    "nextTry": "Next:",
+    "resend": "Resend"
   },
   "integration": {
     "title": "Integration configuration",

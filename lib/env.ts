@@ -33,9 +33,15 @@ export const env = {
   kybWebhookSecret: () => process.env.KYB_WEBHOOK_SECRET ?? "",
   // Clave (32 bytes base64) para cifrar secretos de webhook por endpoint (AES-256-GCM).
   secretEncKey: () => process.env.KYB_SECRET_ENC_KEY ?? "",
-  // Secreto compartido para autorizar el cron de expiración (Vercel Cron envía
-  // `Authorization: Bearer $CRON_SECRET`). Sin él, la ruta cron responde 401.
+  // Secreto compartido para autorizar los crons (Vercel Cron envía
+  // `Authorization: Bearer $CRON_SECRET`). Sin él, las rutas cron responden 401.
   cronSecret: () => process.env.CRON_SECRET ?? "",
+  // --- Alertas operativas por correo (Resend) ---
+  // Sin `RESEND_API_KEY` las alertas se omiten con un warn: nunca deben tumbar
+  // el proceso que las dispara (p. ej. el drenado de webhooks).
+  resendApiKey: () => process.env.RESEND_API_KEY ?? "",
+  alertEmailFrom: () => process.env.ALERT_EMAIL_FROM ?? "PEYO Forms <onboarding@resend.dev>",
+  alertEmailTo: () => process.env.ALERT_EMAIL_TO ?? "",
   // --- Traducción con IA (formularios y respuestas) ---
   // `mock` por defecto: un entorno sin configurar nunca gasta tokens.
   translateProvider: () => process.env.TRANSLATE_PROVIDER ?? "mock",

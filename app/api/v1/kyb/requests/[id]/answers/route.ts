@@ -27,7 +27,7 @@ export async function GET(
   const request = await getOwnedRequest(
     g.keyId,
     id,
-    "id, external_ref, status, form_id, form_definition",
+    "id, external_ref, status, form_id, form_revision, form_definition",
   );
   if (!request) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
@@ -77,6 +77,8 @@ export async function GET(
     id: request.id,
     externalRef: request.external_ref,
     status: request.status,
+    formId: request.form_id ?? null,
+    formRevision: request.form_revision ?? null,
     ...(translationEnabled ? { translatedTo: locale } : {}),
     answers: serializeAnswers(definition, data, signedUrls, locale, translations),
   });

@@ -1,0 +1,73 @@
+name: Release (migraciones + deploy)
+
+# Este workflow es el DUEÑO del release: aplica las migraciones a la base de
+# producción y recién después despliega la app.
+#
+# El orden importa. Cuando Vercel desplegaba por su cuenta (integración Git),
+# ambas cosas arrancaban con el mismo push y competían: si el deploy ganaba, la
+# app corría contra una base sin las columnas nuevas. Acá el deploy es un paso
+# posterior, así que un `db push` fallido aborta el release en vez de dejar
+# código nuevo sobre schema viejo.
+#
+# REQUISITO: la integración Git de Vercel debe estar DESACTIVADA para `main`
+# (Project Settings → Git, o `git.deploymentEnabled` en vercel.json). Si sigue
+# activa, Vercel despliega en paralelo y el orden no se respeta.
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch: {} # permite dispararlo manualmente desde la pestaña Actions
+
+concurrency:
+  group: release-prod
+  cancel-in-progress: false # dos merges seguidos encolan; nunca se pisan
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # ---------- 1. Base de datos ----------
+      - uses: supabase/setup-cli@v1
+        with:
+          version: latest
+
+      - name: Link al proyecto de producción
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+        run: supabase link --project-ref "${{ secrets.SUPABASE_PROJECT_REF }}"
+
+      # No-op si no hay migraciones pendientes, así que corre en todo push sin
+      # necesidad de filtrar por `paths`.
+      - name: Aplicar migraciones pendientes
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: supabase db push
+
+      # ---------- 2. Aplicación ----------
+      # Si todavía no cargaste los secretos de Vercel, el release se queda en
+      # "solo migraciones" en vez de fallar. Quitá esta guarda cuando el deploy
+      # por CLI sea el camino definitivo.
+      - name: ¿Hay credenciales de Vercel?
+        id: vercel
+        run: |
+          if [ -n "${{ secrets.VERCEL_TOKEN }}" ]; then
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+            echo "::warning::Sin VERCEL_TOKEN: se aplicaron las migraciones pero NO se desplegó."
+          fi
+
+      - name: Deploy a producción
+        if: steps.vercel.outputs.ready == 'true'
+        env:
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+        # Vía API y no `vercel deploy`: el token de este proyecto opera sobre el
+        # recurso pero no resuelve a un usuario, y el CLI necesita esa identidad.
+        # El script fija el SHA de este commit (no la punta de la rama) y espera
+        # el build, así un fallo de build hace fallar el release.
+        run: node scripts/vercel-deploy.mjs --prod

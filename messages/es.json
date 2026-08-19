@@ -86,7 +86,19 @@
     "secretOnceBody": "Es la única vez que se muestra. Guárdalo para verificar la firma x-kyb-signature; no se puede recuperar después.",
     "copy": "Copiar",
     "copyId": "Copiar ID",
-    "done": "Listo"
+    "done": "Listo",
+    "deliveries": "Entregas recientes",
+    "deliveriesHint": "Hasta 10 intentos escalonados durante ~24 h. Las que fallan se pueden reenviar.",
+    "deliveriesEmpty": "Todavía no hay entregas.",
+    "colEvent": "Evento",
+    "colAttempts": "Intentos",
+    "colWhen": "Cuándo",
+    "colDetail": "Detalle",
+    "status_delivered": "Entregado",
+    "status_pending": "Pendiente",
+    "status_failed": "Fallido",
+    "nextTry": "Próximo:",
+    "resend": "Reenviar"
   },
   "integration": {
     "title": "Configuración de integración",
