@@ -35,7 +35,7 @@
     "clients": "Clientes API"
   },
   "clients": {
-    "title": "Clientes API 2nd",
+    "title": "Clientes API 2",
     "subtitle": "Consumidores de la API KYB, identificados por su API key. Emite, rota o revoca claves, ajusta su límite de tasa y monitorea su uso.",
     "newClient": "Nuevo cliente",
     "clientName": "Nombre del cliente",
