@@ -64,7 +64,7 @@ export default async function ClientsPage() {
   }));
 
   return (
-    <main className="mx-auto w-full max-w-4xl p-6">
+    <main className="w-full p-6 xl:px-8">
       <div className="mb-1 flex items-center gap-2">
         <h1 className="font-display text-2xl font-bold text-foreground">{t("title")}</h1>
         <BuildBadge />

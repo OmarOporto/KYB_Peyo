@@ -98,16 +98,17 @@ export function ClientsPanel({
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          {/* min-w: en desktop la tabla entra completa; el scroll solo actúa en móvil. */}
+          <table className="w-full min-w-225 text-left text-sm">
             <thead className="bg-surface-2 text-muted">
-              <tr>
+              <tr className="whitespace-nowrap">
                 <th className="px-4 py-2.5 font-medium">{t("colClient")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("colStatus")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("colUsage")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("colLastUsed")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("colLimit")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("colAiTranslation")}</th>
-                <th className="px-4 py-2.5"></th>
+                <th className="px-4 py-2.5 text-right font-medium"></th>
               </tr>
             </thead>
             <tbody>
@@ -171,8 +172,15 @@ function ClientRowView({
   const [limit, setLimit] = useState(row.rateLimit != null ? String(row.rateLimit) : "");
 
   return (
-    <tr className={`border-t border-border ${row.revoked ? "opacity-50" : "hover:bg-surface-2"}`}>
-      <td className="px-4 py-2.5 font-medium text-foreground">{row.label}</td>
+    <tr
+      className={`border-t border-border whitespace-nowrap ${
+        row.revoked ? "opacity-50" : "hover:bg-surface-2"
+      }`}
+    >
+      {/* Única celda que puede envolver: un label largo no debe ensanchar la tabla. */}
+      <td className="px-4 py-2.5 font-medium wrap-break-word whitespace-normal text-foreground">
+        {row.label}
+      </td>
       <td className="px-4 py-2.5">
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -185,8 +193,19 @@ function ClientRowView({
       <td className="px-4 py-2.5 text-muted">
         {t("usageCell", { today: row.today, total: row.total })}
       </td>
-      <td className="px-4 py-2.5 text-muted">
-        {row.lastUsedAt ? new Date(row.lastUsedAt).toLocaleString() : "—"}
+      {/* Formato corto para no comerse el ancho; el valor completo va en el title.
+          suppressHydration: el server y el navegador pueden tener locale/TZ distintos. */}
+      <td
+        className="px-4 py-2.5 text-muted"
+        title={row.lastUsedAt ? new Date(row.lastUsedAt).toLocaleString() : undefined}
+        suppressHydrationWarning
+      >
+        {row.lastUsedAt
+          ? new Date(row.lastUsedAt).toLocaleString(undefined, {
+              dateStyle: "short",
+              timeStyle: "short",
+            })
+          : "—"}
       </td>
       <td className="px-4 py-2.5">
         {row.revoked ? (
@@ -230,36 +249,38 @@ function ClientRowView({
           </label>
         )}
       </td>
-      <td className="px-4 py-2.5 text-right whitespace-nowrap">
-        <Link
-          href={`/admin/clients/${row.id}/webhooks`}
-          className="text-xs text-brand hover:underline"
-        >
-          {t("webhooks")}
-        </Link>
-        {!row.revoked && (
-          <>
-            <button
-              type="button"
-              className="ml-3 text-xs text-brand hover:underline"
-              onClick={async () => {
-                const res = await onRun(() => rotateApiKeyAction(row.id));
-                if (res.ok && "apiKey" in res) onKey((res as { apiKey: string }).apiKey);
-              }}
-            >
-              {t("rotate")}
-            </button>
-            <button
-              type="button"
-              className="ml-3 text-xs text-danger hover:underline"
-              onClick={() => {
-                if (confirm(t("confirmRevoke"))) onRun(() => revokeApiKeyAction(row.id));
-              }}
-            >
-              {t("revoke")}
-            </button>
-          </>
-        )}
+      <td className="px-4 py-2.5 text-right">
+        <div className="inline-flex items-center justify-end gap-3">
+          <Link
+            href={`/admin/clients/${row.id}/webhooks`}
+            className="text-xs text-brand hover:underline"
+          >
+            {t("webhooks")}
+          </Link>
+          {!row.revoked && (
+            <>
+              <button
+                type="button"
+                className="text-xs text-brand hover:underline"
+                onClick={async () => {
+                  const res = await onRun(() => rotateApiKeyAction(row.id));
+                  if (res.ok && "apiKey" in res) onKey((res as { apiKey: string }).apiKey);
+                }}
+              >
+                {t("rotate")}
+              </button>
+              <button
+                type="button"
+                className="text-xs text-danger hover:underline"
+                onClick={() => {
+                  if (confirm(t("confirmRevoke"))) onRun(() => revokeApiKeyAction(row.id));
+                }}
+              >
+                {t("revoke")}
+              </button>
+            </>
+          )}
+        </div>
       </td>
     </tr>
   );
