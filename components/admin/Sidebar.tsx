@@ -18,6 +18,7 @@ export function Sidebar({ email }: { email: string }) {
     { href: "/admin/forms", label: t("forms"), icon: <TemplateIcon />, exact: false },
     { href: "/admin/didit", label: t("didit"), icon: <FormIcon />, exact: false },
     { href: "/admin/clients", label: t("clients"), icon: <KeyIcon />, exact: false },
+    { href: "/admin/ai-usage", label: t("aiUsage"), icon: <ChartIcon />, exact: false },
   ];
 
   return (
@@ -99,6 +100,15 @@ function FormIcon() {
       <line x1="8" y1="8" x2="16" y2="8" />
       <line x1="8" y1="12" x2="16" y2="12" />
       <line x1="8" y1="16" x2="13" y2="16" />
+    </svg>
+  );
+}
+
+function ChartIcon() {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+      <path d="M3 3v18h18" />
+      <path d="M7 15l3-4 3 3 5-7" />
     </svg>
   );
 }

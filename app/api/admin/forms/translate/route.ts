@@ -1,5 +1,7 @@
+import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAnalyst } from "@/lib/auth/admin";
+import { recordAiUsage } from "@/lib/i18n-ai/usage";
 import { formDefinitionSchema } from "@/lib/forms/definition";
 import { getTranslationProvider, translateAll } from "@/lib/i18n-ai";
 import { collectTranslatable } from "@/lib/i18n-ai/walk";
@@ -40,6 +42,8 @@ export async function POST(req: NextRequest) {
     sectionId?: unknown;
     to?: unknown;
     force?: unknown;
+    runId?: unknown;
+    formId?: unknown;
   };
 
   const to = typeof body.to === "string" ? body.to.trim() : "";
@@ -78,6 +82,24 @@ export async function POST(req: NextRequest) {
     const returned = new Set(results.map((r) => r.id));
     const missing = items.filter((it) => !returned.has(it.id)).length;
 
+    // Contabilidad: sin llamadas extra al proveedor — `usage` viene dentro de la
+    // respuesta que ya se pagó. El `runId` lo genera el builder para que las N
+    // llamadas por sección queden agrupadas como UNA corrida.
+    const accounted = await recordAiUsage({
+      runId: typeof body.runId === "string" ? body.runId : randomUUID(),
+      operation: "form_translate",
+      provider: provider.name,
+      model: provider.model,
+      fromLocale: from,
+      toLocale: to,
+      items: items.length,
+      itemsReturned: results.length,
+      inputTokens: usage?.inputTokens ?? 0,
+      outputTokens: usage?.outputTokens ?? 0,
+      actor: analyst.email,
+      formId: typeof body.formId === "string" ? body.formId : null,
+    });
+
     return NextResponse.json({
       results,
       requested: items.length,
@@ -87,6 +109,7 @@ export async function POST(req: NextRequest) {
       model: provider.model,
       provider: provider.name,
       usage,
+      accounted,
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "translation_failed";

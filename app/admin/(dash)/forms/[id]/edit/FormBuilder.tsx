@@ -1,6 +1,6 @@
 "use client";
 
-import { Fragment, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import {
@@ -37,6 +37,7 @@ import {
   type Coverage,
 } from "@/lib/i18n-ai/walk";
 import type { TranslateResult } from "@/lib/i18n-ai/provider";
+import { formatCost, formatTokens } from "@/lib/i18n-ai/pricing";
 import {
   FIELD_PRESETS,
   presetCategories,
@@ -111,6 +112,40 @@ type I18nCtx = {
   isAuto: (path: string) => boolean;
 };
 
+/** Cierre automático del resumen de traducción. */
+const TOAST_MS = 10_000;
+
+/** Contabilidad que devuelve el endpoint por cada llamada (ver lib/i18n-ai/usage.ts). */
+type Accounted = {
+  inputTokens: number;
+  outputTokens: number;
+  inputPer1M: number | null;
+  outputPer1M: number | null;
+  cost: number | null;
+  currency: string;
+  model: string;
+  provider: string;
+};
+
+/** Resumen de una corrida completa, para el popup de cierre. */
+type RunSummary = {
+  to: string;
+  scopeLabel: string;
+  sections: number;
+  translated: number;
+  requested: number;
+  unanswered: number;
+  failed: number;
+  inputTokens: number;
+  outputTokens: number;
+  cost: number | null;
+  inputPer1M: number | null;
+  outputPer1M: number | null;
+  currency: string;
+  model: string;
+  provider: string;
+};
+
 /** Alcance de la traducción: todo el formulario o solo la sección visible. */
 const TRANSLATE_SCOPES = ["form", "section"] as const;
 type TranslateScope = (typeof TRANSLATE_SCOPES)[number];
@@ -146,6 +181,7 @@ export function FormBuilder({
   const [activeSection, setActiveSection] = useState(0);
   const [showTranslate, setShowTranslate] = useState(false);
   const [translateScope, setTranslateScope] = useState<TranslateScope>("form");
+  const [summary, setSummary] = useState<RunSummary | null>(null);
   const [translating, setTranslating] = useState<{ done: number; total: number } | null>(
     null,
   );
@@ -232,11 +268,27 @@ export function FormBuilder({
       return;
     }
     setTranslating({ done: 0, total: scopes.length });
+    setSummary(null);
 
     let requested = 0;
     let unanswered = 0;
     let failed = 0;
     const at = new Date().toISOString();
+
+    // Un `runId` por corrida: agrupa en el registro las N llamadas por sección
+    // como UNA operación, que es como la vive el usuario.
+    const runId = crypto.randomUUID();
+    const totals = {
+      inputTokens: 0,
+      outputTokens: 0,
+      cost: 0,
+      hasCost: false,
+      model: "",
+      provider: "",
+      inputPer1M: null as number | null,
+      outputPer1M: null as number | null,
+      currency: "USD",
+    };
 
     // Pool de 3. La concurrencia real es posible porque el endpoint es un Route
     // Handler: Next 16 serializa las Server Actions por cliente.
@@ -248,7 +300,14 @@ export function FormBuilder({
           const res = await fetch("/api/admin/forms/translate", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ definition: scopeDefinition(scope), sectionId: scope, to, force }),
+            body: JSON.stringify({
+              definition: scopeDefinition(scope),
+              sectionId: scope,
+              to,
+              force,
+              runId,
+              formId: id,
+            }),
           });
           const data = (await res.json()) as {
             results?: TranslateResult[];
@@ -256,12 +315,27 @@ export function FormBuilder({
             missing?: number;
             model?: string;
             error?: string;
+            accounted?: Accounted;
           };
           if (!res.ok) {
             failed++;
           } else {
             requested += data.requested ?? 0;
             unanswered += data.missing ?? 0;
+            const a = data.accounted;
+            if (a) {
+              totals.inputTokens += a.inputTokens;
+              totals.outputTokens += a.outputTokens;
+              if (a.cost != null) {
+                totals.cost += a.cost;
+                totals.hasCost = true;
+              }
+              totals.model = a.model;
+              totals.provider = a.provider;
+              totals.inputPer1M = a.inputPer1M;
+              totals.outputPer1M = a.outputPer1M;
+              totals.currency = a.currency;
+            }
             if (data.results?.length) {
               update((d) => applyTranslations(d, data.results!, { to, model: data.model, at }));
             }
@@ -295,6 +369,24 @@ export function FormBuilder({
     if (failed) parts.push(`${failed} ${t("translateFailedSections")}`);
     parts.push(t("translateReviewHint"));
     setMsg(parts.join(" · "));
+
+    setSummary({
+      to,
+      scopeLabel: scopeLabel.replace(/ — $/, ""),
+      sections: scopes.length,
+      translated: requested - unanswered,
+      requested,
+      unanswered,
+      failed,
+      inputTokens: totals.inputTokens,
+      outputTokens: totals.outputTokens,
+      cost: totals.hasCost ? totals.cost : null,
+      inputPer1M: totals.inputPer1M,
+      outputPer1M: totals.outputPer1M,
+      currency: totals.currency,
+      model: totals.model,
+      provider: totals.provider,
+    });
   }
 
   function onExport() {
@@ -620,6 +712,9 @@ export function FormBuilder({
           </div>
         </div>
       )}
+      {summary && (
+        <TranslationSummaryToast summary={summary} t={t} onClose={() => setSummary(null)} />
+      )}
       {confirmState && (
         <ConfirmModal
           message={confirmState.message}
@@ -773,6 +868,92 @@ function PresetPicker({
         >
           {t("presetInsertSelected")}
         </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Resumen de la corrida de traducción. Anclado abajo a la derecha y NO modal:
+ * el analista puede seguir revisando lo que se acaba de traducir mientras lo
+ * lee. Se cierra a mano o solo a los 10 s.
+ */
+function TranslationSummaryToast({
+  summary,
+  t,
+  onClose,
+}: {
+  summary: RunSummary;
+  t: TFn;
+  onClose: () => void;
+}) {
+  useEffect(() => {
+    const id = setTimeout(onClose, TOAST_MS);
+    return () => clearTimeout(id);
+  }, [onClose]);
+
+  const rate =
+    summary.inputPer1M != null && summary.outputPer1M != null
+      ? `${formatCost(summary.inputPer1M, summary.currency)} / 1M in · ${formatCost(
+          summary.outputPer1M,
+          summary.currency,
+        )} / 1M out`
+      : null;
+
+  return (
+    <div
+      role="status"
+      aria-live="polite"
+      className="fixed right-4 bottom-4 z-50 w-72 rounded-2xl border border-border bg-surface-card p-4 shadow-xl"
+    >
+      <div className="mb-2 flex items-start justify-between gap-2">
+        <p className="text-sm font-semibold text-foreground">
+          {t("translate")} → {summary.to.toUpperCase()}
+        </p>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label={t("cancel")}
+          className="-mt-0.5 text-muted hover:text-foreground"
+        >
+          ✕
+        </button>
+      </div>
+
+      {summary.scopeLabel && (
+        <p className="mb-1 truncate text-xs text-muted">{summary.scopeLabel}</p>
+      )}
+
+      <p className="text-xs text-foreground">
+        {summary.translated}/{summary.requested} {t("summaryTexts")} · {summary.sections}{" "}
+        {t("summaryCalls")}
+      </p>
+      {summary.unanswered > 0 && (
+        <p className="text-xs text-warning">
+          {summary.unanswered} {t("translateUnanswered")}
+        </p>
+      )}
+      {summary.failed > 0 && (
+        <p className="text-xs text-danger">
+          {summary.failed} {t("translateFailedSections")}
+        </p>
+      )}
+
+      <div className="mt-3 border-t border-border pt-2 text-xs text-muted">
+        <p className="font-medium text-foreground">{summary.model}</p>
+        <p>
+          {formatTokens(summary.inputTokens)} {t("summaryIn")} ·{" "}
+          {formatTokens(summary.outputTokens)} {t("summaryOut")}
+        </p>
+        {rate && <p className="mt-0.5">{rate}</p>}
+        {summary.cost != null ? (
+          <p className="mt-1 text-sm font-semibold text-foreground">
+            ≈ {formatCost(summary.cost, summary.currency)}{" "}
+            <span className="text-xs font-normal text-muted">({t("summaryEstimated")})</span>
+          </p>
+        ) : (
+          <p className="mt-1 text-sm font-semibold text-foreground">{t("summaryNoCost")}</p>
+        )}
       </div>
     </div>
   );

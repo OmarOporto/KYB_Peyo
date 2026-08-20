@@ -1,9 +1,10 @@
 import "server-only";
-import { createHash } from "node:crypto";
+import { createHash, randomUUID } from "node:crypto";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAudit } from "@/lib/kyb/service";
 import { resolveText, type FormDefinition } from "@/lib/forms/definition";
 import { getTranslationProvider, translateAll } from "./index";
+import { recordAiUsage } from "./usage";
 import type { TranslateItem } from "./provider";
 
 /**
@@ -95,7 +96,10 @@ export async function translateAnswers(
     hint: `respuesta que escribió el solicitante a «${m.label}»`,
   }));
 
-  const { results } = await translateAll(provider, items, { from: src, to: targetLocale });
+  const { results, usage } = await translateAll(provider, items, {
+    from: src,
+    to: targetLocale,
+  });
 
   const byMissKey = new Map(misses.map((m) => [m.key, m]));
   const rows: {
@@ -130,6 +134,23 @@ export async function translateAnswers(
       .from("answer_translations")
       .upsert(rows, { onConflict: "request_id,field_key,target_locale,source_hash" });
   }
+
+  // Contabilidad de tokens/costo. Una corrida por llamada: acá no hay chunking
+  // por secciones como en la traducción de formularios.
+  await recordAiUsage({
+    runId: randomUUID(),
+    operation: "answer_translate",
+    provider: provider.name,
+    model: provider.model,
+    fromLocale: src,
+    toLocale: targetLocale,
+    items: items.length,
+    itemsReturned: results.length,
+    inputTokens: usage?.inputTokens ?? 0,
+    outputTokens: usage?.outputTokens ?? 0,
+    actor: opts.actor,
+    requestId,
+  });
 
   // Queda registrado que datos del solicitante salieron hacia el proveedor.
   await logAudit({

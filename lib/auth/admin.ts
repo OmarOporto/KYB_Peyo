@@ -50,3 +50,22 @@ export async function requireAnalyst(): Promise<Analyst> {
   if (!analyst) redirect(signedIn ? "/admin/login?error=forbidden" : "/admin/login");
   return analyst;
 }
+
+/**
+ * Exige rol `admin`, no solo ser analista. Hoy lo usa la edición de tarifas de
+ * IA: cambiar un precio altera el costo registrado de todo lo que venga después.
+ *
+ * Ojo: `analysts.role` tiene default `'analyst'` (0001_init.sql), así que un
+ * panel sin ninguna fila con `role='admin'` deja estas acciones inaccesibles
+ * para todos.
+ */
+export async function requireAdmin(): Promise<Analyst> {
+  const analyst = await requireAnalyst();
+  if (analyst.role !== "admin") redirect("/admin?error=forbidden");
+  return analyst;
+}
+
+/** Variante sin redirect, para Server Actions que responden un `Result`. */
+export async function isAdmin(): Promise<boolean> {
+  return (await getAnalyst())?.role === "admin";
+}

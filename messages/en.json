@@ -32,7 +32,8 @@
     "requests": "Requests",
     "forms": "Forms",
     "didit": "DIDIT forms",
-    "clients": "API clients"
+    "clients": "API clients",
+    "aiUsage": "AI usage"
   },
   "clients": {
     "title": "API clients",
@@ -259,7 +260,13 @@
     "minLenLabel": "Min. characters",
     "maxLenLabel": "Max. characters",
     "diditRefDoc": "Reference document (up to 2)",
-    "diditRefHint": "1st = front, 2nd = back (optional)"
+    "diditRefHint": "1st = front, 2nd = back (optional)",
+    "summaryTexts": "texts",
+    "summaryCalls": "calls",
+    "summaryIn": "in",
+    "summaryOut": "out",
+    "summaryEstimated": "estimated",
+    "summaryNoCost": "No cost (mock)"
   },
   "templates": {
     "title": "Form templates",
@@ -509,5 +516,36 @@
     "previewSubtitle": "Preview of the fields imported from DIDIT.",
     "importedFrom": "Imported from DIDIT",
     "backToTemplates": "Back"
+  },
+  "aiUsage": {
+    "title": "AI usage",
+    "subtitle": "Tokens and cost of GPT translations. Cost is an estimate using the current rate, not the provider invoice.",
+    "today": "Today",
+    "last30": "Last 30 days",
+    "allTime": "All time",
+    "in": "in",
+    "out": "out",
+    "calls": "calls",
+    "runs": "Runs",
+    "empty": "No usage recorded yet.",
+    "colWhen": "When",
+    "colOperation": "Operation",
+    "colModel": "Model",
+    "colItems": "Texts",
+    "colTokens": "Tokens (in/out)",
+    "colCost": "Cost",
+    "colActor": "Who",
+    "op_form_translate": "Form translation",
+    "op_answer_translate": "Answer translation",
+    "prices": "Model rates",
+    "pricesHint": "USD per million tokens. Only an admin can save. Recorded runs keep the rate that was applied to them.",
+    "colInPrice": "Input / 1M",
+    "colOutPrice": "Output / 1M",
+    "colUpdated": "Updated",
+    "fromDefaults": "default",
+    "save": "Save",
+    "priceSaved": "rate updated",
+    "estimateWarning": "Costs on this screen are ESTIMATES: they use the rate configured below and do not account for cache discounts, provider price changes, or taxes. For actual spend and remaining balance, check your AI provider dashboard:",
+    "estimateWarningLink": "OpenAI → Usage ↗"
   }
 }

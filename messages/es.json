@@ -32,7 +32,8 @@
     "requests": "Solicitudes",
     "forms": "Formularios",
     "didit": "Formularios DIDIT",
-    "clients": "Clientes API"
+    "clients": "Clientes API",
+    "aiUsage": "Uso de IA"
   },
   "clients": {
     "title": "Clientes API 2",
@@ -259,7 +260,13 @@
     "minLenLabel": "Mín. caracteres",
     "maxLenLabel": "Máx. caracteres",
     "diditRefDoc": "Documento de referencia (hasta 2)",
-    "diditRefHint": "1º frente, 2º reverso (opcional)"
+    "diditRefHint": "1º frente, 2º reverso (opcional)",
+    "summaryTexts": "textos",
+    "summaryCalls": "llamadas",
+    "summaryIn": "entrada",
+    "summaryOut": "salida",
+    "summaryEstimated": "estimado",
+    "summaryNoCost": "Sin costo (mock)"
   },
   "templates": {
     "title": "Plantillas de formulario",
@@ -509,5 +516,36 @@
     "previewSubtitle": "Vista previa de los campos importados desde DIDIT.",
     "importedFrom": "Importado de DIDIT",
     "backToTemplates": "Volver"
+  },
+  "aiUsage": {
+    "title": "Uso de IA",
+    "subtitle": "Tokens y costo de las traducciones con GPT. El costo es una estimación con la tarifa vigente, no la factura del proveedor.",
+    "today": "Hoy",
+    "last30": "Últimos 30 días",
+    "allTime": "Acumulado",
+    "in": "entrada",
+    "out": "salida",
+    "calls": "llamadas",
+    "runs": "Corridas",
+    "empty": "Todavía no hay uso registrado.",
+    "colWhen": "Cuándo",
+    "colOperation": "Operación",
+    "colModel": "Modelo",
+    "colItems": "Textos",
+    "colTokens": "Tokens (in/out)",
+    "colCost": "Costo",
+    "colActor": "Quién",
+    "op_form_translate": "Traducción de formulario",
+    "op_answer_translate": "Traducción de respuestas",
+    "prices": "Tarifas por modelo",
+    "pricesHint": "USD por millón de tokens. Solo un administrador puede guardar. Las corridas ya registradas conservan la tarifa que se les aplicó.",
+    "colInPrice": "Entrada / 1M",
+    "colOutPrice": "Salida / 1M",
+    "colUpdated": "Actualizada",
+    "fromDefaults": "por defecto",
+    "save": "Guardar",
+    "priceSaved": "tarifa actualizada",
+    "estimateWarning": "Los costos de esta pantalla son ESTIMADOS: se calculan con la tarifa cargada abajo y no contemplan descuentos por caché, cambios de precio del proveedor ni impuestos. Para el gasto real y el saldo disponible, consultá el panel de tu proveedor de IA:",
+    "estimateWarningLink": "OpenAI → Usage ↗"
   }
 }
