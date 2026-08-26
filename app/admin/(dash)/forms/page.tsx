@@ -4,7 +4,7 @@ import { createServerSupabase } from "@/lib/supabase/server";
 import { Card } from "@/components/ui/Card";
 import { countFields, type FormDefinition } from "@/lib/forms/definition";
 import { FormsToolbar } from "./FormsToolbar";
-import { duplicateForm } from "./actions";
+import { FormRow, DuplicateFormButton } from "./FormRow";
 
 export const dynamic = "force-dynamic";
 
@@ -28,7 +28,7 @@ export default async function FormsList() {
   const forms = (data ?? []) as Row[];
 
   return (
-    <main className="mx-auto w-full max-w-4xl p-6">
+    <main className="w-full p-6">
       <h1 className="mb-4 font-display text-2xl font-bold text-foreground">
         {t("title")}
       </h1>
@@ -50,8 +50,15 @@ export default async function FormsList() {
             </thead>
             <tbody>
               {forms.map((f) => (
-                <tr key={f.id} className="border-t border-border hover:bg-surface-2">
-                  <td className="px-4 py-2.5 font-medium text-foreground">{f.name}</td>
+                <FormRow key={f.id} href={`/admin/forms/${f.id}/edit`}>
+                  <td className="px-4 py-2.5">
+                    <Link
+                      href={`/admin/forms/${f.id}/edit`}
+                      className="rounded font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                    >
+                      {f.name}
+                    </Link>
+                  </td>
                   <td className="px-4 py-2.5">
                     <span
                       className={`rounded-full px-2 py-0.5 text-xs font-medium ${
@@ -71,24 +78,9 @@ export default async function FormsList() {
                     {new Date(f.updated_at).toLocaleString()}
                   </td>
                   <td className="px-4 py-2.5 text-right">
-                    <div className="flex items-center justify-end gap-3">
-                      <form action={duplicateForm.bind(null, f.id)}>
-                        <button
-                          type="submit"
-                          className="font-medium text-brand hover:underline"
-                        >
-                          {t("duplicate")}
-                        </button>
-                      </form>
-                      <Link
-                        href={`/admin/forms/${f.id}/edit`}
-                        className="font-medium text-brand hover:underline"
-                      >
-                        {t("edit")} →
-                      </Link>
-                    </div>
+                    <DuplicateFormButton id={f.id} name={f.name} />
                   </td>
-                </tr>
+                </FormRow>
               ))}
               {forms.length === 0 && (
                 <tr>

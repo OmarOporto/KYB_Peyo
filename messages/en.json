@@ -136,6 +136,8 @@
     "colUpdated": "Updated",
     "edit": "Edit",
     "duplicate": "Duplicate",
+    "confirmDuplicateTitle": "Duplicate this form?",
+    "confirmDuplicateBody": "A copy of “{name}” will be created as a draft and opened in the editor. The original form is left untouched.",
     "empty": "No forms yet. Create one or import from DIDIT.",
     "published": "Published",
     "draft": "Draft"

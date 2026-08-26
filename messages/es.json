@@ -136,6 +136,8 @@
     "colUpdated": "Actualizado",
     "edit": "Editar",
     "duplicate": "Duplicar",
+    "confirmDuplicateTitle": "¿Duplicar este formulario?",
+    "confirmDuplicateBody": "Se creará una copia de «{name}» como borrador y se abrirá en el editor. El formulario original no se modifica.",
     "empty": "Aún no hay formularios. Crea uno o importa desde DIDIT.",
     "published": "Publicado",
     "draft": "Borrador"
