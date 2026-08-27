@@ -79,3 +79,20 @@ body {
   font-family: var(--font-display);
   letter-spacing: -0.02em;
 }
+
+/* ============================================================
+   Inputs numéricos: sin spinners nativos. El valor solo se
+   cambia escribiendo (ver components/NumberInputGuard.tsx para
+   rueda del mouse y flechas del teclado).
+   ============================================================ */
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  appearance: none;
+  margin: 0;
+}
+
+input[type="number"] {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
