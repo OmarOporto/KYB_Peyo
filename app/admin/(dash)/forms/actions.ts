@@ -3,7 +3,7 @@
 import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { requireAnalyst } from "@/lib/auth/admin";
+import { isAdmin, requireAnalyst } from "@/lib/auth/admin";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   emptyForm,
@@ -12,7 +12,25 @@ import {
 } from "@/lib/forms/definition";
 import { isGoogleFormExport, fromGoogleForm } from "@/lib/forms/import-google";
 
-type Result = { ok: true; id?: string } | { ok: false; error: string };
+/**
+ * Motivo por el que se rechazó archivar/eliminar. Se devuelve como CÓDIGO (no
+ * como texto ya armado) porque el panel es bilingüe: el cliente lo traduce con
+ * `params`. El `error` que viaja al lado es el fallback en español, para los
+ * call-sites que solo pintan el string.
+ */
+export type FormActionErrorCode =
+  | "not_admin"
+  | "assigned_to_client"
+  | "requests_no_snapshot";
+
+type Result =
+  | { ok: true; id?: string }
+  | {
+      ok: false;
+      error: string;
+      code?: FormActionErrorCode;
+      params?: Record<string, string | number>;
+    };
 
 const FORM_ASSETS_BUCKET = "form-assets";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
@@ -126,13 +144,150 @@ export async function duplicateForm(id: string) {
   redirect(`/admin/forms/${created.id}/edit`);
 }
 
-export async function deleteForm(id: string) {
-  await requireAnalyst();
+// ============================================================
+// Archivar / eliminar
+// ============================================================
+
+/** Quién depende de este formulario. Ver `formUsage` para la versión pública. */
+async function formBlockers(id: string) {
   const supabase = createServiceClient();
-  const { error } = await supabase.from("forms").delete().eq("id", id);
-  if (error) throw new Error(error.message);
+  const [keys, all, orphans] = await Promise.all([
+    // Nulificar `default_form_id` rompería la integración del cliente sin aviso
+    // (es el KYB_FORM_ID que tiene configurado), así que bloquea.
+    supabase.from("api_keys").select("label, key_prefix").eq("default_form_id", id),
+    supabase
+      .from("kyb_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("form_id", id),
+    // Sin snapshot, la solicitud depende del `form_id` para saber qué se llenó:
+    // si el formulario desaparece, `getFormForRequest` cae en silencio al último
+    // publicado —con otras keys— y el detalle deja de corresponder.
+    //
+    // Cubre el caso real (columna NULL: solicitudes previas a 0007 y las creadas
+    // por API sin formulario). Un snapshot presente pero inválido para el schema
+    // también caería al fallback, pero detectarlo exigiría parsear fila por fila
+    // y ese riesgo ya existe hoy, con o sin borrado.
+    supabase
+      .from("kyb_requests")
+      .select("id", { count: "exact", head: true })
+      .eq("form_id", id)
+      .is("form_definition", null),
+  ]);
+  const clients = (keys.data ?? []).map(
+    (k) => (k.label as string | null) || (k.key_prefix as string | null) || "—",
+  );
+  return {
+    clients,
+    requests: all.count ?? 0,
+    requestsWithoutSnapshot: orphans.count ?? 0,
+  };
+}
+
+export interface FormUsage {
+  /** Etiquetas de los clientes que lo tienen asignado por defecto. */
+  clients: string[];
+  /** Solicitudes que quedarían desvinculadas (`form_id` a null). */
+  requests: number;
+  /** De esas, las que perderían su definición. Cualquier valor > 0 bloquea. */
+  requestsWithoutSnapshot: number;
+  canDelete: boolean;
+}
+
+/**
+ * Qué pasaría si se elimina. Lo pide la UI ANTES de confirmar, para que el
+ * cuadro de diálogo diga cuántas solicitudes se van a desvincular en vez de
+ * pedir una confirmación a ciegas.
+ */
+export async function formUsage(id: string): Promise<FormUsage> {
+  await requireAnalyst();
+  const b = await formBlockers(id);
+  return {
+    ...b,
+    canDelete: b.clients.length === 0 && b.requestsWithoutSnapshot === 0,
+  };
+}
+
+/**
+ * Archiva (o desarchiva) un formulario. Es la salida reversible y la que puede
+ * usar cualquier analista.
+ *
+ * Archivar un formulario PUBLICADO lo saca de `getPublishedForm`, así que para
+ * un cliente que lo tenga asignado el efecto es el mismo que borrarlo: se
+ * bloquea igual que el borrado.
+ */
+export async function archiveForm(id: string, archived: boolean): Promise<Result> {
+  await requireAnalyst();
+
+  if (archived) {
+    const { clients } = await formBlockers(id);
+    if (clients.length > 0) return assignedToClient(clients);
+  }
+
+  const supabase = createServiceClient();
+  const { error } = await supabase
+    .from("forms")
+    .update({
+      // Desarchivar devuelve a BORRADOR, nunca directo a publicado: publicar es
+      // un acto deliberado que incrementa la revisión (ver `setFormStatus`).
+      status: archived ? "archived" : "draft",
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", id);
+  if (error) return { ok: false, error: error.message };
   revalidatePath("/admin/forms");
-  redirect("/admin/forms");
+  revalidatePath(`/admin/forms/${id}/edit`);
+  return { ok: true };
+}
+
+/**
+ * Borrado definitivo. Solo `admin`: es irreversible y se lleva las traducciones
+ * del formulario con él (viven dentro de `definition`).
+ *
+ * Ya no redirige ni lanza: devuelve el motivo para que la UI lo muestre. La
+ * versión anterior hacía `throw` dentro de un `<form action>`, así que cualquier
+ * formulario referenciado —o sea, cualquiera que se hubiera usado— moría con un
+ * error genérico de Next.
+ */
+export async function deleteForm(id: string): Promise<Result> {
+  await requireAnalyst();
+  if (!(await isAdmin())) {
+    return {
+      ok: false,
+      code: "not_admin",
+      error: "Solo un administrador puede eliminar formularios.",
+    };
+  }
+
+  const { clients, requestsWithoutSnapshot } = await formBlockers(id);
+  if (clients.length > 0) return assignedToClient(clients);
+  if (requestsWithoutSnapshot > 0) {
+    return {
+      ok: false,
+      code: "requests_no_snapshot",
+      params: { count: requestsWithoutSnapshot },
+      error:
+        `${requestsWithoutSnapshot} solicitud(es) dependen de este formulario y no ` +
+        "guardan copia de su definición. Archivalo en vez de eliminarlo.",
+    };
+  }
+
+  const supabase = createServiceClient();
+  // Las solicitudes con snapshot quedan con `form_id` a null (0020) y siguen
+  // resolviendo su definición desde el snapshot.
+  const { error } = await supabase.from("forms").delete().eq("id", id);
+  if (error) return { ok: false, error: error.message };
+  revalidatePath("/admin/forms");
+  return { ok: true };
+}
+
+function assignedToClient(clients: string[]): Result {
+  const list = clients.join(", ");
+  return {
+    ok: false,
+    code: "assigned_to_client",
+    params: { clients: list },
+    error: `Este formulario está asignado a ${list}. Reasigná ese cliente primero.`,
+  };
 }
 
 export async function importFormJson(json: string): Promise<Result> {

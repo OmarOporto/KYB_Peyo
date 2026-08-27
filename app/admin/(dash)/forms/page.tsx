@@ -1,39 +1,69 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { isAdmin } from "@/lib/auth/admin";
 import { Card } from "@/components/ui/Card";
-import { countFields, type FormDefinition } from "@/lib/forms/definition";
+import {
+  countFields,
+  type FormDefinition,
+  type FormStatus,
+} from "@/lib/forms/definition";
 import { FormsToolbar } from "./FormsToolbar";
-import { FormRow, DuplicateFormButton } from "./FormRow";
+import {
+  FormRow,
+  ArchiveFormButton,
+  DeleteFormButton,
+  DuplicateFormButton,
+} from "./FormRow";
 
 export const dynamic = "force-dynamic";
 
 type Row = {
   id: string;
   name: string;
-  status: string;
+  status: FormStatus;
   source: string;
   definition: FormDefinition;
   updated_at: string;
 };
 
-export default async function FormsList() {
+const BADGE: Record<FormStatus, string> = {
+  published: "bg-success/15 text-success",
+  draft: "bg-surface-2 text-muted",
+  archived: "bg-warning/15 text-warning",
+};
+
+export default async function FormsList({
+  searchParams,
+}: {
+  searchParams: Promise<{ archived?: string }>;
+}) {
   const t = await getTranslations("forms");
+  const { archived } = await searchParams;
+  // Los archivados son una vista aparte y no un filtro más: son justamente los
+  // que el analista sacó de en medio, mezclarlos anularía el archivado.
+  const showArchived = archived === "1";
+
   const supabase = await createServerSupabase();
-  const { data } = await supabase
+  const query = supabase
     .from("forms")
     .select("id, name, status, source, definition, updated_at")
     .order("updated_at", { ascending: false });
+
+  const [{ data }, admin] = await Promise.all([
+    showArchived ? query.eq("status", "archived") : query.neq("status", "archived"),
+    isAdmin(),
+  ]);
 
   const forms = (data ?? []) as Row[];
 
   return (
     <main className="w-full p-6">
       <h1 className="mb-4 font-display text-2xl font-bold text-foreground">
-        {t("title")}
+        {showArchived ? t("archivedTitle") : t("title")}
       </h1>
 
-      <FormsToolbar />
+      <FormsToolbar showArchived={showArchived} />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
@@ -61,13 +91,9 @@ export default async function FormsList() {
                   </td>
                   <td className="px-4 py-2.5">
                     <span
-                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-                        f.status === "published"
-                          ? "bg-success/15 text-success"
-                          : "bg-surface-2 text-muted"
-                      }`}
+                      className={`rounded-full px-2 py-0.5 text-xs font-medium ${BADGE[f.status] ?? BADGE.draft}`}
                     >
-                      {f.status === "published" ? t("published") : t("draft")}
+                      {t(f.status)}
                     </span>
                   </td>
                   <td className="px-4 py-2.5 text-muted">
@@ -77,15 +103,25 @@ export default async function FormsList() {
                   <td className="px-4 py-2.5 text-muted">
                     {new Date(f.updated_at).toLocaleString()}
                   </td>
-                  <td className="px-4 py-2.5 text-right">
-                    <DuplicateFormButton id={f.id} name={f.name} />
+                  <td className="px-4 py-2.5">
+                    <div className="flex flex-wrap justify-end gap-1.5">
+                      <DuplicateFormButton id={f.id} name={f.name} />
+                      <ArchiveFormButton
+                        id={f.id}
+                        name={f.name}
+                        archived={f.status === "archived"}
+                      />
+                      {/* Eliminar es irreversible y se lleva las traducciones:
+                          solo admin (el action lo revalida server-side). */}
+                      {admin && <DeleteFormButton id={f.id} name={f.name} />}
+                    </div>
                   </td>
                 </FormRow>
               ))}
               {forms.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-4 py-10 text-center text-muted">
-                    {t("empty")}
+                    {showArchived ? t("emptyArchived") : t("empty")}
                   </td>
                 </tr>
               )}

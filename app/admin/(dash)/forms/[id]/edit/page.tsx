@@ -2,7 +2,12 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { formDefinitionSchema, emptyForm } from "@/lib/forms/definition";
+import { isAdmin } from "@/lib/auth/admin";
+import {
+  formDefinitionSchema,
+  emptyForm,
+  type FormStatus,
+} from "@/lib/forms/definition";
 import { FormBuilder } from "./FormBuilder";
 
 export const dynamic = "force-dynamic";
@@ -15,11 +20,14 @@ export default async function EditFormPage({
   const { id } = await params;
   const t = await getTranslations("forms");
   const supabase = await createServerSupabase();
-  const { data: form } = await supabase
-    .from("forms")
-    .select("id, name, status, definition")
-    .eq("id", id)
-    .maybeSingle();
+  const [{ data: form }, admin] = await Promise.all([
+    supabase
+      .from("forms")
+      .select("id, name, status, definition")
+      .eq("id", id)
+      .maybeSingle(),
+    isAdmin(),
+  ]);
   if (!form) notFound();
 
   const parsed = formDefinitionSchema.safeParse(form.definition);
@@ -35,8 +43,9 @@ export default async function EditFormPage({
       <FormBuilder
         id={form.id}
         initialName={form.name}
-        initialStatus={form.status as "draft" | "published"}
+        initialStatus={form.status as FormStatus}
         initialDef={definition}
+        isAdmin={admin}
       />
     </div>
   );

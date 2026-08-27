@@ -1,11 +1,11 @@
 import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
-import { formDefinitionSchema, type FormDefinition } from "./definition";
+import { formDefinitionSchema, type FormDefinition, type FormStatus } from "./definition";
 
 export interface FormRow {
   id: string;
   name: string;
-  status: "draft" | "published";
+  status: FormStatus;
   definition: FormDefinition;
   source: string;
   source_ref: string | null;

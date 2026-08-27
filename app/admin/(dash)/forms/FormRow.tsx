@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import { useRef, useState, type ReactNode } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useFormStatus } from "react-dom";
-import { Button } from "@/components/ui/Button";
-import { duplicateForm } from "./actions";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
+import { archiveForm, deleteForm, duplicateForm, formUsage, type FormUsage } from "./actions";
+import { formActionError } from "./formErrors";
 
 /**
  * Fila de la tabla de formularios: toda la fila navega al editor. El nombre
@@ -35,6 +36,13 @@ export function FormRow({
   );
 }
 
+// Los tres botones de acción comparten el mismo chip para que la columna no
+// parezca tres controles distintos.
+const ROW_BTN =
+  "inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium outline-none transition-colors disabled:cursor-not-allowed disabled:opacity-60";
+const ROW_BTN_NEUTRAL = `${ROW_BTN} text-muted hover:border-brand/40 hover:bg-brand/10 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30`;
+const ROW_BTN_DANGER = `${ROW_BTN} text-muted hover:border-danger/40 hover:bg-danger/10 hover:text-danger focus-visible:ring-2 focus-visible:ring-danger/30`;
+
 /**
  * Duplicar pide confirmación antes de enviar: es una acción que crea un
  * formulario y redirige al editor, así que un clic accidental (la fila entera
@@ -55,7 +63,7 @@ export function DuplicateFormButton({ id, name }: { id: string; name: string }) 
     >
       <DuplicateTrigger onClick={() => setConfirming(true)} />
       {confirming && (
-        <ConfirmDuplicateModal
+        <ConfirmModal
           title={t("confirmDuplicateTitle")}
           body={t("confirmDuplicateBody", { name })}
           confirmLabel={t("duplicate")}
@@ -81,7 +89,7 @@ function DuplicateTrigger({ onClick }: { onClick: () => void }) {
       onClick={onClick}
       disabled={pending}
       title={t("duplicate")}
-      className="inline-flex cursor-pointer items-center gap-1.5 rounded-lg border border-border bg-surface px-2.5 py-1.5 text-xs font-medium text-muted outline-none transition-colors hover:border-brand/40 hover:bg-brand/10 hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30 disabled:cursor-not-allowed disabled:opacity-60"
+      className={ROW_BTN_NEUTRAL}
     >
       {pending ? <SpinnerIcon /> : <CopyIcon />}
       {t("duplicate")}
@@ -89,63 +97,156 @@ function DuplicateTrigger({ onClick }: { onClick: () => void }) {
   );
 }
 
-function ConfirmDuplicateModal({
-  title,
-  body,
-  confirmLabel,
-  cancelLabel,
-  onConfirm,
-  onCancel,
+/**
+ * Archivar / desarchivar. Reversible, así que no lleva el tono destructivo;
+ * pero sí confirma, porque archivar un formulario publicado lo saca de la ruta
+ * pública en el acto.
+ */
+export function ArchiveFormButton({
+  id,
+  name,
+  archived,
 }: {
-  title: string;
-  body: string;
-  confirmLabel: string;
-  cancelLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
+  id: string;
+  name: string;
+  archived: boolean;
 }) {
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onCancel();
-    };
-    document.addEventListener("keydown", onKey);
-    return () => document.removeEventListener("keydown", onKey);
-  }, [onCancel]);
+  const t = useTranslations("forms");
+  const router = useRouter();
+  const [confirming, setConfirming] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  async function run() {
+    setBusy(true);
+    const res = await archiveForm(id, !archived);
+    setBusy(false);
+    setConfirming(false);
+    if (res.ok) router.refresh();
+    else setError(formActionError(t, res));
+  }
 
   return (
-    // stopPropagation: el modal vive dentro de la fila clickeable.
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center p-4 text-left"
-      onClick={(e) => e.stopPropagation()}
-    >
+    <div className="inline-flex">
       <button
         type="button"
-        aria-hidden
-        tabIndex={-1}
-        className="absolute inset-0 cursor-default bg-black/50"
-        onClick={onCancel}
-      />
-      <div
-        role="dialog"
-        aria-modal="true"
-        aria-label={title}
-        className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-surface-card p-5 shadow-xl"
+        onClick={() => setConfirming(true)}
+        disabled={busy}
+        title={archived ? t("unarchive") : t("archive")}
+        className={ROW_BTN_NEUTRAL}
       >
-        <p className="font-display text-base font-semibold text-foreground">
-          {title}
-        </p>
-        <p className="mt-2 text-sm text-muted">{body}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onCancel}>
-            {cancelLabel}
-          </Button>
-          <Button size="sm" autoFocus onClick={onConfirm}>
-            {confirmLabel}
-          </Button>
-        </div>
-      </div>
+        {busy ? <SpinnerIcon /> : <ArchiveIcon />}
+        {archived ? t("unarchive") : t("archive")}
+      </button>
+      {confirming && (
+        <ConfirmModal
+          title={archived ? t("confirmUnarchiveTitle") : t("confirmArchiveTitle")}
+          body={
+            archived
+              ? t("confirmUnarchiveBody", { name })
+              : t("confirmArchiveBody", { name })
+          }
+          confirmLabel={archived ? t("unarchive") : t("archive")}
+          cancelLabel={t("cancel")}
+          busy={busy}
+          onCancel={() => setConfirming(false)}
+          onConfirm={run}
+        />
+      )}
+      {error && (
+        <ConfirmModal
+          title={t("actionBlockedTitle")}
+          body={error}
+          confirmLabel={t("close")}
+          hideCancel
+          onCancel={() => setError(null)}
+          onConfirm={() => setError(null)}
+        />
+      )}
     </div>
   );
+}
+
+/**
+ * Borrado definitivo (solo admin). Antes de confirmar consulta `formUsage` para
+ * poder decir en el diálogo qué se lleva puesto: pedir "¿seguro?" sin nombrar
+ * las solicitudes que se van a desvincular es pedir una confirmación a ciegas.
+ */
+export function DeleteFormButton({ id, name }: { id: string; name: string }) {
+  const t = useTranslations("forms");
+  const router = useRouter();
+  const [busy, setBusy] = useState(false);
+  const [usage, setUsage] = useState<FormUsage | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function onOpen() {
+    setBusy(true);
+    const u = await formUsage(id);
+    setBusy(false);
+    if (u.canDelete) setUsage(u);
+    else setError(blockedMessage(t, u));
+  }
+
+  async function run() {
+    setBusy(true);
+    const res = await deleteForm(id);
+    setBusy(false);
+    setUsage(null);
+    if (res.ok) router.refresh();
+    else setError(formActionError(t, res));
+  }
+
+  return (
+    <div className="inline-flex">
+      <button
+        type="button"
+        onClick={onOpen}
+        disabled={busy}
+        title={t("delete")}
+        className={ROW_BTN_DANGER}
+      >
+        {busy ? <SpinnerIcon /> : <TrashIcon />}
+        {t("delete")}
+      </button>
+      {usage && (
+        <ConfirmModal
+          title={t("confirmDeleteTitle")}
+          body={
+            usage.requests > 0
+              ? t("confirmDeleteBodyWithRequests", { name, count: usage.requests })
+              : t("confirmDeleteBody", { name })
+          }
+          confirmLabel={t("delete")}
+          cancelLabel={t("cancel")}
+          danger
+          busy={busy}
+          onCancel={() => setUsage(null)}
+          onConfirm={run}
+        />
+      )}
+      {error && (
+        <ConfirmModal
+          title={t("actionBlockedTitle")}
+          body={error}
+          confirmLabel={t("close")}
+          hideCancel
+          onCancel={() => setError(null)}
+          onConfirm={() => setError(null)}
+        />
+      )}
+    </div>
+  );
+}
+
+/** Mismo texto que devolvería el action, pero resuelto antes de intentar. */
+function blockedMessage(
+  t: (key: string, values?: Record<string, string | number>) => string,
+  u: FormUsage,
+): string {
+  if (u.clients.length > 0) {
+    return t("errorAssignedToClient", { clients: u.clients.join(", ") });
+  }
+  return t("errorRequestsNoSnapshot", { count: u.requestsWithoutSnapshot });
 }
 
 function CopyIcon() {
@@ -163,6 +264,47 @@ function CopyIcon() {
     >
       <rect x="9" y="9" width="12" height="12" rx="2" />
       <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+    </svg>
+  );
+}
+
+function ArchiveIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <rect x="2" y="3" width="20" height="5" rx="1" />
+      <path d="M4 8v11a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8" />
+      <path d="M10 12h4" />
+    </svg>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg
+      width="14"
+      height="14"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M3 6h18" />
+      <path d="M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2" />
+      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+      <path d="M10 11v6M14 11v6" />
     </svg>
   );
 }

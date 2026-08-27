@@ -21,6 +21,7 @@ import {
   type FieldReview,
   type FieldType,
   type FormDefinition,
+  type FormStatus,
   type LocalizedText,
   type Section,
 } from "@/lib/forms/definition";
@@ -46,9 +47,11 @@ import {
   type PresetCategory,
 } from "@/lib/forms/presets";
 import { Button } from "@/components/ui/Button";
+import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { DynamicForm } from "@/components/forms/DynamicForm";
 import { ImageUpload } from "@/components/forms/ImageUpload";
-import { saveForm, setFormStatus, deleteForm } from "../../actions";
+import { archiveForm, saveForm, setFormStatus, deleteForm, formUsage } from "../../actions";
+import { formActionError } from "../../formErrors";
 
 // ---------- helpers de LocalizedText ----------
 // `getLoc`/`setLoc` viven en lib/forms/definition.ts: los comparte el walker de
@@ -162,13 +165,19 @@ export function FormBuilder({
   initialName,
   initialStatus,
   initialDef,
+  isAdmin,
 }: {
   id: string;
   initialName: string;
-  initialStatus: "draft" | "published";
+  initialStatus: FormStatus;
   initialDef: FormDefinition;
+  /** El borrado definitivo es solo para admin; el action lo re-verifica. */
+  isAdmin: boolean;
 }) {
   const t = useTranslations("builder");
+  // Los mensajes de rechazo de archivar/eliminar viven en "forms": son los
+  // mismos que muestra la lista y no tiene sentido duplicarlos por namespace.
+  const tForms = useTranslations("forms");
   const router = useRouter();
   const [name, setName] = useState(initialName);
   const [def, setDef] = useState<FormDefinition>(initialDef);
@@ -189,12 +198,18 @@ export function FormBuilder({
   const dragFrom = useRef<number | null>(null);
   const [confirmState, setConfirmState] = useState<{
     message: string;
+    // Por defecto la confirmación es destructiva (borrar sección/pregunta/form);
+    // archivar la reusa con otro botón y sin el tono rojo.
+    confirmLabel?: string;
+    danger?: boolean;
     resolve: (v: boolean) => void;
   } | null>(null);
-  function askConfirm(message: string): Promise<boolean> {
-    return new Promise((resolve) => setConfirmState({ message, resolve }));
+  function askConfirm(
+    message: string,
+    opts?: { confirmLabel?: string; danger?: boolean },
+  ): Promise<boolean> {
+    return new Promise((resolve) => setConfirmState({ message, ...opts, resolve }));
   }
-  const deleteFormRef = useRef<HTMLFormElement | null>(null);
 
   function update(mut: (d: FormDefinition) => void) {
     setDef((prev) => {
@@ -232,6 +247,63 @@ export function FormBuilder({
         );
       } else setMsg(next === "published" ? t("published") : t("unpublished"));
     } else setMsg(res.error);
+  }
+
+  async function onArchive() {
+    const next = status !== "archived";
+    if (
+      next &&
+      !(await askConfirm(t("confirmArchive"), {
+        confirmLabel: t("archive"),
+        danger: false,
+      }))
+    ) {
+      return;
+    }
+    setBusy(true);
+    const res = await archiveForm(id, next);
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(formActionError(tForms, res));
+      return;
+    }
+    // Desarchivar devuelve a borrador, no al estado publicado anterior.
+    setStatus(next ? "archived" : "draft");
+    setMsg(next ? t("archived") : t("unarchived"));
+    router.refresh();
+  }
+
+  /**
+   * Borrado definitivo. Consulta primero de qué depende el formulario para
+   * poder rechazarlo con un motivo concreto y, si procede, decir en la
+   * confirmación cuántas solicitudes van a quedar desvinculadas.
+   */
+  async function onDelete() {
+    setBusy(true);
+    const usage = await formUsage(id);
+    setBusy(false);
+    if (!usage.canDelete) {
+      setMsg(
+        usage.clients.length > 0
+          ? tForms("errorAssignedToClient", { clients: usage.clients.join(", ") })
+          : tForms("errorRequestsNoSnapshot", { count: usage.requestsWithoutSnapshot }),
+      );
+      return;
+    }
+    const question =
+      usage.requests > 0
+        ? t("confirmDeleteWithRequests", { count: usage.requests })
+        : t("confirmDelete");
+    if (!(await askConfirm(question))) return;
+
+    setBusy(true);
+    const res = await deleteForm(id);
+    setBusy(false);
+    if (!res.ok) {
+      setMsg(formActionError(tForms, res));
+      return;
+    }
+    router.push("/admin/forms");
   }
 
   // Índice de la sección visible; acotado por si se borró la última.
@@ -466,10 +538,14 @@ export function FormBuilder({
         />
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
-            status === "published" ? "bg-success/15 text-success" : "bg-surface-2 text-muted"
+            status === "published"
+              ? "bg-success/15 text-success"
+              : status === "archived"
+                ? "bg-warning/15 text-warning"
+                : "bg-surface-2 text-muted"
           }`}
         >
-          {status === "published" ? t("published") : t("draft")}
+          {t(status)}
         </span>
         {status === "published" && (
           <a
@@ -582,8 +658,15 @@ export function FormBuilder({
           <Button variant="outline" size="sm" onClick={onExport}>
             {t("exportJson")}
           </Button>
-          <Button variant="outline" size="sm" onClick={onTogglePublish}>
-            {status === "published" ? t("unpublish") : t("publish")}
+          {/* Un formulario archivado no se publica desde acá: primero se
+              desarchiva (vuelve a borrador) y recién ahí se publica. */}
+          {status !== "archived" && (
+            <Button variant="outline" size="sm" onClick={onTogglePublish}>
+              {status === "published" ? t("unpublish") : t("publish")}
+            </Button>
+          )}
+          <Button variant="outline" size="sm" onClick={onArchive} disabled={busy}>
+            {status === "archived" ? t("unarchive") : t("archive")}
           </Button>
           <Button size="sm" onClick={onSave} disabled={busy}>
             {busy ? "…" : t("save")}
@@ -697,19 +780,19 @@ export function FormBuilder({
             + {t("addSection")}
           </Button>
 
-          <div className="pt-4">
-            <form ref={deleteFormRef} action={deleteForm.bind(null, id)}>
+          {isAdmin && (
+            <div className="pt-4">
               <button
                 type="button"
-                className="text-sm text-danger hover:underline"
-                onClick={async () => {
-                  if (await askConfirm(t("confirmDelete"))) deleteFormRef.current?.requestSubmit();
-                }}
+                disabled={busy}
+                className="text-sm text-danger hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+                onClick={onDelete}
               >
                 {t("deleteForm")}
               </button>
-            </form>
-          </div>
+              <p className="mt-1 text-xs text-muted">{t("deleteFormHint")}</p>
+            </div>
+          )}
         </div>
       )}
       {summary && (
@@ -717,9 +800,10 @@ export function FormBuilder({
       )}
       {confirmState && (
         <ConfirmModal
-          message={confirmState.message}
-          confirmLabel={t("delete")}
+          body={confirmState.message}
+          confirmLabel={confirmState.confirmLabel ?? t("delete")}
           cancelLabel={t("cancel")}
+          danger={confirmState.danger ?? true}
           onConfirm={() => {
             confirmState.resolve(true);
             setConfirmState(null);
@@ -954,42 +1038,6 @@ function TranslationSummaryToast({
         ) : (
           <p className="mt-1 text-sm font-semibold text-foreground">{t("summaryNoCost")}</p>
         )}
-      </div>
-    </div>
-  );
-}
-
-function ConfirmModal({
-  message,
-  confirmLabel,
-  cancelLabel,
-  onConfirm,
-  onCancel,
-}: {
-  message: string;
-  confirmLabel: string;
-  cancelLabel: string;
-  onConfirm: () => void;
-  onCancel: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <button
-        type="button"
-        aria-hidden
-        className="absolute inset-0 bg-black/50"
-        onClick={onCancel}
-      />
-      <div className="relative z-10 w-full max-w-sm rounded-2xl border border-border bg-surface-card p-5 shadow-xl">
-        <p className="text-sm text-foreground">{message}</p>
-        <div className="mt-5 flex justify-end gap-2">
-          <Button variant="outline" size="sm" onClick={onCancel}>
-            {cancelLabel}
-          </Button>
-          <Button variant="danger" size="sm" onClick={onConfirm}>
-            {confirmLabel}
-          </Button>
-        </div>
       </div>
     </div>
   );

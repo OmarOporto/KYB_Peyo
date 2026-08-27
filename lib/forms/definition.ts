@@ -51,6 +51,15 @@ export function setLoc(
 }
 
 // ============================================================
+// Estado del formulario (client-safe: lo usan la lista y el builder)
+// ============================================================
+// `archived` es la salida REVERSIBLE: saca el formulario de la lista y de todo
+// lo que filtra por `published` (ruta pública, formulario por defecto, selector
+// del cliente) sin destruir nada. Eliminar es lo irreversible y va aparte.
+export const FORM_STATUSES = ["draft", "published", "archived"] as const;
+export type FormStatus = (typeof FORM_STATUSES)[number];
+
+// ============================================================
 // Tipos de campo
 // ============================================================
 export const FIELD_TYPES = [
