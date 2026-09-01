@@ -123,6 +123,14 @@ input[type="number"] {
     --danger: #b91c1c;
   }
 
+  /* `!important` a propósito: next-themes escribe `style="color-scheme: dark"`
+     INLINE en <html> (enableColorScheme, default true), y un estilo inline gana
+     a cualquier regla de hoja sin !important. Con color-scheme dark Chrome pinta
+     oscuro el lienzo de la página y el margen del papel sale negro. */
+  :root {
+    color-scheme: light !important;
+  }
+
   html,
   body {
     background: #ffffff !important;
