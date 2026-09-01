@@ -13,7 +13,8 @@
     "db:push": "supabase db push",
     "seed:admin": "node scripts/seed-admin.mjs",
     "didit:pull": "node scripts/didit-pull.mjs",
-    "i18n:eval": "node scripts/i18n-eval.mjs"
+    "i18n:eval": "node scripts/i18n-eval.mjs",
+    "prepare": "husky || true"
   },
   "dependencies": {
     "@hookform/resolvers": "^5.4.0",
@@ -29,12 +30,15 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
     "eslint": "^9",
     "eslint-config-next": "16.2.10",
+    "husky": "^9.1.7",
     "tailwindcss": "^4",
     "typescript": "^5"
   }

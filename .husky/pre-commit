@@ -1,0 +1,4 @@
+# Corre antes de redactar el mensaje. Ambos comandos ya existen en package.json.
+# Para saltearlo en un commit puntual: `git commit --no-verify`.
+npm run lint
+npm run typecheck

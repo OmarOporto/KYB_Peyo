@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 import { useTheme } from "next-themes";
 import { useTranslations } from "next-intl";
 
 export function ThemeToggle() {
   const t = useTranslations("theme");
   const { resolvedTheme, setTheme } = useTheme();
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  // Marca el montaje sin setState dentro de un efecto: devuelve false en el
+  // render del servidor y de la hidratación, y true en el cliente. La suscripción
+  // es un no-op porque el valor nunca cambia después de montar.
+  const mounted = useSyncExternalStore(
+    () => () => {},
+    () => true,
+    () => false,
+  );
 
   const isDark = resolvedTheme === "dark";
 

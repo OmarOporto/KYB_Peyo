@@ -1,0 +1,7 @@
+# Valida el mensaje contra commitlint.config.mjs. $1 es el archivo que git deja
+# con el mensaje redactado. Los merge commits los ignora commitlint solo.
+#
+# `npx --no` falla en vez de bajarse commitlint de la red: si alguien commitea
+# sin haber corrido `npm install`, preferimos el error explícito antes que una
+# descarga silenciosa a mitad de un commit.
+npx --no -- commitlint --edit "$1"
