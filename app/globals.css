@@ -126,6 +126,9 @@ input[type="number"] {
   html,
   body {
     background: #ffffff !important;
+    display: block !important;
+    height: auto !important;
+    min-height: 0 !important;
   }
 
   /* Sin esto el navegador descarta los fondos de badges y medidores. */
@@ -141,13 +144,73 @@ input[type="number"] {
     display: none !important;
   }
 
+  /* Chrome fragmenta mal dentro de contenedores flex: IGNORA el break-inside
+     de los descendientes. El informe cuelga del layout (dash), que es flex con
+     el contenido en un flex-1, así que en papel lo aplanamos a bloque. Sin
+     esto, ninguna de las reglas de abajo tiene efecto. */
+  [data-print-shell],
+  [data-print-shell] > * {
+    display: block !important;
+    min-height: 0 !important;
+  }
+
   /* Una pregunta y su verificación no se parten entre páginas. */
   .print-block {
     break-inside: avoid;
   }
 
+  /* Más alto que la página anula el `avoid`: la miniatura se mantiene chica
+     para que el par pregunta+verificación quepa entero. */
   .print-block img {
-    max-height: 55mm;
+    max-height: 45mm;
+  }
+
+  /* Un título nunca queda solo al pie de la página. */
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+  }
+
+  p,
+  li,
+  dt,
+  dd {
+    orphans: 3;
+    widows: 3;
+  }
+
+  img,
+  tr {
+    break-inside: avoid;
+  }
+
+  /* Cabecera repetida cuando la tabla continúa en la página siguiente. */
+  thead {
+    display: table-header-group;
+  }
+
+  /* Cada sección del informe abre página. */
+  .print-page {
+    break-before: page;
+  }
+
+  /* En papel las tarjetas sobran: una caja con borde cortada por el margen de
+     la hoja se ve rota. El contenido fluye bajo su título. */
+  .print-flat {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+    background: transparent;
+    padding: 0;
+    /* Un `overflow: hidden` vuelve la caja monolítica al fragmentar en Chrome:
+       en vez de continuar en la página siguiente, RECORTA el contenido. */
+    overflow: visible;
+  }
+
+  /* El padding del contenedor se suma al margen de @page y encoge el ancho útil. */
+  .print-doc {
+    padding: 0;
   }
 
   @page {

@@ -53,7 +53,7 @@ export async function ReportCheckBlock({
   const kybDeclared = isKyb ? (envl.declared as Node | undefined) : undefined;
 
   return (
-    <div className="mt-2 rounded-lg border border-border border-l-2 border-l-brand bg-surface-2 p-3">
+    <div className="print-block mt-2 rounded-lg border border-border border-l-2 border-l-brand bg-surface-2 p-3">
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
           {tR("diditBlock")}

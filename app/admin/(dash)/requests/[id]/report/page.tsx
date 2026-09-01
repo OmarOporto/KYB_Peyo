@@ -154,7 +154,7 @@ export default async function RequestReport({
   const req = request as Record<string, unknown>;
 
   return (
-    <main className="mx-auto w-full max-w-3xl p-6">
+    <main className="print-doc mx-auto w-full max-w-3xl p-6">
       <div
         data-no-print
         className="mb-4 flex flex-wrap items-center justify-between gap-2"
@@ -219,7 +219,7 @@ export default async function RequestReport({
         ) : (
           // Sin `print-block`: una tabla larga debe poder cortarse entre
           // páginas (el navegador repite el thead), no saltar entera.
-          <Card className="overflow-hidden">
+          <Card className="print-flat overflow-hidden">
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted">
                 <tr>
@@ -246,16 +246,22 @@ export default async function RequestReport({
         )}
       </ReportSection>
 
-      {/* Respuestas contestadas, con su verificación debajo */}
-      <ReportSection title={tR("answers")}>
+      {/* Respuestas contestadas, con su verificación debajo.
+          En papel cada sección abre página: el salto va en el <h2> (para que no
+          quede huérfano al pie de la página anterior) y en cada sección MENOS la
+          primera, que ya arranca con ese salto. */}
+      <ReportSection title={tR("answers")} className="print-page">
         {groups.length === 0 && otherAnswers.length === 0 && (
           <p className="text-sm text-muted">{tR("noAnswers")}</p>
         )}
         <div className="space-y-4">
           {groups.map((g, gi) => (
-            <Card key={gi} className="p-4">
+            <Card key={gi} className={`print-flat p-4 ${gi > 0 ? "print-page" : ""}`}>
               <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
                 {g.title}
+                {/* Encabezado de hoja: una página suelta del expediente sigue
+                    siendo identificable. */}
+                <span className="hidden print:inline"> · {String(req.external_ref ?? id)}</span>
               </h3>
               <div className="space-y-4">
                 {g.fields.map((f) => (
@@ -291,7 +297,7 @@ export default async function RequestReport({
 
       {/* Verificaciones sin pregunta mostrada (típico: kyb_registry manual) */}
       {orphanChecks.length > 0 && (
-        <ReportSection title={tR("otherChecks")}>
+        <ReportSection title={tR("otherChecks")} className="print-page">
           {orphanChecks.map((c) => (
             <div key={c.id} className="print-block">
               {c.field_key && (
@@ -316,8 +322,8 @@ export default async function RequestReport({
 
       {/* Red de seguridad: nada contestado se pierde del informe */}
       {otherAnswers.length > 0 && (
-        <ReportSection title={tR("otherAnswers")}>
-          <Card className="print-block p-4">
+        <ReportSection title={tR("otherAnswers")} className="print-page">
+          <Card className="print-flat print-block p-4">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
               {otherAnswers.map(([k, v]) => {
                 const field = fieldByKey.get(k);
@@ -347,7 +353,7 @@ export default async function RequestReport({
       )}
 
       {orphanDocs.length > 0 && (
-        <ReportSection title={tR("otherDocuments")}>
+        <ReportSection title={tR("otherDocuments")} className="print-page">
           <div className="print-block flex flex-wrap gap-4 text-sm">
             {orphanDocs.map((d) => (
               <div key={d.id}>
@@ -434,12 +440,15 @@ function AnswerValue({
 function ReportSection({
   title,
   children,
+  className = "",
 }: {
   title: string;
   children: React.ReactNode;
+  /** Para el salto de página en impresión (`print-page`). */
+  className?: string;
 }) {
   return (
-    <section className="mb-6">
+    <section className={`mb-6 ${className}`}>
       <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
         {title}
       </h2>
