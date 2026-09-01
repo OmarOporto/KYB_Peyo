@@ -42,6 +42,7 @@ export default async function RequestDetail({
 }) {
   const t = await getTranslations("admin");
   const tCommon = await getTranslations("common");
+  const tReport = await getTranslations("report");
   const { id } = await params;
   const { tr } = await searchParams;
   const supabase = await createServerSupabase();
@@ -185,7 +186,15 @@ export default async function RequestDetail({
           </h1>
           <p className="text-sm text-muted">ID: {request.id}</p>
         </div>
-        <StatusBadge status={request.status} />
+        <div className="flex items-center gap-3">
+          <Link
+            href={`/admin/requests/${id}/report`}
+            className="text-sm text-brand hover:underline"
+          >
+            {tReport("open")} →
+          </Link>
+          <StatusBadge status={request.status} />
+        </div>
       </header>
 
       {/* AML */}

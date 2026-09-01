@@ -222,6 +222,10 @@ export const validationSchema = z
   })
   .optional();
 
+/** Presets de tamaño de la imagen de ayuda. Ausente = "md" (tamaño histórico). */
+export const imageSizeSchema = z.enum(["sm", "md", "lg", "full"]);
+export type ImageSize = z.infer<typeof imageSizeSchema>;
+
 export const fieldSchema = z.object({
   id: z.string().min(1),
   key: z.string().min(1),
@@ -229,6 +233,7 @@ export const fieldSchema = z.object({
   label: localizedTextSchema,
   help: localizedTextSchema.optional(),
   image: z.string().optional(), // URL pública de imagen de ayuda (opcional)
+  imageSize: imageSizeSchema.optional(), // ausente = "md"
   placeholder: localizedTextSchema.optional(),
   required: z.boolean().default(false),
   options: z.array(optionSchema).optional(),

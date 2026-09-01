@@ -96,3 +96,62 @@ input[type="number"] {
   -moz-appearance: textfield;
   appearance: textfield;
 }
+
+/* ============================================================
+   Impresión (informe → PDF). Redefinir los tokens dentro de
+   @media print hace que TODAS las utilidades existentes
+   (bg-surface, text-muted, bg-success…) salgan en tinta clara,
+   sin tocar el markup y aunque el analista tenga el tema oscuro.
+   ============================================================ */
+@media print {
+  :root,
+  .dark {
+    color-scheme: light;
+
+    --background: #ffffff;
+    --surface: #ffffff;
+    --surface-2: #f4f6f9;
+    --surface-card: #f4f6f9;
+    --foreground: #0f172a;
+    --muted: #475569; /* slate-600: más contraste que el muted de pantalla */
+    --border: #cbd5e1;
+
+    --brand: #1d4ed8;
+    --brand-hover: #1d4ed8;
+    --success: #047857;
+    --warning: #b45309;
+    --danger: #b91c1c;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+  }
+
+  /* Sin esto el navegador descarta los fondos de badges y medidores. */
+  *,
+  *::before,
+  *::after {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Cromo de la app: sidebar, barras de acciones, botones. */
+  [data-no-print] {
+    display: none !important;
+  }
+
+  /* Una pregunta y su verificación no se parten entre páginas. */
+  .print-block {
+    break-inside: avoid;
+  }
+
+  .print-block img {
+    max-height: 55mm;
+  }
+
+  @page {
+    size: A4;
+    margin: 14mm 12mm;
+  }
+}

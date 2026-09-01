@@ -1568,6 +1568,49 @@ function FieldCard({
             />
           </>
         )}
+        {/* Rango mín./máx. de la respuesta (solo número). Escribe validation.min/max.
+            Ojo: a diferencia del largo de texto, acá 0 y los negativos son valores
+            legítimos, así que la guarda es `isFinite` a secas y no se redondea. */}
+        {field.type === "number" && (
+          <>
+            <input
+              type="number"
+              step="any"
+              className={`${smallInput} w-28`}
+              placeholder={t("minValueLabel")}
+              title={t("minValueLabel")}
+              value={field.validation?.min ?? ""}
+              onChange={(e) =>
+                mut((f) => {
+                  const n = e.target.value === "" ? NaN : Number(e.target.value);
+                  const v = { ...(f.validation ?? {}) };
+                  if (Number.isFinite(n)) v.min = n;
+                  else delete v.min;
+                  if (Object.keys(v).length) f.validation = v;
+                  else delete f.validation;
+                })
+              }
+            />
+            <input
+              type="number"
+              step="any"
+              className={`${smallInput} w-28`}
+              placeholder={t("maxValueLabel")}
+              title={t("maxValueLabel")}
+              value={field.validation?.max ?? ""}
+              onChange={(e) =>
+                mut((f) => {
+                  const n = e.target.value === "" ? NaN : Number(e.target.value);
+                  const v = { ...(f.validation ?? {}) };
+                  if (Number.isFinite(n)) v.max = n;
+                  else delete v.max;
+                  if (Object.keys(v).length) f.validation = v;
+                  else delete f.validation;
+                })
+              }
+            />
+          </>
+        )}
         {field.type !== "note" && (
           <DiditReviewEditor
             field={field}
@@ -1699,6 +1742,8 @@ function FieldCard({
       <ImageUpload
         value={field.image}
         onChange={(url) => mut((f) => (f.image = url))}
+        imageSize={field.imageSize}
+        onImageSizeChange={(s) => mut((f) => (f.imageSize = s))}
         label={t("helpImage")}
       />
 

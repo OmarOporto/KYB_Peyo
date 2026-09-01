@@ -115,6 +115,8 @@ export function ApplicantForm({
         // Plantillas crudas: DynamicForm interpola {min}/{max} (patrón missingFields).
         tooShort: t.raw("errTooShort"),
         tooLong: t.raw("errTooLong"),
+        numberTooSmall: t.raw("errNumberMin"),
+        numberTooBig: t.raw("errNumberMax"),
         returnCta: t("returnCta"),
         redirecting: t("redirecting"),
         correctionBanner: t("correctionBanner"),

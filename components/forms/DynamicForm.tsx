@@ -5,6 +5,7 @@ import {
   resolveText,
   type Field,
   type FormDefinition,
+  type ImageSize,
 } from "@/lib/forms/definition";
 import {
   nextSectionId,
@@ -60,6 +61,8 @@ export interface DynamicFormProps {
     /** Plantillas con {min}/{max}; se interpolan aquí. */
     tooShort?: string;
     tooLong?: string;
+    numberTooSmall?: string;
+    numberTooBig?: string;
     returnCta?: string;
     redirecting?: string;
     correctionBanner?: string;
@@ -85,6 +88,8 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   invalid: "Valor inválido",
   tooShort: "Mínimo {min} caracteres.",
   tooLong: "Máximo {max} caracteres.",
+  numberTooSmall: "El mínimo es {min}.",
+  numberTooBig: "El máximo es {max}.",
   returnCta: "Continuar",
   redirecting: "Redirigiendo…",
   correctionBanner:
@@ -280,8 +285,10 @@ export function DynamicForm({
       } else if (f.type === "number") {
         const n = Number(val);
         if (Number.isNaN(n)) next[f.key] = L.invalidNumber;
-        else if ((v.min != null && n < v.min) || (v.max != null && n > v.max))
-          next[f.key] = L.invalid;
+        else if (v.min != null && n < v.min)
+          next[f.key] = L.numberTooSmall.replace("{min}", String(v.min));
+        else if (v.max != null && n > v.max)
+          next[f.key] = L.numberTooBig.replace("{max}", String(v.max));
       } else if (f.type === "short_text" || f.type === "long_text") {
         const s = String(val);
         if (v.minLen != null && s.length < v.minLen)
@@ -561,6 +568,7 @@ function FieldInput({
   const placeholder = resolveText(field.placeholder, locale);
   const help = resolveText(field.help, locale);
   const options = field.options ?? [];
+  const imgCls = helpImageCls(field.imageSize);
 
   return (
     <div>
@@ -576,8 +584,8 @@ function FieldInput({
       {field.image && (
         <HelpImage
           src={field.image}
-          wrapperClassName="mb-2 block w-fit"
-          className="max-h-56 rounded-lg border border-border"
+          wrapperClassName={`mb-2 block ${imgCls.wrap}`}
+          className={`${imgCls.img} rounded-lg border border-border`}
         />
       )}
 
@@ -693,6 +701,11 @@ function FieldInput({
       ) : (
         <input
           type={field.type === "email" ? "email" : field.type === "number" ? "number" : field.type === "date" ? "date" : "text"}
+          // Solo semántica (navegador + lectores de pantalla): no bloquea el
+          // tecleo. Quien rechaza fuera de rango es computeErrors, y al enviar
+          // fieldZod del lado del servidor.
+          min={field.type === "number" ? field.validation?.min : undefined}
+          max={field.type === "number" ? field.validation?.max : undefined}
           className={inputCls}
           placeholder={placeholder}
           value={String(value ?? "")}
@@ -714,6 +727,7 @@ function FieldInput({
 function GroupHeader({ field, locale }: { field: Field; locale: string }) {
   const label = resolveText(field.label, locale);
   const help = resolveText(field.help, locale);
+  const imgCls = helpImageCls(field.imageSize);
   return (
     <div className="px-1">
       <p className="text-xs font-semibold uppercase tracking-wide text-muted">
@@ -723,12 +737,32 @@ function GroupHeader({ field, locale }: { field: Field; locale: string }) {
       {field.image && (
         <HelpImage
           src={field.image}
-          wrapperClassName="mt-2 block w-fit"
-          className="max-h-56 rounded-lg border border-border"
+          wrapperClassName={`mt-2 block ${imgCls.wrap}`}
+          className={`${imgCls.img} rounded-lg border border-border`}
         />
       )}
     </div>
   );
+}
+
+/**
+ * Presets de tamaño de la imagen de ayuda. `md` reproduce el tamaño histórico,
+ * así que las definiciones sin `imageSize` no cambian de aspecto.
+ *
+ * Las clases son literales a propósito: Tailwind las detecta escaneando el
+ * texto del archivo, así que nunca construirlas dinámicamente (`max-h-${n}` no
+ * genera CSS). `full` también cambia el wrapper porque el `w-fit` del <a>
+ * anularía el ancho de la imagen.
+ */
+const HELP_IMAGE_SIZE: Record<ImageSize, { wrap: string; img: string }> = {
+  sm: { wrap: "w-fit", img: "max-h-32" }, //  8rem
+  md: { wrap: "w-fit", img: "max-h-56" }, // 14rem — tamaño histórico
+  lg: { wrap: "w-fit", img: "max-h-96" }, // 24rem
+  full: { wrap: "w-full", img: "w-full" }, // ancho de la tarjeta
+};
+
+function helpImageCls(size?: ImageSize) {
+  return HELP_IMAGE_SIZE[size ?? "md"];
 }
 
 /** Imagen de ayuda (pregunta u opción). Clickeable para verla en grande. */

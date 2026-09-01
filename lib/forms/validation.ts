@@ -35,7 +35,13 @@ export function fieldZod(field: Field, locale = "es"): z.ZodTypeAny {
       let n = z.coerce.number();
       if (v.min != null) n = n.min(v.min);
       if (v.max != null) n = n.max(v.max);
-      return req ? n : n.optional();
+      // Un campo que se llenó y después se borró llega como "" o null, no como
+      // `undefined`, y `z.coerce.number()` los convierte en 0. Sin este
+      // pre-tratamiento el 0 se cuela por los dos lados: un opcional vacío
+      // fallaría contra cualquier `min` mayor que 0, y un requerido vacío
+      // PASARÍA haciéndose pasar por un 0 legítimo.
+      const blank = (x: unknown) => (x === "" || x === null ? undefined : x);
+      return req ? z.preprocess(blank, n) : z.preprocess(blank, n.optional());
     }
     case "date": {
       const s = z.string();

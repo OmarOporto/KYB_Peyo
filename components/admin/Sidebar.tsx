@@ -22,7 +22,10 @@ export function Sidebar({ email }: { email: string }) {
   ];
 
   return (
-    <aside className="flex flex-col border-b border-border bg-surface md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:self-start md:overflow-y-auto md:border-r md:border-b-0">
+    <aside
+      data-no-print
+      className="flex flex-col border-b border-border bg-surface md:sticky md:top-0 md:h-screen md:w-64 md:shrink-0 md:self-start md:overflow-y-auto md:border-r md:border-b-0"
+    >
       <div className="flex items-center border-b border-border px-4 py-4">
         <Link href="/admin" aria-label="Peyo">
           <Brand size="lg" />

@@ -3,6 +3,12 @@
 import { useState, type ChangeEvent } from "react";
 import { useTranslations } from "next-intl";
 import { uploadFormImageAction } from "@/app/admin/(dash)/forms/actions";
+import type { ImageSize } from "@/lib/forms/definition";
+
+// Mismas clases que `smallInput` del builder (FormBuilder.tsx), duplicadas
+// porque aquella es una constante local no exportada.
+const smallSelect =
+  "rounded-lg border border-border bg-surface px-2 py-1 text-xs text-foreground outline-none focus:border-brand focus:ring-2 focus:ring-brand/30";
 
 /** Control de subida de imagen de ayuda (usado en el builder). */
 export function ImageUpload({
@@ -10,11 +16,18 @@ export function ImageUpload({
   onChange,
   label,
   size = "md",
+  imageSize,
+  onImageSizeChange,
 }: {
   value?: string;
   onChange: (url?: string) => void;
   label?: string;
+  /** Tamaño de la MINIATURA del editor. No es lo que ve el solicitante. */
   size?: "sm" | "md";
+  /** Tamaño con el que se renderiza la imagen AL SOLICITANTE. */
+  imageSize?: ImageSize;
+  /** Si se pasa, se muestra el selector de tamaño. */
+  onImageSizeChange?: (s: ImageSize) => void;
 }) {
   const t = useTranslations("builder");
   const [busy, setBusy] = useState(false);
@@ -63,6 +76,21 @@ export function ImageUpload({
           >
             {t("removeImage")}
           </button>
+          {onImageSizeChange && (
+            <label className="ml-auto flex items-center gap-1.5 text-xs text-muted">
+              {t("imageSize")}
+              <select
+                className={smallSelect}
+                value={imageSize ?? "md"}
+                onChange={(e) => onImageSizeChange(e.target.value as ImageSize)}
+              >
+                <option value="sm">{t("imageSizeSm")}</option>
+                <option value="md">{t("imageSizeMd")}</option>
+                <option value="lg">{t("imageSizeLg")}</option>
+                <option value="full">{t("imageSizeFull")}</option>
+              </select>
+            </label>
+          )}
         </div>
       ) : (
         <label className="inline-flex cursor-pointer items-center gap-2">
