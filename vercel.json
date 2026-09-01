@@ -1,4 +1,10 @@
 {
+  "functions": {
+    "app/api/admin/requests/[id]/report/route.ts": {
+      "memory": 1024,
+      "maxDuration": 120
+    }
+  },
   "crons": [
     { "path": "/api/cron/expire-requests", "schedule": "0 3 * * *" },
     { "path": "/api/cron/deliver-webhooks", "schedule": "* * * * *" }

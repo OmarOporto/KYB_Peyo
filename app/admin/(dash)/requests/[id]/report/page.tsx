@@ -6,7 +6,7 @@ import { getAnalyst } from "@/lib/auth/admin";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DocPreview } from "@/components/admin/DocPreview";
-import { PrintButton } from "@/components/admin/PrintButton";
+import { ReportActions } from "@/components/admin/ReportActions";
 import { ReportCheckBlock } from "@/components/admin/ReportCheckBlock";
 import type { CheckImage } from "@/components/admin/checkParts";
 import { amlToBadge, scorePct, type AmlCheckRow } from "@/lib/didit/summary";
@@ -162,7 +162,7 @@ export default async function RequestReport({
         <Link href={`/admin/requests/${id}`} className="text-sm text-brand hover:underline">
           ← {tCommon("back")}
         </Link>
-        <PrintButton />
+        <ReportActions requestId={id} />
       </div>
 
       {/* Portada */}
