@@ -147,17 +147,18 @@ input[type="number"] {
     print-color-adjust: exact;
   }
 
-  /* Cromo de la app: sidebar, barras de acciones, botones. */
-  [data-no-print] {
-    display: none !important;
-  }
-
   /* Chrome fragmenta mal dentro de contenedores flex: IGNORA el break-inside
      de los descendientes. El informe cuelga del layout (dash), que es flex con
      el contenido en un flex-1, así que en papel lo aplanamos a bloque. Sin
-     esto, ninguna de las reglas de abajo tiene efecto. */
+     esto, ninguna de las reglas de abajo tiene efecto.
+
+     El `:not([data-no-print])` no es decorativo: el sidebar es hijo DIRECTO de
+     [data-print-shell] y este `display: block !important` empataba en
+     especificidad con el `display: none !important` de abajo. Al empatar gana
+     la última regla, así que el menú volvía a imprimirse — y aplanado a bloque
+     salía ANTES del contenido, encabezando el PDF. */
   [data-print-shell],
-  [data-print-shell] > * {
+  [data-print-shell] > *:not([data-no-print]) {
     display: block !important;
     min-height: 0 !important;
   }
@@ -219,6 +220,14 @@ input[type="number"] {
   /* El padding del contenedor se suma al margen de @page y encoge el ancho útil. */
   .print-doc {
     padding: 0;
+  }
+
+  /* Cromo de la app: sidebar, barras de acciones, botones. VA AL FINAL a
+     propósito: varias reglas de arriba usan `display: … !important` con la
+     misma especificidad (0,1,0), y entre reglas que empatan gana la última.
+     Ocultar debe ser lo último que se decide. */
+  [data-no-print] {
+    display: none !important;
   }
 
   @page {
