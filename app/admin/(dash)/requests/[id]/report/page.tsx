@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getAnalyst } from "@/lib/auth/admin";
+import { Brand } from "@/components/Brand";
 import { Card } from "@/components/ui/Card";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DocPreview } from "@/components/admin/DocPreview";
@@ -165,15 +166,15 @@ export default async function RequestReport({
         <ReportActions requestId={id} />
       </div>
 
-      {/* Portada */}
+      {/* Portada. El título del documento es el informe; la referencia de la
+          solicitud es su subtítulo, no al revés. */}
       <header className="print-block mb-6 border-b border-border pb-4">
-        <p className="text-xs font-semibold uppercase tracking-wide text-muted">
+        <Brand size="md" />
+        <h1 className="mt-2 font-display text-2xl font-bold text-foreground">
           {tR("title")}
-        </p>
+        </h1>
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            {String(req.external_ref ?? id)}
-          </h1>
+          <p className="font-medium text-foreground">{String(req.external_ref ?? id)}</p>
           <StatusBadge status={String(req.status)} />
         </div>
         <p className="mt-1 text-xs text-muted">ID: {id}</p>
