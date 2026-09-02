@@ -20,7 +20,15 @@ export function ReportActions({ requestId }: { requestId: string }) {
     setError(null);
     try {
       const res = await fetch(`/api/admin/requests/${requestId}/report`);
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      if (!res.ok) {
+        // El handler manda el motivo en el cuerpo; sin esto solo se veía
+        // "HTTP 500" y había que ir a los logs para saber qué pasó.
+        const body = (await res.json().catch(() => null)) as {
+          error?: string;
+          message?: string;
+        } | null;
+        throw new Error(body?.message ?? body?.error ?? `HTTP ${res.status}`);
+      }
 
       // El nombre lo decide el servidor en el Content-Disposition; se lee de ahí
       // para no duplicar la convención en el cliente.
@@ -38,7 +46,9 @@ export function ReportActions({ requestId }: { requestId: string }) {
       URL.revokeObjectURL(href);
     } catch (e) {
       console.error("[report] download failed", e);
-      setError(t("downloadError"));
+      // Panel interno: mostrar el detalle técnico ahorra una vuelta por los logs.
+      const detail = e instanceof Error ? e.message : null;
+      setError(detail ? `${t("downloadError")} (${detail})` : t("downloadError"));
     } finally {
       setBusy(false);
     }

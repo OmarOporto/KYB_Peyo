@@ -15,6 +15,19 @@ const SECURITY_HEADERS = [
 ];
 
 const nextConfig: NextConfig = {
+  // El binario de Chromium para el PDF del informe vive en archivos brotli
+  // (`bin/*.br`) que `@sparticuz/chromium` descomprime a /tmp en la primera
+  // llamada. El file tracing solo sigue imports, así que trazaba los .js del
+  // paquete pero ninguno de los .br, y en producción la función fallaba con
+  // «The input directory ".../bin" does not exist».
+  //
+  // La clave es un glob de picomatch contra la ruta: los corchetes de `[id]`
+  // van escapados o se leerían como una clase de caracteres y no matchearía.
+  outputFileTracingIncludes: {
+    "/api/admin/requests/\\[id\\]/report": [
+      "./node_modules/@sparticuz/chromium/bin/**",
+    ],
+  },
   experimental: {
     serverActions: {
       // El default de Next es 1 MB. Subir el submit, el autosave y las subidas
