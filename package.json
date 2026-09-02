@@ -13,6 +13,7 @@
     "db:push": "supabase db push",
     "seed:admin": "node scripts/seed-admin.mjs",
     "didit:pull": "node scripts/didit-pull.mjs",
+    "logs": "node scripts/vercel-logs.mjs",
     "i18n:eval": "node scripts/i18n-eval.mjs",
     "prepare": "husky || true"
   },
