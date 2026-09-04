@@ -1,7 +1,10 @@
 import Link from "next/link";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
+import { createServiceClient } from "@/lib/supabase/service";
 import { Card } from "@/components/ui/Card";
+import { ClickableRow } from "@/components/admin/ClickableRow";
+import { OriginBadge } from "@/components/admin/OriginBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { KybStatus } from "@/lib/kyb/types";
 import { RequestsToolbar } from "./RequestsToolbar";
@@ -25,11 +28,30 @@ function isStatus(v: string | undefined): v is KybStatus {
   return !!v && (STATUSES as string[]).includes(v);
 }
 
-/** Separa "public:b25a49e5" en prefijo/código; refs sin ":" quedan solo como código. */
-function parseRef(ref: string): { prefix: string | null; code: string } {
-  const i = ref.indexOf(":");
-  if (i === -1) return { prefix: null, code: ref };
-  return { prefix: ref.slice(0, i), code: ref.slice(i + 1) };
+const PUBLIC_PREFIX = "public:";
+
+/**
+ * Los intakes web llevan el prefijo `public:` (ver `startPublicIntake`), que el
+ * badge de origen ya comunica. Las refs de la API son texto libre del cliente y
+ * se muestran enteras: pueden contener ":" y recortarlas escondería parte.
+ */
+function displayRef(ref: string, api: boolean): string {
+  if (api || !ref.startsWith(PUBLIC_PREFIX)) return ref;
+  return ref.slice(PUBLIC_PREFIX.length);
+}
+
+/**
+ * Etiqueta de los clientes dueños de las solicitudes de esta página. `api_keys`
+ * no tiene políticas RLS (solo service-role), así que no se puede leer con el
+ * cliente de sesión ni con un join embebido — igual que en /admin/clients.
+ */
+async function clientLabels(keyIds: string[]): Promise<Map<string, string>> {
+  if (keyIds.length === 0) return new Map();
+  const { data } = await createServiceClient()
+    .from("api_keys")
+    .select("id, label")
+    .in("id", keyIds);
+  return new Map((data ?? []).map((k) => [k.id as string, k.label as string]));
 }
 
 /** Query string preservando filtros, para los enlaces de paginación. */
@@ -75,7 +97,9 @@ export default async function AdminHome({
   const supabase = await createServerSupabase();
   let query = supabase
     .from("kyb_requests")
-    .select("id, external_ref, status, created_at", { count: "exact" });
+    .select("id, external_ref, status, created_at, api_key_id", {
+      count: "exact",
+    });
 
   if (q) query = query.ilike("external_ref", `%${q}%`);
   if (status) query = query.eq("status", status);
@@ -94,6 +118,11 @@ export default async function AdminHome({
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
   const rows = requests ?? [];
+  const labels = await clientLabels([
+    ...new Set(
+      rows.map((r) => r.api_key_id).filter((id): id is string => Boolean(id)),
+    ),
+  ]);
 
   return (
     <main className="mx-auto w-full max-w-5xl p-6">
@@ -111,27 +140,35 @@ export default async function AdminHome({
                 <th className="px-4 py-2.5 font-medium">{t("company")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("status")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("created")}</th>
-                <th className="px-4 py-2.5"></th>
               </tr>
             </thead>
             <tbody>
               {rows.map((r) => {
-                const { prefix, code } = parseRef(r.external_ref);
+                const client = r.api_key_id ? labels.get(r.api_key_id) : null;
+                const api = Boolean(r.api_key_id);
                 return (
-                  <tr
-                    key={r.id}
-                    className="border-t border-border transition-colors hover:bg-surface-2"
-                  >
+                  <ClickableRow key={r.id} href={`/admin/requests/${r.id}`}>
                     <td className="px-4 py-2.5">
                       <span className="flex items-center gap-2">
-                        {prefix && (
-                          <span className="rounded-full bg-surface-2 px-2 py-0.5 text-xs font-medium text-muted">
-                            {prefix}
-                          </span>
-                        )}
-                        <span className="font-mono font-medium text-foreground">
-                          {code}
-                        </span>
+                        <OriginBadge
+                          api={api}
+                          label={
+                            api
+                              ? client
+                                ? `${t("originApi")} · ${client}`
+                                : t("originApi")
+                              : t("originWeb")
+                          }
+                        />
+                        {/* La fila entera navega, pero el enlace real es lo que
+                            la hace accesible: foco por teclado y abrir en
+                            pestaña nueva. */}
+                        <Link
+                          href={`/admin/requests/${r.id}`}
+                          className="rounded font-mono font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                        >
+                          {displayRef(r.external_ref, api)}
+                        </Link>
                       </span>
                     </td>
                     <td className="px-4 py-2.5">
@@ -143,20 +180,12 @@ export default async function AdminHome({
                         timeStyle: "short",
                       })}
                     </td>
-                    <td className="px-4 py-2.5 text-right">
-                      <Link
-                        href={`/admin/requests/${r.id}`}
-                        className="font-medium text-brand hover:underline"
-                      >
-                        {t("review")} →
-                      </Link>
-                    </td>
-                  </tr>
+                  </ClickableRow>
                 );
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted">
+                  <td colSpan={3} className="px-4 py-8 text-center text-muted">
                     {hasFilters ? t("noResults") : t("noRequests")}
                   </td>
                 </tr>

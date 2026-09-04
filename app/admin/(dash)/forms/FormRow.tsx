@@ -1,40 +1,12 @@
 "use client";
 
-import { useRef, useState, type ReactNode } from "react";
+import { useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
 import { useFormStatus } from "react-dom";
 import { ConfirmModal } from "@/components/ui/ConfirmModal";
 import { archiveForm, deleteForm, duplicateForm, formUsage, type FormUsage } from "./actions";
 import { formActionError } from "./formErrors";
-
-/**
- * Fila de la tabla de formularios: toda la fila navega al editor. El nombre
- * sigue siendo un <Link> real (foco, teclado, abrir en pestaña nueva) y este
- * handler solo añade la comodidad de clicar en cualquier parte de la fila,
- * ignorando los clics que caen sobre otro control (p. ej. Duplicar).
- */
-export function FormRow({
-  href,
-  children,
-}: {
-  href: string;
-  children: ReactNode;
-}) {
-  const router = useRouter();
-
-  return (
-    <tr
-      onClick={(e) => {
-        if ((e.target as HTMLElement).closest("a,button,input,label")) return;
-        router.push(href);
-      }}
-      className="cursor-pointer border-t border-border transition-colors hover:bg-surface-2"
-    >
-      {children}
-    </tr>
-  );
-}
 
 // Los tres botones de acción comparten el mismo chip para que la columna no
 // parezca tres controles distintos.

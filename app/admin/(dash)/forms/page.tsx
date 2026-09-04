@@ -3,6 +3,7 @@ import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { isAdmin } from "@/lib/auth/admin";
 import { Card } from "@/components/ui/Card";
+import { ClickableRow } from "@/components/admin/ClickableRow";
 import {
   countFields,
   type FormDefinition,
@@ -10,7 +11,6 @@ import {
 } from "@/lib/forms/definition";
 import { FormsToolbar } from "./FormsToolbar";
 import {
-  FormRow,
   ArchiveFormButton,
   DeleteFormButton,
   DuplicateFormButton,
@@ -80,7 +80,7 @@ export default async function FormsList({
             </thead>
             <tbody>
               {forms.map((f) => (
-                <FormRow key={f.id} href={`/admin/forms/${f.id}/edit`}>
+                <ClickableRow key={f.id} href={`/admin/forms/${f.id}/edit`}>
                   <td className="px-4 py-2.5">
                     <Link
                       href={`/admin/forms/${f.id}/edit`}
@@ -116,7 +116,7 @@ export default async function FormsList({
                       {admin && <DeleteFormButton id={f.id} name={f.name} />}
                     </div>
                   </td>
-                </FormRow>
+                </ClickableRow>
               ))}
               {forms.length === 0 && (
                 <tr>
