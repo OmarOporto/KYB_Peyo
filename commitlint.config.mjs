@@ -14,6 +14,20 @@
 // avisa con import/no-anonymous-default-export si se exporta el objeto literal.
 const config = {
   extends: ["@commitlint/config-conventional"],
+
+  // Todos los commits del repo arrancan con el tag `[KYB]` (ver AGENTS.md). El
+  // parser de Conventional Commits espera `type(scope): subject` al principio
+  // de la línea, así que sin este override el tag se come el type y commitlint
+  // rebota con type-empty/subject-empty. Sólo se le antepone el prefijo al
+  // patrón por defecto; el resto (scope opcional, `!` de breaking change) queda
+  // igual.
+  parserPreset: {
+    parserOpts: {
+      headerPattern: /^\[KYB\] (\w*)(?:\((.*)\))?!?: (.*)$/,
+      headerCorrespondence: ["type", "scope", "subject"],
+    },
+  },
+
   rules: {
     "type-enum": [
       2,
@@ -55,9 +69,10 @@ const config = {
       ],
     ],
 
-    // 72 en vez de los 100 del preset. El detalle va al cuerpo, que no tiene
+    // 78 = los 72 de antes + los 6 que ocupa `[KYB] `, para que el tag no le
+    // recorte presupuesto al subject. El detalle va al cuerpo, que no tiene
     // ese límite.
-    "header-max-length": [2, "always", 72],
+    "header-max-length": [2, "always", 78],
 
     // Apagada. El default prohíbe subject en sentence-case, pero el vocabulario
     // de dominio suele estar lleno de nombres propios y siglas (DIDIT, AML, KYB)
