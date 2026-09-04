@@ -588,6 +588,8 @@
   },
   "report": {
     "title": "Verification report",
+    "coverSubtitle": "Report",
+    "requestLabel": "Request",
     "open": "Report",
     "download": "Download PDF",
     "downloading": "Generating…",

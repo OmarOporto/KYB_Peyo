@@ -204,17 +204,23 @@ input[type="number"] {
     break-before: page;
   }
 
-  /* En papel las tarjetas sobran: una caja con borde cortada por el margen de
-     la hoja se ve rota. El contenido fluye bajo su título. */
-  .print-flat {
-    border: 0;
-    border-radius: 0;
-    box-shadow: none;
-    background: transparent;
-    padding: 0;
-    /* Un `overflow: hidden` vuelve la caja monolítica al fragmentar en Chrome:
-       en vez de continuar en la página siguiente, RECORTA el contenido. */
+  /* Un `overflow: hidden` vuelve la caja monolítica al fragmentar en Chrome: en
+     vez de continuar en la página siguiente, RECORTA el contenido. Le pasaba a
+     la tarjeta de la tabla resumen, que perdía filas. */
+  .print-overflow-visible {
     overflow: visible;
+  }
+
+  /* Portada a sangre. Los márgenes negativos compensan los del @page para que
+     el azul llegue al borde del papel; la altura es la de una A4 completa menos
+     lo que ya ocupan esos márgenes. */
+  .report-cover {
+    margin: -14mm -12mm 0;
+    padding: 18mm 16mm;
+    height: 297mm;
+    background: linear-gradient(160deg, #081736 0%, #0f2f7a 55%, #2463eb 100%);
+    break-after: page;
+    box-sizing: border-box;
   }
 
   /* El padding del contenedor se suma al margen de @page y encoge el ancho útil. */

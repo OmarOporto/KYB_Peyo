@@ -10,7 +10,14 @@ import { DocPreview } from "@/components/admin/DocPreview";
 import { ReportActions } from "@/components/admin/ReportActions";
 import { ReportCheckBlock } from "@/components/admin/ReportCheckBlock";
 import type { CheckImage } from "@/components/admin/checkParts";
-import { amlToBadge, scorePct, type AmlCheckRow } from "@/lib/didit/summary";
+import { ReportCover } from "@/components/admin/ReportCover";
+import { ReportSectionHeader } from "@/components/admin/ReportSectionHeader";
+import {
+  amlToBadge,
+  scorePct,
+  subjectName,
+  type AmlCheckRow,
+} from "@/lib/didit/summary";
 import { createSignedDocUrls } from "@/lib/kyb/service";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { isAnswered, reachableSections, visibleFields } from "@/lib/forms/logic";
@@ -153,6 +160,10 @@ export default async function RequestReport({
   };
 
   const req = request as Record<string, unknown>;
+  const externalRef = String(req.external_ref ?? id);
+  // Título del documento: el nombre que traen las verificaciones y, si ninguna
+  // lo trae, la referencia de la solicitud.
+  const subject = subjectName(checks) ?? externalRef;
 
   return (
     <main className="print-doc mx-auto w-full max-w-3xl p-6">
@@ -166,18 +177,30 @@ export default async function RequestReport({
         <ReportActions requestId={id} />
       </div>
 
-      {/* Portada. El título del documento es el informe; la referencia de la
-          solicitud es su subtítulo, no al revés. */}
+      {/* Carátula a sangre, solo en el PDF. */}
+      <ReportCover
+        subject={subject}
+        externalRef={externalRef}
+        requestId={id}
+        status={String(req.status)}
+        checks={checks}
+      />
+
+      {/* Cabecera del documento. En pantalla es lo primero que se ve; en el PDF
+          va después de la carátula, abriendo la página de datos. */}
+      {/* Sin `break-before`: el `break-after` de la carátula ya abre esta página. */}
       <header className="print-block mb-6 border-b border-border pb-4">
         <Brand size="md" />
         <h1 className="mt-2 font-display text-2xl font-bold text-foreground">
           {tR("title")}
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <p className="font-medium text-foreground">{String(req.external_ref ?? id)}</p>
+          <p className="font-medium text-foreground">{subject}</p>
           <StatusBadge status={String(req.status)} />
         </div>
-        <p className="mt-1 text-xs text-muted">ID: {id}</p>
+        <p className="mt-1 text-xs text-muted">
+          {tR("requestLabel")}: {externalRef} · {id}
+        </p>
 
         <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
           {definition && (
@@ -214,13 +237,13 @@ export default async function RequestReport({
       </header>
 
       {/* Resumen de verificaciones */}
-      <ReportSection title={tR("checksSummary")}>
+      <ReportSection title={tR("checksSummary")} subject={subject}>
         {checks.length === 0 ? (
           <p className="text-sm text-muted">{t("noChecks")}</p>
         ) : (
           // Sin `print-block`: una tabla larga debe poder cortarse entre
           // páginas (el navegador repite el thead), no saltar entera.
-          <Card className="print-flat overflow-hidden">
+          <Card className="print-overflow-visible overflow-hidden">
             <table className="w-full text-left text-sm">
               <thead className="bg-surface-2 text-xs uppercase tracking-wide text-muted">
                 <tr>
@@ -251,54 +274,52 @@ export default async function RequestReport({
           En papel cada sección abre página: el salto va en el <h2> (para que no
           quede huérfano al pie de la página anterior) y en cada sección MENOS la
           primera, que ya arranca con ese salto. */}
-      <ReportSection title={tR("answers")} className="print-page">
+      <ReportSection title={tR("answers")} subject={subject} className="print-page">
         {groups.length === 0 && otherAnswers.length === 0 && (
           <p className="text-sm text-muted">{tR("noAnswers")}</p>
         )}
         <div className="space-y-4">
           {groups.map((g, gi) => (
-            <Card key={gi} className={`print-flat p-4 ${gi > 0 ? "print-page" : ""}`}>
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-muted">
-                {g.title}
-                {/* Encabezado de hoja: una página suelta del expediente sigue
-                    siendo identificable. */}
-                <span className="hidden print:inline"> · {String(req.external_ref ?? id)}</span>
-              </h3>
-              <div className="space-y-4">
-                {g.fields.map((f) => (
-                  <div key={f.id} className="print-block">
-                    <p className="text-xs text-muted">
-                      {resolveText(f.label, locale) || f.key}
-                    </p>
-                    <div className="mt-0.5 break-words text-sm text-foreground">
-                      <AnswerValue
-                        field={f}
-                        value={formData[f.key]}
-                        locale={locale}
-                        signedUrls={signedUrls}
-                      />
+            <div key={gi} className={gi > 0 ? "print-page" : ""}>
+              {/* La cabecera identifica la hoja: cada sección abre página. */}
+              <ReportSectionHeader title={g.title} subject={subject} />
+              <Card className="p-4">
+                <div className="space-y-4">
+                  {g.fields.map((f) => (
+                    <div key={f.id} className="print-block">
+                      <p className="text-xs text-muted">
+                        {resolveText(f.label, locale) || f.key}
+                      </p>
+                      <div className="mt-0.5 break-words text-sm text-foreground">
+                        <AnswerValue
+                          field={f}
+                          value={formData[f.key]}
+                          locale={locale}
+                          signedUrls={signedUrls}
+                        />
+                      </div>
+                      {(checksByKey.get(f.key) ?? []).map((c) => (
+                        <ReportCheckBlock
+                          key={c.id}
+                          check={c}
+                          image={imageForKey(f.key)}
+                          refImages={(f.review?.refKeys ?? [])
+                            .map((k) => imageForKey(k))
+                            .filter((im): im is CheckImage => Boolean(im))}
+                        />
+                      ))}
                     </div>
-                    {(checksByKey.get(f.key) ?? []).map((c) => (
-                      <ReportCheckBlock
-                        key={c.id}
-                        check={c}
-                        image={imageForKey(f.key)}
-                        refImages={(f.review?.refKeys ?? [])
-                          .map((k) => imageForKey(k))
-                          .filter((im): im is CheckImage => Boolean(im))}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
-            </Card>
+                  ))}
+                </div>
+              </Card>
+            </div>
           ))}
         </div>
       </ReportSection>
 
       {/* Verificaciones sin pregunta mostrada (típico: kyb_registry manual) */}
       {orphanChecks.length > 0 && (
-        <ReportSection title={tR("otherChecks")} className="print-page">
+        <ReportSection title={tR("otherChecks")} subject={subject} className="print-page">
           {orphanChecks.map((c) => (
             <div key={c.id} className="print-block">
               {c.field_key && (
@@ -323,8 +344,8 @@ export default async function RequestReport({
 
       {/* Red de seguridad: nada contestado se pierde del informe */}
       {otherAnswers.length > 0 && (
-        <ReportSection title={tR("otherAnswers")} className="print-page">
-          <Card className="print-flat print-block p-4">
+        <ReportSection title={tR("otherAnswers")} subject={subject} className="print-page">
+          <Card className="print-block p-4">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
               {otherAnswers.map(([k, v]) => {
                 const field = fieldByKey.get(k);
@@ -354,7 +375,7 @@ export default async function RequestReport({
       )}
 
       {orphanDocs.length > 0 && (
-        <ReportSection title={tR("otherDocuments")} className="print-page">
+        <ReportSection title={tR("otherDocuments")} subject={subject} className="print-page">
           <div className="print-block flex flex-wrap gap-4 text-sm">
             {orphanDocs.map((d) => (
               <div key={d.id}>
@@ -440,19 +461,20 @@ function AnswerValue({
 
 function ReportSection({
   title,
+  subject,
   children,
   className = "",
 }: {
   title: string;
+  /** Identifica la hoja cuando la sección abre página. */
+  subject: string;
   children: React.ReactNode;
   /** Para el salto de página en impresión (`print-page`). */
   className?: string;
 }) {
   return (
     <section className={`mb-6 ${className}`}>
-      <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted">
-        {title}
-      </h2>
+      <ReportSectionHeader title={title} subject={subject} />
       {children}
     </section>
   );

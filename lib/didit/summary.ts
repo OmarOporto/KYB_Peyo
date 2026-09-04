@@ -199,6 +199,28 @@ export function kybCompare(
   return out;
 }
 
+/**
+ * Nombre del sujeto del informe: el del documento de identidad o, para KYB, la
+ * razón social del registro. Devuelve `null` si ninguna verificación lo trae, y
+ * entonces la portada cae a la referencia de la solicitud.
+ */
+export function subjectName(checks: AmlCheckRow[]): string | null {
+  for (const c of checks) {
+    if (c.feature !== "id_verification") continue;
+    const name = fmt(nodeOf(c.feature, c.result)?.full_name);
+    if (name) return name;
+  }
+  for (const c of checks) {
+    if (c.feature !== "kyb_registry") continue;
+    const envl = envelopeOf(c.result);
+    // El perfil oficial manda; si el ciclo no llegó al select, sirve lo declarado.
+    const official = fmt(nodeOf(c.feature, c.result)?.company_name);
+    const declared = fmt((envl.declared as Node | undefined)?.name);
+    if (official || declared) return official || declared;
+  }
+  return null;
+}
+
 /** Normaliza un score a 0–100 (DIDIT devuelve 0–1 en unas features y 0–100 en otras). */
 export function scorePct(value: number): number {
   return Math.max(0, Math.min(100, value <= 1 ? value * 100 : value));

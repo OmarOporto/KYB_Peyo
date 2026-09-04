@@ -13,6 +13,20 @@ import { env } from "@/lib/env";
  * globals.css sigue siendo la única fuente de verdad de la impresión.
  */
 
+/** Debe coincidir con el `@page` de app/globals.css (ver comentario en `page.pdf`). */
+const PAGE_MARGIN = { top: "14mm", right: "12mm", bottom: "14mm", left: "12mm" };
+
+/**
+ * Pie con la numeración. La plantilla se renderiza en un contexto aparte: no
+ * hereda ni la hoja de estilos ni el tamaño de fuente de la página, así que todo
+ * va en línea (el default de Chrome es ilegible, ~6px). `pageNumber` y
+ * `totalPages` son clases que Chrome rellena.
+ */
+const FOOTER_TEMPLATE = `
+  <div style="width:100%;padding:0 12mm;font-family:system-ui,sans-serif;font-size:8pt;color:#94a3b8;">
+    <div style="text-align:right;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>
+  </div>`;
+
 /**
  * Chrome del sistema, para desarrollo. `@sparticuz/chromium` trae un binario de
  * Linux pensado para serverless, así que en una máquina de trabajo se usa el
@@ -93,10 +107,24 @@ export async function renderPdf(
       );
     });
 
-    // `page.pdf()` ya emula media `print`. `preferCSSPageSize` deja mandar al
-    // `@page { size: A4; margin: … }` de globals.css en vez de duplicar aquí el
-    // tamaño del papel.
-    return await page.pdf({ printBackground: true, preferCSSPageSize: true });
+    // `page.pdf()` ya emula media `print`.
+    //
+    // Con el pie de página activado Chrome reserva el margen inferior a partir
+    // de ESTAS opciones, así que el tamaño y los márgenes se fijan aquí y no con
+    // `preferCSSPageSize`: dejar el tamaño al CSS mientras el margen sale de las
+    // opciones da resultados impredecibles. El `@page` de globals.css conserva
+    // los mismos valores para que el Ctrl+P del navegador salga igual — si se
+    // cambian aquí, hay que cambiarlos allí.
+    return await page.pdf({
+      format: "A4",
+      margin: PAGE_MARGIN,
+      printBackground: true,
+      displayHeaderFooter: true,
+      // Chrome exige una cabecera si se activa el pie; va vacía a propósito: la
+      // identificación por sección se maqueta en el propio documento.
+      headerTemplate: "<span></span>",
+      footerTemplate: FOOTER_TEMPLATE,
+    });
   } finally {
     // Una instancia colgada en un entorno serverless se sigue pagando en memoria.
     await browser?.close().catch(() => {});

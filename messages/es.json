@@ -588,6 +588,8 @@
   },
   "report": {
     "title": "Informe de verificación",
+    "coverSubtitle": "Informe",
+    "requestLabel": "Solicitud",
     "open": "Informe",
     "download": "Descargar PDF",
     "downloading": "Generando…",
