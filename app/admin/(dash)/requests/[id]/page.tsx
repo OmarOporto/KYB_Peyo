@@ -12,6 +12,8 @@ import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DocPreview } from "@/components/admin/DocPreview";
+import { DocumentsPanel } from "@/components/admin/DocumentsPanel";
+import { formatBytes, type DocGroup, type DocRow } from "@/components/admin/docParts";
 import {
   AmlCheckCard,
   type AmlCheckRow,
@@ -58,8 +60,11 @@ export default async function RequestDetail({
     supabase.from("kyb_form_responses").select("data").eq("request_id", id).maybeSingle(),
     supabase
       .from("kyb_documents")
-      .select("id, doc_type, filename, storage_path, mime, uploaded_at")
-      .eq("request_id", id),
+      .select("id, doc_type, filename, storage_path, mime, size, uploaded_at")
+      .eq("request_id", id)
+      // Sin `order` Postgres devuelve un orden arbitrario: dentro de cada
+      // pregunta los archivos deben salir en el orden en que se subieron.
+      .order("uploaded_at", { ascending: true }),
     supabase
       .from("aml_checks")
       .select("id, provider, status, result, created_at, feature, field_key, score")
@@ -144,6 +149,74 @@ export default async function RequestDetail({
       ? { filename: ref.filename, path: ref.path, url: signedUrls[ref.path] }
       : undefined;
   };
+
+  // ---------- Documentos agrupados por pregunta ----------
+  // `kyb_documents.doc_type` guarda la key del campo que pidió el archivo (lo
+  // escribe `ApplicantForm` al subir), así que el join documento→pregunta es por
+  // key. Lo que no matchea —definición cambiada tras el envío, o el legacy
+  // "general"— cae en un grupo final: nada se pierde de vista.
+  //
+  // Fecha y tamaño se formatean AQUÍ, no en el panel cliente: `i18n/request.ts`
+  // no fija `timeZone`, así que hacerlo en el navegador daría una hora distinta
+  // a la del SSR y rompería la hidratación.
+  const fmtDocDate = (v: unknown): string | null => {
+    if (typeof v !== "string" || !v) return null;
+    const d = new Date(v);
+    return Number.isNaN(d.getTime())
+      ? null
+      : new Intl.DateTimeFormat(locale, {
+          dateStyle: "medium",
+          timeStyle: "short",
+        }).format(d);
+  };
+  const toDocRow = (d: {
+    id: string;
+    filename: string;
+    storage_path: string;
+    mime: string | null;
+    size: number | null;
+    uploaded_at: string | null;
+  }): DocRow => ({
+    id: d.id,
+    filename: d.filename,
+    path: d.storage_path,
+    mime: d.mime ?? null,
+    url: signedUrls[d.storage_path],
+    sizeLabel: formatBytes(d.size, locale),
+    uploadedAt: d.uploaded_at ?? null,
+    uploadedAtLabel: fmtDocDate(d.uploaded_at),
+  });
+
+  const docList = docs ?? [];
+  const docsByType = new Map<string, typeof docList>();
+  for (const d of docList) {
+    const list = docsByType.get(d.doc_type);
+    if (list) list.push(d);
+    else docsByType.set(d.doc_type, [d]);
+  }
+  const docGroups: DocGroup[] = [];
+  // `triggerByKey` se llenó recorriendo la definición en orden y un Map conserva
+  // el orden de inserción: iterarlo da el mismo orden que secciones/campos.
+  for (const [key, trigger] of triggerByKey) {
+    const list = docsByType.get(key);
+    if (!list?.length) continue;
+    docsByType.delete(key);
+    docGroups.push({
+      key,
+      question: trigger.question,
+      section: trigger.section,
+      docs: list.map(toDocRow),
+    });
+  }
+  const orphanDocs = Array.from(docsByType.values()).flat();
+  if (orphanDocs.length > 0) {
+    docGroups.push({
+      key: "__other__",
+      question: null,
+      section: null,
+      docs: orphanDocs.map(toDocRow),
+    });
+  }
 
   // ---------- Traducción de respuestas (texto libre) ----------
   // Se gatea con el opt-in del cliente DUEÑO de la solicitud: el consentimiento
@@ -249,22 +322,11 @@ export default async function RequestDetail({
 
       {/* Documentos */}
       <Section title={t("documents")}>
-        {(docs ?? []).length === 0 && (
+        {docGroups.length === 0 ? (
           <p className="text-sm text-muted">{t("noDocuments")}</p>
+        ) : (
+          <DocumentsPanel groups={docGroups} />
         )}
-        <div className="flex flex-wrap gap-4 text-sm">
-          {(docs ?? []).map((d) => (
-            <div key={d.id}>
-              <DocPreview
-                path={d.storage_path}
-                filename={d.filename}
-                url={signedUrls[d.storage_path]}
-                mime={d.mime}
-              />
-              <p className="mt-1 text-xs text-muted">{d.doc_type}</p>
-            </div>
-          ))}
-        </div>
       </Section>
 
       {/* Formulario */}

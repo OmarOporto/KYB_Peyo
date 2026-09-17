@@ -1,7 +1,7 @@
 import type { ButtonHTMLAttributes } from "react";
 
 type Variant = "primary" | "outline" | "success" | "danger" | "ghost";
-type Size = "sm" | "md";
+type Size = "sm" | "md" | "icon";
 
 const VARIANTS: Record<Variant, string> = {
   primary:
@@ -16,6 +16,8 @@ const VARIANTS: Record<Variant, string> = {
 const SIZES: Record<Size, string> = {
   sm: "px-3 py-1.5 text-sm",
   md: "px-5 py-2.5 text-sm",
+  // Botón cuadrado para un solo icono: el `aria-label` es obligatorio.
+  icon: "h-8 w-8 p-0",
 };
 
 export function Button({

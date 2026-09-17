@@ -1,12 +1,9 @@
 import { DocLink } from "./DocLink";
+import { isImagePath } from "./docParts";
 
-const IMAGE_EXT_RE = /\.(png|jpe?g|webp|gif|heic|heif|bmp|avif)$/i;
-
-/** True si el archivo parece una imagen (por mime o por extensión del nombre). */
-export function isImagePath(filename: string, mime?: string | null): boolean {
-  if (mime && mime.startsWith("image/")) return true;
-  return IMAGE_EXT_RE.test(filename);
-}
+// La clasificación de archivos vive en `docParts` para que la sección
+// «Documentos» y esta miniatura compartan el mismo criterio.
+export { isImagePath };
 
 /**
  * Muestra un documento del bucket privado: miniatura clickeable (abre en grande

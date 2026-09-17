@@ -300,7 +300,9 @@ export async function getDocUrlAction(path: string): Promise<string | null> {
   const supabase = createServiceClient();
   const { data } = await supabase.storage
     .from(DOCUMENTS_BUCKET)
-    .createSignedUrl(path, 120);
+    // 10 min y no 2: el visor de PDF pide rangos del archivo mientras se pasan
+    // páginas, y con un TTL corto el documento se corta a mitad de lectura.
+    .createSignedUrl(path, 600);
   return data?.signedUrl ?? null;
 }
 
