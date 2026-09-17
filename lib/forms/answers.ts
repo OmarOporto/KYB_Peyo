@@ -71,3 +71,16 @@ export function renderAnswer(
       return String(value);
   }
 }
+
+/**
+ * ¿La respuesta es texto libre largo? Decide tres cosas de presentación: si se
+ * respetan los saltos de línea que escribió el solicitante, si se limita la
+ * medida para que el párrafo sea legible, y si ocupa la fila entera de la
+ * rejilla de dos columnas. El umbral cubre el `short_text` que en la práctica se
+ * usó como párrafo.
+ */
+export function isLongAnswer(field: Field, value: unknown): boolean {
+  if (field.type === "file" || field.type === "selfie") return false;
+  if (field.type === "long_text") return true;
+  return typeof value === "string" && value.length > 120;
+}

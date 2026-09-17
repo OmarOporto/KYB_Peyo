@@ -8,10 +8,11 @@ import {
   translatableLocales,
   translateAnswers,
 } from "@/lib/i18n-ai/answers";
+import { ArrowLeft, FileText } from "lucide-react";
 import { Card } from "@/components/ui/Card";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { DocPreview } from "@/components/admin/DocPreview";
+import { AnswerField, AnswerValue } from "@/components/admin/answerParts";
 import { DocumentsPanel } from "@/components/admin/DocumentsPanel";
 import { formatBytes, type DocGroup, type DocRow } from "@/components/admin/docParts";
 import {
@@ -28,7 +29,7 @@ import type { KybCorrections, KybStatus } from "@/lib/kyb/types";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { isAnswered } from "@/lib/forms/logic";
 import { resolveText, type Field } from "@/lib/forms/definition";
-import { renderAnswer, fileRefsOf } from "@/lib/forms/answers";
+import { fileRefsOf, isLongAnswer } from "@/lib/forms/answers";
 
 export const dynamic = "force-dynamic";
 // Las acciones de este detalle pueden llamar a DIDIT (re-verificar, seleccionar
@@ -248,26 +249,37 @@ export default async function RequestDetail({
 
   return (
     <main className="mx-auto w-full max-w-3xl p-6">
-      <Link href="/admin" className="text-sm text-brand hover:underline">
-        ← {tCommon("back")}
+      <Link
+        href="/admin"
+        // `-ml-3` compensa el padding del botón para que el texto siga alineado
+        // con el `<h1>` de abajo.
+        className={buttonClass({ variant: "quiet", size: "sm", className: "-ml-3" })}
+      >
+        <ArrowLeft size={16} aria-hidden />
+        {tCommon("back")}
       </Link>
 
-      <header className="mt-3 mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-display text-2xl font-bold text-foreground">
-            {request.external_ref}
-          </h1>
-          <p className="text-sm text-muted">ID: {request.id}</p>
+      <header className="mt-3 mb-6 flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          {/* El estado es un atributo de la solicitud, no una acción: vive junto
+              al título y deja el lado derecho libre para lo accionable. */}
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="font-display text-2xl font-bold text-foreground">
+              {request.external_ref}
+            </h1>
+            <StatusBadge status={request.status} />
+          </div>
+          <p className="mt-0.5 text-xs text-muted">ID: {request.id}</p>
         </div>
-        <div className="flex items-center gap-3">
-          <Link
-            href={`/admin/requests/${id}/report`}
-            className="text-sm text-brand hover:underline"
-          >
-            {tReport("open")} →
-          </Link>
-          <StatusBadge status={request.status} />
-        </div>
+        {/* `outline` y no `primary`: las acciones primarias de la página
+            (Aprobar/Rechazar) son success/danger y están más abajo. */}
+        <Link
+          href={`/admin/requests/${id}/report`}
+          className={buttonClass({ variant: "outline", size: "sm" })}
+        >
+          <FileText size={16} aria-hidden />
+          {tReport("open")}
+        </Link>
       </header>
 
       {/* AML */}
@@ -382,7 +394,7 @@ export default async function RequestDetail({
                       {resolveText(s.title, locale)} ·{" "}
                       {t("unanswered", { count: empty.length })}
                     </summary>
-                    <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                    <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                       {empty.map((f) => (
                         <FieldRow
                           key={f.id}
@@ -403,7 +415,7 @@ export default async function RequestDetail({
                   <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">
                     {resolveText(s.title, locale)}
                   </h3>
-                  <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                  <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                     {answered.map((f) => (
                       <FieldRow
                         key={f.id}
@@ -420,7 +432,7 @@ export default async function RequestDetail({
                       <summary className="cursor-pointer text-xs text-muted hover:text-foreground">
                         {t("unanswered", { count: empty.length })}
                       </summary>
-                      <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+                      <dl className="mt-2 grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
                         {empty.map((f) => (
                           <FieldRow
                             key={f.id}
@@ -440,14 +452,11 @@ export default async function RequestDetail({
           </div>
         ) : (
           <Card className="p-4">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
               {Object.entries(formData).map(([k, v]) => (
-                <div key={k} className="border-b border-border pb-1">
-                  <dt className="text-muted">{k}</dt>
-                  <dd className="break-words text-foreground">
-                    {typeof v === "object" ? JSON.stringify(v) : String(v)}
-                  </dd>
-                </div>
+                <AnswerField key={k} className="border-b border-border pb-2" label={k}>
+                  {typeof v === "object" ? JSON.stringify(v) : String(v)}
+                </AnswerField>
               ))}
             </dl>
           </Card>
@@ -537,54 +546,21 @@ function FieldRow({
   translated?: string;
 }) {
   return (
-    <div className="border-b border-border pb-1">
-      <dt className="text-muted">{resolveText(field.label, locale) || field.key}</dt>
-      <dd className="break-words text-foreground">
-        <AnswerValue
-          field={field}
-          value={value}
-          locale={locale}
-          signedUrls={signedUrls}
-        />
-        {/* El original queda como valor principal: es el registro de lo que
-            declaró el solicitante. La traducción es una ayuda de lectura. */}
-        {translated && (
-          <span className="mt-0.5 block text-xs italic text-muted">{translated}</span>
-        )}
-      </dd>
-    </div>
+    <AnswerField
+      className="border-b border-border pb-2"
+      label={resolveText(field.label, locale) || field.key}
+      long={isLongAnswer(field, value)}
+      footer={
+        // El original queda como valor principal: es el registro de lo que
+        // declaró el solicitante. La traducción es una ayuda de lectura.
+        translated ? (
+          <p className="mt-1 text-xs italic leading-relaxed text-muted">{translated}</p>
+        ) : null
+      }
+    >
+      <AnswerValue field={field} value={value} locale={locale} signedUrls={signedUrls} />
+    </AnswerField>
   );
-}
-
-/** Renderiza la respuesta de un campo: miniaturas para file/selfie, texto para el resto. */
-function AnswerValue({
-  field,
-  value,
-  locale,
-  signedUrls,
-}: {
-  field: Field;
-  value: unknown;
-  locale: string;
-  signedUrls: Record<string, string>;
-}) {
-  if (field.type === "file" || field.type === "selfie") {
-    const refs = fileRefsOf(value);
-    if (refs.length === 0) return <>—</>;
-    return (
-      <div className="mt-1 flex flex-wrap gap-2">
-        {refs.map((r, i) => (
-          <DocPreview
-            key={i}
-            path={r.path}
-            filename={r.filename}
-            url={signedUrls[r.path]}
-          />
-        ))}
-      </div>
-    );
-  }
-  return <>{renderAnswer(field, value, locale)}</>;
 }
 
 function Section({

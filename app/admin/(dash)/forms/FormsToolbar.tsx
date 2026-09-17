@@ -3,7 +3,7 @@
 import { useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
-import { Button } from "@/components/ui/Button";
+import { Button, buttonClass } from "@/components/ui/Button";
 import { createForm, importFormJson } from "./actions";
 
 export function FormsToolbar({ showArchived = false }: { showArchived?: boolean }) {
@@ -45,7 +45,7 @@ export function FormsToolbar({ showArchived = false }: { showArchived?: boolean 
           que el enlace sea compartible y el back del navegador funcione. */}
       <Link
         href={showArchived ? "/admin/forms" : "/admin/forms?archived=1"}
-        className="ml-auto rounded-lg px-3 py-1.5 text-sm font-medium text-muted outline-none transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/30"
+        className={buttonClass({ variant: "quiet", size: "sm", className: "ml-auto" })}
       >
         {showArchived ? t("showActive") : t("showArchived")}
       </Link>

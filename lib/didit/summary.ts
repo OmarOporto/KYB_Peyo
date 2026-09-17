@@ -50,13 +50,18 @@ export function envelopeOf(result: unknown): Node {
   return result && typeof result === "object" ? (result as Node) : {};
 }
 
+/**
+ * Estado del check → clave de badge. `error` tiene tono propio (`failed`): un
+ * check que reventó no es una solicitud expirada, y con el gris neutro se leía
+ * igual que un `created`.
+ */
 export function amlToBadge(status: string): string {
   return status === "passed"
     ? "approved"
     : status === "flagged"
       ? "rejected"
       : status === "error"
-        ? "expired"
+        ? "failed"
         : "under_review";
 }
 

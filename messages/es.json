@@ -328,7 +328,8 @@
     "changes_requested": "Correcciones solicitadas",
     "approved": "Aprobada",
     "rejected": "Rechazada",
-    "expired": "Expirada"
+    "expired": "Expirada",
+    "failed": "Con error"
   },
   "admin": {
     "requestsTitle": "Solicitudes KYB",
@@ -623,7 +624,10 @@
     "colQuestion": "Pregunta",
     "colStatus": "Estado",
     "colScore": "Score",
-    "counts": "{passed} aprobadas · {flagged} marcadas · {pending} pendientes · {error} con error",
+    "countPassed": "Aprobadas",
+    "countFlagged": "Marcadas",
+    "countPending": "Pendientes",
+    "countError": "Con error",
     "answers": "Respuestas",
     "noAnswers": "Esta solicitud todavía no tiene respuestas.",
     "diditBlock": "Verificación",

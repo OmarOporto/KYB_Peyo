@@ -125,8 +125,8 @@ export function KybCandidatePicker({
       </div>
 
       {confirming ? (
-        <div className="mt-2 rounded-lg border border-amber-500/40 bg-amber-500/10 p-2">
-          <p className="text-xs text-amber-700 dark:text-amber-400">{t("kybConfirmSelect")}</p>
+        <div className="mt-2 rounded-lg border border-warning/40 bg-warning/10 p-2">
+          <p className="text-xs text-warning">{t("kybConfirmSelect")}</p>
           <div className="mt-1.5 flex gap-2">
             <Button size="sm" variant="danger" disabled={busy} onClick={onConfirm}>
               {busy ? "…" : t("kybConfirm")}

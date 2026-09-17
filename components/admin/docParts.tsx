@@ -6,6 +6,7 @@ import {
   FileType,
   type LucideIcon,
 } from "lucide-react";
+import { buttonClass } from "@/components/ui/Button";
 
 /**
  * Piezas compartidas de la sección «Documentos»: los tipos serializables que el
@@ -151,5 +152,4 @@ export function FileTypeIcon({
 }
 
 /** Misma caja que `<Button variant="ghost" size="icon">`, para un `<a>`. */
-export const ICON_LINK =
-  "inline-flex h-8 w-8 items-center justify-center rounded-lg text-foreground transition-colors outline-none hover:bg-surface-2 focus-visible:ring-2 focus-visible:ring-brand/30";
+export const ICON_LINK = buttonClass({ variant: "ghost", size: "icon" });

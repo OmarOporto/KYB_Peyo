@@ -328,7 +328,8 @@
     "changes_requested": "Changes requested",
     "approved": "Approved",
     "rejected": "Rejected",
-    "expired": "Expired"
+    "expired": "Expired",
+    "failed": "Failed"
   },
   "admin": {
     "requestsTitle": "KYB requests",
@@ -623,7 +624,10 @@
     "colQuestion": "Question",
     "colStatus": "Status",
     "colScore": "Score",
-    "counts": "{passed} passed · {flagged} flagged · {pending} pending · {error} with errors",
+    "countPassed": "Passed",
+    "countFlagged": "Flagged",
+    "countPending": "Pending",
+    "countError": "Errors",
     "answers": "Answers",
     "noAnswers": "This request has no answers yet.",
     "diditBlock": "Check",

@@ -6,6 +6,7 @@ import {
   type KybVerdict,
   type Node,
 } from "@/lib/didit/summary";
+import { AnswerField } from "@/components/admin/answerParts";
 
 /**
  * Piezas visuales de un check de DIDIT, compartidas por la tarjeta operativa
@@ -33,8 +34,10 @@ export function Meter({
         <span className="text-muted">{label}</span>
         <span className="font-medium tabular-nums text-foreground">{pct.toFixed(2)}%</span>
       </div>
+      {/* El `ring` dibuja la pista: `bg-surface-2` sobre la Card blanca del
+          informe es casi invisible, y en papel más todavía. */}
       <div
-        className="h-2 w-full overflow-hidden rounded-full bg-surface-2"
+        className="h-2 w-full overflow-hidden rounded-full bg-surface-2 ring-1 ring-inset ring-border"
         role="meter"
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}
@@ -63,12 +66,11 @@ export function CuratedFields({
   const rows = curatedRows(feature, node);
   if (rows.length === 0) return null;
   return (
-    <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-1.5 text-xs sm:grid-cols-2">
+    <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
       {rows.map((r) => (
-        <div key={r.labelKey} className="flex flex-col">
-          <dt className="text-muted">{cf(r.labelKey)}</dt>
-          <dd className="break-words text-foreground">{r.value}</dd>
-        </div>
+        <AnswerField key={r.labelKey} size="sm" label={cf(r.labelKey)}>
+          {r.value}
+        </AnswerField>
       ))}
     </dl>
   );
@@ -125,7 +127,7 @@ export function KybDeclaredBlock({
   const verdictCls: Record<KybVerdict, string> = {
     exact: "bg-success/15 text-success",
     different: "bg-danger/15 text-danger",
-    review: "bg-amber-500/10 text-amber-600 dark:text-amber-400",
+    review: "bg-warning/10 text-warning",
   };
   const verdictLabel: Record<KybVerdict, string> = {
     exact: t("kybMatchExact"),
@@ -136,12 +138,11 @@ export function KybDeclaredBlock({
   return (
     <div className="mt-2">
       <p className="text-xs font-medium text-foreground">{t("kybDeclared")}</p>
-      <dl className="mt-1 grid grid-cols-1 gap-x-4 gap-y-1 text-xs sm:grid-cols-2">
+      <dl className="mt-1 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
         {rows.map((r) => (
-          <div key={r.label} className="flex flex-col">
-            <dt className="text-muted">{r.label}</dt>
-            <dd className="break-words text-foreground">{r.value}</dd>
-          </div>
+          <AnswerField key={r.label} size="sm" label={r.label}>
+            {r.value}
+          </AnswerField>
         ))}
       </dl>
       {cmp.length > 0 && (
@@ -228,7 +229,7 @@ export function Warnings({ node }: { node: Node }) {
             className={`rounded-lg px-2 py-1 text-xs ${
               isError
                 ? "bg-danger/10 text-danger"
-                : "bg-amber-500/10 text-amber-600 dark:text-amber-400"
+                : "bg-warning/10 text-warning"
             }`}
           >
             <span className="font-medium">{text}</span>

@@ -3,10 +3,13 @@ import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { getAnalyst } from "@/lib/auth/admin";
+import { ArrowLeft } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { Card } from "@/components/ui/Card";
+import { buttonClass } from "@/components/ui/Button";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { DocPreview } from "@/components/admin/DocPreview";
+import { AnswerField, AnswerValue } from "@/components/admin/answerParts";
 import { ReportActions } from "@/components/admin/ReportActions";
 import { ReportCheckBlock } from "@/components/admin/ReportCheckBlock";
 import type { CheckImage } from "@/components/admin/checkParts";
@@ -22,7 +25,7 @@ import { createSignedDocUrls } from "@/lib/kyb/service";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { isAnswered, reachableSections, visibleFields } from "@/lib/forms/logic";
 import { resolveText, type Field } from "@/lib/forms/definition";
-import { renderAnswer, fileRefsOf } from "@/lib/forms/answers";
+import { fileRefsOf, isLongAnswer } from "@/lib/forms/answers";
 
 export const dynamic = "force-dynamic";
 
@@ -171,8 +174,12 @@ export default async function RequestReport({
         data-no-print
         className="mb-4 flex flex-wrap items-center justify-between gap-2"
       >
-        <Link href={`/admin/requests/${id}`} className="text-sm text-brand hover:underline">
-          ← {tCommon("back")}
+        <Link
+          href={`/admin/requests/${id}`}
+          className={buttonClass({ variant: "quiet", size: "sm", className: "-ml-3" })}
+        >
+          <ArrowLeft size={16} aria-hidden />
+          {tCommon("back")}
         </Link>
         <ReportActions requestId={id} />
       </div>
@@ -189,20 +196,22 @@ export default async function RequestReport({
       {/* Cabecera del documento. En pantalla es lo primero que se ve; en el PDF
           va después de la carátula, abriendo la página de datos. */}
       {/* Sin `break-before`: el `break-after` de la carátula ya abre esta página. */}
-      <header className="print-block mb-6 border-b border-border pb-4">
+      {/* Con forma de card: en pantalla la carátula no se ve, así que esta
+          cabecera es lo primero y necesita presencia propia. */}
+      <header className="print-block mb-6 rounded-2xl border border-border bg-surface p-5 shadow-sm">
         <Brand size="md" />
-        <h1 className="mt-2 font-display text-2xl font-bold text-foreground">
+        <h1 className="mt-3 font-display text-2xl font-bold text-foreground">
           {tR("title")}
         </h1>
         <div className="mt-1 flex flex-wrap items-center gap-3">
-          <p className="font-medium text-foreground">{subject}</p>
+          <p className="font-display text-lg font-bold text-foreground">{subject}</p>
           <StatusBadge status={String(req.status)} />
         </div>
         <p className="mt-1 text-xs text-muted">
           {tR("requestLabel")}: {externalRef} · {id}
         </p>
 
-        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+        <dl className="mt-4 grid grid-cols-1 gap-x-6 gap-y-3 border-t border-border pt-4 sm:grid-cols-2">
           {definition && (
             <Meta label={tR("formUsed")}>
               {resolveText(definition.title, locale) || "—"}
@@ -238,6 +247,17 @@ export default async function RequestReport({
 
       {/* Resumen de verificaciones */}
       <ReportSection title={tR("checksSummary")} subject={subject}>
+        {/* El recuento va ANTES de la tabla: primero el resumen, luego el
+            detalle. `print-block` en la rejilla y no en las fichas porque Chrome
+            ignora el break-inside de los descendientes de un grid. */}
+        {checks.length > 0 && (
+          <dl className="print-block mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
+            <CountTile label={tR("countPassed")} value={counts.passed} tone="text-success" />
+            <CountTile label={tR("countFlagged")} value={counts.flagged} tone="text-danger" />
+            <CountTile label={tR("countPending")} value={counts.pending} tone="text-warning" />
+            <CountTile label={tR("countError")} value={counts.error} tone="text-danger" />
+          </dl>
+        )}
         {checks.length === 0 ? (
           <p className="text-sm text-muted">{t("noChecks")}</p>
         ) : (
@@ -265,9 +285,6 @@ export default async function RequestReport({
             </table>
           </Card>
         )}
-        {checks.length > 0 && (
-          <p className="mt-2 text-xs text-muted">{tR("counts", counts)}</p>
-        )}
       </ReportSection>
 
       {/* Respuestas contestadas, con su verificación debajo.
@@ -278,27 +295,22 @@ export default async function RequestReport({
         {groups.length === 0 && otherAnswers.length === 0 && (
           <p className="text-sm text-muted">{tR("noAnswers")}</p>
         )}
-        <div className="space-y-4">
+        <div className="space-y-6">
           {groups.map((g, gi) => (
-            <div key={gi} className={gi > 0 ? "print-page" : ""}>
+            <section key={gi} className={gi > 0 ? "print-page" : ""}>
               {/* La cabecera identifica la hoja: cada sección abre página. */}
-              <ReportSectionHeader title={g.title} subject={subject} />
+              <ReportSectionHeader as="h3" title={g.title} subject={subject} />
               <Card className="p-4">
-                <div className="space-y-4">
+                {/* `divide-y` y no `space-y-*` (no se mezclan): una línea entre
+                    pares ancla la lectura mejor que 16px de aire. */}
+                <dl className="divide-y divide-border">
                   {g.fields.map((f) => (
-                    <div key={f.id} className="print-block">
-                      <p className="text-xs text-muted">
-                        {resolveText(f.label, locale) || f.key}
-                      </p>
-                      <div className="mt-0.5 break-words text-sm text-foreground">
-                        <AnswerValue
-                          field={f}
-                          value={formData[f.key]}
-                          locale={locale}
-                          signedUrls={signedUrls}
-                        />
-                      </div>
-                      {(checksByKey.get(f.key) ?? []).map((c) => (
+                    <AnswerField
+                      key={f.id}
+                      className="print-block py-3 first:pt-0 last:pb-0"
+                      label={resolveText(f.label, locale) || f.key}
+                      long={isLongAnswer(f, formData[f.key])}
+                      footer={(checksByKey.get(f.key) ?? []).map((c) => (
                         <ReportCheckBlock
                           key={c.id}
                           check={c}
@@ -308,11 +320,18 @@ export default async function RequestReport({
                             .filter((im): im is CheckImage => Boolean(im))}
                         />
                       ))}
-                    </div>
+                    >
+                      <AnswerValue
+                        field={f}
+                        value={formData[f.key]}
+                        locale={locale}
+                        signedUrls={signedUrls}
+                      />
+                    </AnswerField>
                   ))}
-                </div>
+                </dl>
               </Card>
-            </div>
+            </section>
           ))}
         </div>
       </ReportSection>
@@ -346,27 +365,31 @@ export default async function RequestReport({
       {otherAnswers.length > 0 && (
         <ReportSection title={tR("otherAnswers")} subject={subject} className="print-page">
           <Card className="print-block p-4">
-            <dl className="grid grid-cols-1 gap-x-6 gap-y-2 text-sm sm:grid-cols-2">
+            <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
               {otherAnswers.map(([k, v]) => {
                 const field = fieldByKey.get(k);
                 return (
-                  <div key={k} className="border-b border-border pb-1">
-                    <dt className="text-muted">{questionByKey.get(k) ?? k}</dt>
-                    <dd className="break-words text-foreground">
-                      {field ? (
-                        <AnswerValue
-                          field={field}
-                          value={v}
-                          locale={locale}
-                          signedUrls={signedUrls}
-                        />
-                      ) : typeof v === "object" ? (
-                        JSON.stringify(v)
-                      ) : (
-                        String(v)
-                      )}
-                    </dd>
-                  </div>
+                  <AnswerField
+                    key={k}
+                    className="border-b border-border pb-2"
+                    label={questionByKey.get(k) ?? k}
+                    long={
+                      field ? isLongAnswer(field, v) : typeof v === "string" && v.length > 120
+                    }
+                  >
+                    {field ? (
+                      <AnswerValue
+                        field={field}
+                        value={v}
+                        locale={locale}
+                        signedUrls={signedUrls}
+                      />
+                    ) : typeof v === "object" ? (
+                      JSON.stringify(v)
+                    ) : (
+                      String(v)
+                    )}
+                  </AnswerField>
                 );
               })}
             </dl>
@@ -400,10 +423,34 @@ export default async function RequestReport({
 }
 
 function Meta({ label, children }: { label: string; children: React.ReactNode }) {
+  return <AnswerField label={label}>{children}</AnswerField>;
+}
+
+/** Métrica del resumen. Un 0 va en gris: un «0» rojo alarma sin motivo. */
+function CountTile({
+  label,
+  value,
+  tone,
+}: {
+  label: string;
+  value: number;
+  /** Clase de color completa: Tailwind necesita el literal en el fuente. */
+  tone: string;
+}) {
   return (
-    <div>
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="break-words text-foreground">{children}</dd>
+    // `flex-col-reverse`: el <dt> va primero en el DOM (lo exige <dl>) y el
+    // número se pinta arriba.
+    <div className="flex flex-col-reverse rounded-xl border border-border bg-surface px-3 py-2">
+      <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+        {label}
+      </dt>
+      <dd
+        className={`font-display text-2xl font-bold tabular-nums ${
+          value === 0 ? "text-muted" : tone
+        }`}
+      >
+        {value}
+      </dd>
     </div>
   );
 }
@@ -431,32 +478,6 @@ async function SummaryRow({
       </td>
     </tr>
   );
-}
-
-/** Renderiza la respuesta de un campo: miniaturas para file/selfie, texto para el resto. */
-function AnswerValue({
-  field,
-  value,
-  locale,
-  signedUrls,
-}: {
-  field: Field;
-  value: unknown;
-  locale: string;
-  signedUrls: Record<string, string>;
-}) {
-  if (field.type === "file" || field.type === "selfie") {
-    const refs = fileRefsOf(value);
-    if (refs.length === 0) return <>—</>;
-    return (
-      <div className="mt-1 flex flex-wrap gap-2">
-        {refs.map((r, i) => (
-          <DocPreview key={i} path={r.path} filename={r.filename} url={signedUrls[r.path]} />
-        ))}
-      </div>
-    );
-  }
-  return <>{renderAnswer(field, value, locale)}</>;
 }
 
 function ReportSection({

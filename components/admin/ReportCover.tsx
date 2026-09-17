@@ -73,7 +73,14 @@ export async function ReportCover({
   );
 }
 
-/** Píldora de estado de la solicitud, sobre fondo azul. */
+/**
+ * Píldora de estado de la solicitud, sobre fondo azul.
+ *
+ * Excepción deliberada al sistema de tokens: la portada va a sangre sobre un
+ * gradiente oscuro, así que necesita tintes CLAROS. Los tokens
+ * (`success`/`warning`/`alert`/`danger`) están calibrados para tinta sobre
+ * fondo claro y aquí quedarían oscuro sobre oscuro.
+ */
 function CoverStatus({ status, label }: { status: string; label: string }) {
   const tone =
     status === "approved"
@@ -100,8 +107,10 @@ function CoverDot({ status }: { status: string }) {
       ? "bg-emerald-400"
       : badge === "rejected"
         ? "bg-red-400"
-        : badge === "expired"
-          ? "bg-white/40"
-          : "bg-amber-400";
+        : badge === "failed"
+          ? "bg-red-300/60"
+          : badge === "expired"
+            ? "bg-white/40"
+            : "bg-amber-400";
   return <span className={`h-2 w-2 shrink-0 rounded-full ${color}`} />;
 }

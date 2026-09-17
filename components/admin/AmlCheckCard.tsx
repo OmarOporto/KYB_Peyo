@@ -207,7 +207,7 @@ export async function AmlCheckCard({
             check.status === "pending" &&
             kybSelected?.select_attempted === true &&
             kybSelected.billing_state === "unknown" && (
-              <div className="mt-2 rounded-lg bg-amber-500/10 px-2 py-1 text-xs text-amber-600 dark:text-amber-400">
+              <div className="mt-2 rounded-lg bg-warning/10 px-2 py-1 text-xs text-warning">
                 {t("kybAttemptedInfo")}
               </div>
             )}

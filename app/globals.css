@@ -26,6 +26,7 @@
 
   --success: #00c758;
   --warning: #d97706; /* amber-600 */
+  --alert: #ea580c; /* orange-600: pide acción del solicitante, no es un error */
   --danger: #ef4444;
 }
 
@@ -45,6 +46,7 @@
   --brand: #3b82f6; /* azul con más contraste en oscuro */
   --brand-hover: #2463eb;
   --warning: #f59e0b; /* amber-500 */
+  --alert: #fb923c; /* orange-400 */
 }
 
 @theme inline {
@@ -63,6 +65,7 @@
 
   --color-success: var(--success);
   --color-warning: var(--warning);
+  --color-alert: var(--alert);
   --color-danger: var(--danger);
 
   --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
@@ -120,7 +123,11 @@ input[type="number"] {
     --brand-hover: #1d4ed8;
     --success: #047857;
     --warning: #b45309;
+    --alert: #c2410c; /* orange-700 */
     --danger: #b91c1c;
+    /* El teal de marca no tiene contraste sobre papel: la barrita del
+       encabezado de sección se quedaría en un gris pálido. */
+    --accent: #0e7490;
   }
 
   /* `!important` a propósito: next-themes escribe `style="color-scheme: dark"`
