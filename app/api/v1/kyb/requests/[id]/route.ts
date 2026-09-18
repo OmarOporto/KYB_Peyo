@@ -3,6 +3,7 @@ import { verifyApiKey } from "@/lib/auth/apiKey";
 import { consumeApiKey } from "@/lib/auth/rateLimit";
 import { rateLimitResponse } from "@/lib/auth/rateLimitResponse";
 import { createServiceClient } from "@/lib/supabase/service";
+import { publicAmlChecks } from "@/lib/kyb/amlPublic";
 
 export const runtime = "nodejs";
 
@@ -61,6 +62,7 @@ export async function GET(
     createdAt: request.created_at,
     submittedAt: request.submitted_at,
     decidedAt: request.decided_at,
-    aml: amlChecks ?? [],
+    // `result` es el blob crudo del proveedor: sale saneado, nunca directo.
+    aml: publicAmlChecks(amlChecks),
   });
 }

@@ -11,6 +11,10 @@
     "moduleResolution": "bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // Los tests corren con `node --test --experimental-strip-types`, y el
+    // resolutor de ESM de Node exige la extensión en el import. Inocuo para el
+    // build: `noEmit` está activo y Next resuelve por su cuenta.
+    "allowImportingTsExtensions": true,
     "jsx": "react-jsx",
     "incremental": true,
     "plugins": [

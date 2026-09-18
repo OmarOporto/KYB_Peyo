@@ -5,6 +5,7 @@ import { generateToken } from "@/lib/tokens";
 import { open } from "@/lib/crypto/secretBox";
 import { safeWebhookFetch } from "@/lib/net/ssrfGuard";
 import { sendAlert } from "@/lib/mail/alert";
+import { publicAmlChecks } from "@/lib/kyb/amlPublic";
 
 export type WebhookEvent =
   | "request.submitted"
@@ -96,7 +97,9 @@ export async function notifyClient(
       created_at: req.created_at,
       submitted_at: req.submitted_at,
       decided_at: req.decided_at,
-      aml: aml ?? [],
+      // Saneado igual que en la API pública: este payload viaja a una URL de
+      // terceros, así que es el último sitio donde puede escaparse un secreto.
+      aml: publicAmlChecks(aml),
     };
 
     const { data: row } = await supabase
