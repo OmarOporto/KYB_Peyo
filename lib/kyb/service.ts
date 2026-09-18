@@ -415,6 +415,52 @@ export async function createSignedDocUrls(
   return map;
 }
 
+/**
+ * Tamaño y tipo REALES de un objeto ya subido, leídos de Storage.
+ *
+ * Cuando la subida va por signed URL (navegador → Storage directo), el server
+ * nunca ve el archivo: lo único que llega es lo que el cliente dice que subió.
+ * Esta es la vía para contrastarlo.
+ *
+ * `info()` es la API nueva; el `list()` de respaldo cubre despliegues de
+ * Storage viejos, donde ese endpoint no existe y si no todas las subidas
+ * quedarían rechazadas.
+ */
+export async function readStoredObject(
+  storagePath: string,
+): Promise<{ mime: string | null; size: number | null } | null> {
+  const supabase = createServiceClient();
+
+  const { data: info } = await supabase.storage.from(DOCUMENTS_BUCKET).info(storagePath);
+  if (info) {
+    return {
+      mime: info.contentType ?? null,
+      size: typeof info.size === "number" ? info.size : null,
+    };
+  }
+
+  const slash = storagePath.lastIndexOf("/");
+  const folder = slash >= 0 ? storagePath.slice(0, slash) : "";
+  const name = slash >= 0 ? storagePath.slice(slash + 1) : storagePath;
+  const { data: listed } = await supabase.storage
+    .from(DOCUMENTS_BUCKET)
+    .list(folder, { search: name, limit: 1 });
+  const found = listed?.find((o) => o.name === name);
+  if (!found) return null;
+
+  const meta = (found.metadata ?? {}) as { size?: number; mimetype?: string };
+  return {
+    mime: meta.mimetype ?? null,
+    size: typeof meta.size === "number" ? meta.size : null,
+  };
+}
+
+/** Borra un objeto de Storage sin tocar metadatos (aún no hay fila que borrar). */
+export async function deleteStoredObject(storagePath: string): Promise<void> {
+  const supabase = createServiceClient();
+  await supabase.storage.from(DOCUMENTS_BUCKET).remove([storagePath]);
+}
+
 /** Registra los metadatos de un documento subido a Storage. */
 export async function recordDocument(input: {
   requestId: string;

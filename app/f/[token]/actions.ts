@@ -8,12 +8,15 @@ import {
   submitRequest,
   runVerifications,
   recordDocument,
+  readStoredObject,
+  deleteStoredObject,
   deleteDocument,
   isTerminal,
   DOCUMENTS_BUCKET,
 } from "@/lib/kyb/service";
 import { notifyClient } from "@/lib/kyb/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
+import { documentPath, isOwnedPath, mimeAllowed } from "@/lib/kyb/storagePaths";
 import { kybSubmitSchema } from "@/lib/forms/schema";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { reachableFields } from "@/lib/forms/logic";
@@ -76,8 +79,7 @@ export async function uploadDocumentAction(
     return { ok: false, error: "El archivo supera 15 MB." };
   }
 
-  const safeName = file.name.replace(/[^\w.\-]+/g, "_");
-  const path = `${r.req.id}/${docType}/${randomUUID()}-${safeName}`;
+  const path = documentPath(r.req.id, docType, file.name, randomUUID());
 
   try {
     const buffer = Buffer.from(await file.arrayBuffer());
@@ -126,8 +128,7 @@ export async function createUploadUrlAction(
   const r = await resolveOpen(token);
   if (!r.ok) return { ok: false, error: r.error };
 
-  const safeName = (filename || "archivo").replace(/[^\w.\-]+/g, "_");
-  const path = `${r.req.id}/${docType || "general"}/${randomUUID()}-${safeName}`;
+  const path = documentPath(r.req.id, docType, filename, randomUUID());
   try {
     const supabase = createServiceClient();
     const { data, error } = await supabase.storage
@@ -158,17 +159,59 @@ export async function confirmUploadAction(input: {
 }): Promise<ActionResult> {
   const r = await resolveOpen(input.token);
   if (!r.ok) return { ok: false, error: r.error };
-  if (!input.path || !input.path.startsWith(`${r.req.id}/`)) {
+  if (!isOwnedPath(input.path, r.req.id)) {
     return { ok: false, error: "Ruta inválida." };
   }
+
+  // El archivo subió por signed URL, así que este es el primer y único momento
+  // en que el server puede mirarlo. `input.mime`/`input.size` los manda el
+  // cliente y no prueban nada: se leen del objeto real y se ignoran los suyos.
+  const stored = await readStoredObject(input.path);
+  if (!stored) {
+    console.warn(`[confirmUploadAction] objeto inexistente: ${input.path}`);
+    return { ok: false, error: "No se encontró el archivo subido." };
+  }
+
+  // Límites declarados POR CAMPO en la definición congelada de la solicitud
+  // (la misma que valida el envío). Hasta ahora solo los aplicaba el navegador.
+  const definition = await resolveRequestDefinition(
+    (r.req as { form_definition?: unknown }).form_definition,
+    (r.req as { form_id?: string | null }).form_id ?? null,
+  );
+  const cfg = definition?.sections
+    .flatMap((s) => s.fields)
+    .find((f) => f.key === input.docType)?.file;
+
+  const maxBytes = cfg ? cfg.maxSizeMB * 1024 * 1024 : null;
+  const tooBig = maxBytes != null && stored.size != null && stored.size > maxBytes;
+  const badType = !mimeAllowed(cfg?.accept, stored.mime, input.filename);
+
+  if (tooBig || badType) {
+    // Se borra el objeto: si no, queda ocupando el bucket sin ninguna fila que
+    // lo referencie, y nadie lo limpia.
+    await deleteStoredObject(input.path);
+    console.warn(
+      `[confirmUploadAction] rechazado request=${r.req.id} campo=${input.docType} ` +
+        `mime=${stored.mime} size=${stored.size} tooBig=${tooBig} badType=${badType}`,
+    );
+    return {
+      ok: false,
+      error: tooBig
+        ? `El archivo supera ${cfg?.maxSizeMB} MB.`
+        : "Ese tipo de archivo no está permitido.",
+    };
+  }
+
   try {
     await recordDocument({
       requestId: r.req.id,
       docType: input.docType || "general",
       storagePath: input.path,
       filename: input.filename,
-      mime: input.mime ?? null,
-      size: input.size ?? null,
+      // Observado en Storage, no declarado por el cliente: el visor del panel
+      // decide con este valor cómo renderizar el documento.
+      mime: stored.mime,
+      size: stored.size,
     });
     return { ok: true };
   } catch (e) {
@@ -185,7 +228,7 @@ export async function deleteDocumentAction(
   const r = await resolveOpen(token);
   if (!r.ok) return { ok: false, error: r.error };
   // Solo se pueden borrar archivos que pertenecen a esta solicitud.
-  if (!storagePath || !storagePath.startsWith(`${r.req.id}/`)) {
+  if (!isOwnedPath(storagePath, r.req.id)) {
     return { ok: false, error: "Documento inválido." };
   }
   try {
