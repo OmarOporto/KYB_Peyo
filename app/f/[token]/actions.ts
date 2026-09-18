@@ -38,6 +38,13 @@ async function resolveOpen(token: string): Promise<Resolved> {
   return { ok: true, req };
 }
 
+/**
+ * Tope del borrador. Un formulario de verdad no llega ni de lejos; el número
+ * está para que `kyb_form_responses.data` no sea un jsonb sin fondo escribible
+ * por cualquiera que tenga el token.
+ */
+const MAX_DRAFT_BYTES = 256 * 1024;
+
 /** Autosave del borrador. */
 export async function saveDraftAction(
   token: string,
@@ -45,8 +52,35 @@ export async function saveDraftAction(
 ): Promise<ActionResult> {
   const r = await resolveOpen(token);
   if (!r.ok) return { ok: false, error: r.error };
+
+  // Un borrador es parcial por naturaleza, así que no se pueden validar tipos
+  // a mitad de carga. Lo que sí se puede es acotarlo: solo claves que el
+  // formulario declara, y un tamaño máximo.
+  let toSave = data;
+  const formId = (r.req as { form_id?: string | null }).form_id ?? null;
+  const snapshot = (r.req as { form_definition?: unknown }).form_definition;
+  // Mismo guard que `submitRequest`: en una solicitud legacy (sin snapshot ni
+  // form_id) `resolveRequestDefinition` caería al formulario publicado por
+  // defecto, con otras claves, y podaría respuestas válidas.
+  if (snapshot || formId) {
+    const definition = await resolveRequestDefinition(snapshot, formId);
+    if (definition) {
+      const known = new Set(
+        definition.sections.flatMap((s) => s.fields).map((f) => f.key),
+      );
+      toSave = Object.fromEntries(
+        Object.entries(data).filter(([key]) => known.has(key)),
+      );
+    }
+  }
+
+  if (JSON.stringify(toSave).length > MAX_DRAFT_BYTES) {
+    console.warn(`[saveDraftAction] borrador demasiado grande request=${r.req.id}`);
+    return { ok: false, error: "El borrador es demasiado grande." };
+  }
+
   try {
-    await saveDraft(r.req.id, data);
+    await saveDraft(r.req.id, toSave);
     return { ok: true };
   } catch (e) {
     console.error("[saveDraftAction] falló", e);
@@ -282,27 +316,37 @@ export async function submitFormAction(
   const formId = (r.req as { form_id?: string | null }).form_id ?? null;
   const snapshot = (r.req as { form_definition?: unknown }).form_definition;
   const definition = await resolveRequestDefinition(snapshot, formId);
-  if (definition) {
-    const parse = buildZod(reachableFields(definition, answers)).safeParse(answers);
-    if (!parse.success) {
-      const missing = [
-        ...new Set(
-          parse.error.issues.map((i) => String(i.path[0] ?? "")).filter(Boolean),
-        ),
-      ];
-      console.warn(
-        `[submitFormAction] request=${r.req.id} validación falló; campos=${missing.join(", ") || "?"}`,
-      );
-      return {
-        ok: false,
-        error: "Faltan campos requeridos o hay valores inválidos.",
-        missing,
-      };
-    }
+  if (!definition) {
+    // La UI solo monta este formulario cuando hay definición: sin ella,
+    // page.tsx cae al KybForm legacy, que envía por submitAction. Llegar acá
+    // significa que alguien invocó el Server Action a mano, y sin definición
+    // no hay contra qué validar, así que no se persiste nada.
+    console.warn(`[submitFormAction] request=${r.req.id} sin definición; rechazado`);
+    return { ok: false, error: "No se pudo validar el formulario." };
+  }
+
+  const parse = buildZod(reachableFields(definition, answers)).safeParse(answers);
+  if (!parse.success) {
+    const missing = [
+      ...new Set(
+        parse.error.issues.map((i) => String(i.path[0] ?? "")).filter(Boolean),
+      ),
+    ];
+    console.warn(
+      `[submitFormAction] request=${r.req.id} validación falló; campos=${missing.join(", ") || "?"}`,
+    );
+    return {
+      ok: false,
+      error: "Faltan campos requeridos o hay valores inválidos.",
+      missing,
+    };
   }
 
   try {
-    await submitRequest(r.req.id, answers);
+    // `parse.data` y no `answers`: Zod descarta las claves que el formulario no
+    // declara, así que se persiste exactamente lo que se validó. Antes se
+    // guardaba el objeto crudo del cliente.
+    await submitRequest(r.req.id, parse.data);
     // Aviso inmediato de envío (ver submitAction). También dispara en el reenvío
     // tras corrección: la app deduplica por su propio estado si lo necesita.
     after(() => notifyClient(r.req.id, "request.submitted"));

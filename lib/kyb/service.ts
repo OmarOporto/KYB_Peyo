@@ -21,6 +21,21 @@ import type {
 
 const DEFAULT_TTL_HOURS = 24 * 14; // 14 días
 
+/**
+ * Techo del TTL del link de invitación. `POST /api/v1/kyb/requests/:id/invitation`
+ * acepta un `ttl_hours` del cliente y solo exigía que fuera > 0, así que un
+ * `1e15` devolvía un link que en la práctica no caduca nunca. El tope vive acá
+ * y no en el handler para que valga para todos los que emiten un token.
+ */
+const MAX_TTL_HOURS = 24 * 90; // 90 días
+
+function clampTtlHours(ttlHours: number | undefined): number {
+  if (typeof ttlHours !== "number" || !Number.isFinite(ttlHours) || ttlHours <= 0) {
+    return DEFAULT_TTL_HOURS;
+  }
+  return Math.min(ttlHours, MAX_TTL_HOURS);
+}
+
 export const DOCUMENTS_BUCKET = "kyb-documents";
 
 interface AuditInput {
@@ -85,7 +100,9 @@ export async function createRequest(
 }> {
   const supabase = createServiceClient();
   const token = generateToken();
-  const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + clampTtlHours(ttlHours) * 3600 * 1000,
+  ).toISOString();
 
   const { data, error } = await supabase
     .from("kyb_requests")
@@ -147,7 +164,9 @@ async function issueToken(
 ): Promise<{ token: string; expiresAt: string; invitationUrl: string }> {
   const supabase = createServiceClient();
   const token = generateToken();
-  const expiresAt = new Date(Date.now() + ttlHours * 3600 * 1000).toISOString();
+  const expiresAt = new Date(
+    Date.now() + clampTtlHours(ttlHours) * 3600 * 1000,
+  ).toISOString();
   await supabase
     .from("kyb_requests")
     .update({

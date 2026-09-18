@@ -31,3 +31,31 @@ export async function consumeApiKey(
     remaining: Number(row?.remaining ?? 0),
   };
 }
+
+/**
+ * Rate limit por clave de texto libre, para lo que no tiene API key: hoy, el
+ * intake público (`intake:<formId>:<ip>`).
+ *
+ * Fail-CLOSED a diferencia de `consumeApiKey`: lo que protege es una escritura
+ * en la base, y si el contador no se puede llevar, tampoco conviene escribir.
+ */
+export async function consumeRate(
+  bucket: string,
+  limit: number,
+): Promise<RateResult> {
+  const supabase = createServiceClient();
+  const { data, error } = await supabase.rpc("consume_rate", {
+    p_bucket: bucket,
+    p_limit: limit,
+  });
+  if (error) {
+    console.error("[rateLimit] consume_rate falló:", error.message);
+    return { allowed: false, limit, remaining: 0 };
+  }
+  const row = Array.isArray(data) ? data[0] : data;
+  return {
+    allowed: Boolean(row?.allowed),
+    limit: Number(row?.limit_per_min ?? limit),
+    remaining: Number(row?.remaining ?? 0),
+  };
+}

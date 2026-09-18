@@ -298,6 +298,21 @@ export async function dismissKybCandidatesAction(
 export async function getDocUrlAction(path: string): Promise<string | null> {
   await requireAnalyst();
   const supabase = createServiceClient();
+
+  // Firmar solo rutas que correspondan a un documento registrado. Sin esto la
+  // acción firma cualquier objeto del bucket privado que se le pase: hoy el
+  // llamador siempre es un analista, pero deja suelta una primitiva que no
+  // hace falta.
+  const { data: doc } = await supabase
+    .from("kyb_documents")
+    .select("storage_path")
+    .eq("storage_path", path)
+    .maybeSingle();
+  if (!doc) {
+    console.warn(`[getDocUrlAction] ruta no registrada: ${path}`);
+    return null;
+  }
+
   const { data } = await supabase.storage
     .from(DOCUMENTS_BUCKET)
     // 10 min y no 2: el visor de PDF pide rangos del archivo mientras se pasan
