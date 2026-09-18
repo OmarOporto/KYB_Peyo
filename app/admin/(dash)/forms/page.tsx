@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { isAdmin } from "@/lib/auth/admin";
+import { isAdmin, requireAnalyst } from "@/lib/auth/admin";
 import { Card } from "@/components/ui/Card";
 import { ClickableRow } from "@/components/admin/ClickableRow";
 import {
@@ -38,6 +38,9 @@ export default async function FormsList({
 }: {
   searchParams: Promise<{ archived?: string }>;
 }) {
+  // `isAdmin()` de abajo solo decide qué se muestra; el permiso de entrar lo
+  // exige esto, sin depender de que el layout gane la carrera del render.
+  await requireAnalyst();
   const t = await getTranslations("forms");
   const { archived } = await searchParams;
   // Los archivados son una vista aparte y no un filtro más: son justamente los

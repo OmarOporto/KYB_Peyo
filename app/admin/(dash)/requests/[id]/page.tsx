@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { getAnalyst } from "@/lib/auth/admin";
+import { getAnalyst, requireAnalyst } from "@/lib/auth/admin";
 import {
   clientAllowsTranslation,
   translatableLocales,
@@ -43,6 +43,9 @@ export default async function RequestDetail({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ tr?: string }>;
 }) {
+  // Guard propio: el `getAnalyst()` de más abajo es solo para el actor del
+  // audit, y el del layout corre en paralelo con esta página.
+  await requireAnalyst();
   const t = await getTranslations("admin");
   const tCommon = await getTranslations("common");
   const tReport = await getTranslations("report");

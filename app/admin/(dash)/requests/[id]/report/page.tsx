@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { getAnalyst } from "@/lib/auth/admin";
+import { getAnalyst, requireAnalyst } from "@/lib/auth/admin";
 import { ArrowLeft } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { Card } from "@/components/ui/Card";
@@ -40,6 +40,9 @@ export default async function RequestReport({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // Guard propio: el `getAnalyst()` de más abajo es solo para mostrar el email
+  // del analista, y el del layout corre en paralelo con esta página.
+  await requireAnalyst();
   const t = await getTranslations("admin");
   const tR = await getTranslations("report");
   const tCommon = await getTranslations("common");

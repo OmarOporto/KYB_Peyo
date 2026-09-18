@@ -8,6 +8,7 @@ import { OriginBadge } from "@/components/admin/OriginBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import type { KybStatus } from "@/lib/kyb/types";
 import { RequestsToolbar } from "./RequestsToolbar";
+import { requireAnalyst } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -80,6 +81,9 @@ export default async function AdminHome({
     page?: string;
   }>;
 }) {
+  // Guard propio y no solo el del layout: Next los renderiza en paralelo, y
+  // esta página consulta con service-role (bypassa RLS) para los labels.
+  await requireAnalyst();
   const t = await getTranslations("admin");
   const locale = await getLocale();
   const sp = await searchParams;

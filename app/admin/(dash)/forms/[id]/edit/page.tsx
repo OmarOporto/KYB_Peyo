@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { isAdmin } from "@/lib/auth/admin";
+import { isAdmin, requireAnalyst } from "@/lib/auth/admin";
 import {
   formDefinitionSchema,
   emptyForm,
@@ -17,6 +17,9 @@ export default async function EditFormPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
+  // `isAdmin()` de abajo solo decide qué se muestra; el permiso de entrar lo
+  // exige esto, sin depender de que el layout gane la carrera del render.
+  await requireAnalyst();
   const { id } = await params;
   const t = await getTranslations("forms");
   const supabase = await createServerSupabase();

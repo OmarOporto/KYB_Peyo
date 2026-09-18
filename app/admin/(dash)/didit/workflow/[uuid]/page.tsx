@@ -5,6 +5,7 @@ import { DiditFlow } from "@/components/admin/DiditFlow";
 import { assembleWorkflow } from "@/lib/didit/questionnaires";
 import { importWorkflow } from "../../actions";
 import { ImportButton } from "../../[uuid]/ImportButton";
+import { requireAnalyst } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +14,9 @@ export default async function WorkflowDetail({
 }: {
   params: Promise<{ uuid: string }>;
 }) {
+  // Antes del fetch a DIDIT: el layout no alcanza, porque se renderiza en
+  // paralelo con la página (ver app/admin/(dash)/didit/page.tsx).
+  await requireAnalyst();
   const { uuid } = await params;
   const t = await getTranslations("didit");
   const locale = await getLocale();

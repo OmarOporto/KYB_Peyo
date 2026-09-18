@@ -7,6 +7,7 @@ import {
   DiditNotConfiguredError,
 } from "@/lib/didit/questionnaires";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { requireAnalyst } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -15,6 +16,11 @@ export default async function DiditPage({
 }: {
   searchParams: Promise<{ tab?: string }>;
 }) {
+  // El layout de (dash) también lo exige, pero Next renderiza layout y página
+  // en paralelo: sin este guard, una petición anónima ya habría disparado las
+  // llamadas a la API de DIDIT (con la key del servidor) antes de que el
+  // redirect del layout abortara la respuesta.
+  await requireAnalyst();
   const t = await getTranslations("didit");
   const { tab } = await searchParams;
   const active = tab === "questionnaires" ? "questionnaires" : "workflows";
