@@ -84,7 +84,7 @@ Base: `KYB_BASE_URL/api/v1/kyb`
 | `form_id` | uuid | no* | Formulario a usar. Usa el `FORM_ID` que te dimos. |
 | `webhook_endpoint_id` | uuid | no | Endpoint de webhook registrado (ver §6). |
 | `return_url` | string (https, ≤2048) | no | A dónde redirigir el navegador del usuario tras enviar. |
-| `ttl_hours` | int > 0 | no | Vigencia del link de invitación (default 14 días). |
+| `ttl_hours` | int > 0 | no | Vigencia del link de invitación (default 14 días, **máximo 2160 = 90 días**). |
 
 > \* `form_id` es opcional en el esquema, pero **recomendado**: si no lo envías, se
 > usa el formulario publicado por defecto. Y sin un formulario válido no corren las
@@ -152,7 +152,7 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
   "createdAt": "…", "submittedAt": "…", "decidedAt": null,
   "aml": [
     { "provider": "didit", "status": "passed",
-      "result": { /* respuesta cruda de DIDIT */ },
+      "result": { /* respuesta de DIDIT, sin campos internos nuestros */ },
       "created_at": "…", "updated_at": "…" }
   ]
 }
@@ -209,6 +209,15 @@ ni lo cuentes contra la completitud del expediente.
   ]
 }
 ```
+
+`value` es siempre texto legible. `raw` es el valor tal como se guardó, así que **su
+tipo JSON depende del tipo de campo**: los campos `number` vienen como número
+(`42`, no `"42"`), `boolean` como booleano, y `file`/`selfie` como arreglo de
+referencias. Si comparas `raw` contra cadenas, usa `value`.
+
+> Las solicitudes enviadas antes de esta versión pueden traer los campos `number`
+> como cadena: hasta ahora se guardaba el valor sin normalizar. Los datos viejos no
+> se migran, así que conviene tolerar los dos tipos. `value` no cambió en ningún caso.
 
 #### Traducción de las respuestas (`?translate=1`)
 
@@ -272,6 +281,16 @@ Query: `?expires_in=<segundos>` (60–86400, default 3600).
 
 Las `url` son firmadas y **caducan**; genera una consulta nueva cuando las necesites.
 
+`mime` y `size` son los que **observa el servidor** en el archivo almacenado, no los
+que declara el navegador de quien sube. Si tu lado decidía algo con esos valores, ahora
+son confiables.
+
+**Límites de subida** (los aplica el servidor, no solo el navegador): cada archivo
+respeta el `accept` y el `maxSizeMB` del campo en el formulario, con un techo duro de
+**15 MB**. Un archivo fuera de esos límites se rechaza y no queda registrado. Si tu
+formulario necesita admitir algún tipo que hoy no está en su `accept`, avísanos y lo
+ajustamos en la definición.
+
 ### 4.6 Avance del borrador — `GET /requests/:id/draft`
 
 Cuánto lleva lleno el usuario, sin esperar a que envíe:
@@ -321,7 +340,7 @@ la solicitud esté `submitted` o `under_review`.
 | Campo | Tipo | Req. | Descripción |
 |---|---|---|---|
 | `fields` | array | **sí** | Preguntas a corregir. Cada ítem: `{ "key": "<field.key>", "note": "<qué corregir>" }` (`note` opcional). |
-| `ttl_hours` | int > 0 | no | Vigencia del nuevo link (default 14 días). |
+| `ttl_hours` | int > 0 | no | Vigencia del nuevo link (default 14 días, **máximo 2160 = 90 días**). |
 
 **Respuesta `200`:**
 

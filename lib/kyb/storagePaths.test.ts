@@ -70,3 +70,22 @@ test("mimeAllowed entiende MIME, comodín y extensión", () => {
   assert.equal(mimeAllowed(["application/pdf", "image/*"], "image/jpeg", "dni.jpg"), true);
   assert.equal(mimeAllowed(["application/pdf", "image/*"], "text/html", "x.html"), false);
 });
+
+test("un tipo genérico se resuelve por extensión y no rechaza archivos válidos", () => {
+  const preset = ["application/pdf", "image/*"];
+
+  // El caso que motivó el fallback: el navegador no detectó el tipo.
+  assert.equal(mimeAllowed(preset, "application/octet-stream", "acta.pdf"), true);
+  assert.equal(mimeAllowed(preset, "", "dni.JPG"), true);
+  assert.equal(mimeAllowed(preset, "application/octet-stream", "foto.heic"), true);
+
+  // Genérico con extensión que NO está permitida: se sigue rechazando.
+  assert.equal(mimeAllowed(preset, "application/octet-stream", "malware.exe"), false);
+  assert.equal(mimeAllowed(preset, "application/octet-stream", "sin-extension"), false);
+
+  // Un tipo declarado y concreto manda: no se reinterpreta por la extensión.
+  assert.equal(mimeAllowed(preset, "text/html", "trampa.pdf"), false);
+
+  // Con accept por extensión el comportamiento no cambia.
+  assert.equal(mimeAllowed([".pdf"], "application/octet-stream", "acta.pdf"), true);
+});
