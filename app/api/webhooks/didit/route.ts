@@ -3,6 +3,7 @@ import { createHmac, timingSafeEqual } from "crypto";
 import { env } from "@/lib/env";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAudit } from "@/lib/kyb/service";
+import { alreadySeen, markSeen } from "@/lib/kyb/replayGuard";
 import type { AmlStatus } from "@/lib/kyb/types";
 
 export const runtime = "nodejs";
@@ -50,6 +51,14 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "invalid_signature" }, { status: 401 });
   }
 
+  // La firma valida el origen, no la frescura: sin esto, una entrega capturada
+  // se podía reenviar cuando quisiera y volvía a escribir aml_checks, pisando
+  // un resultado más nuevo con uno viejo.
+  if (await alreadySeen("didit", raw)) {
+    console.warn("[DIDIT] webhook repetido, ignorado");
+    return NextResponse.json({ ok: true, ignored: "replay" });
+  }
+
   let payload: { reference?: string; id?: string; status?: string };
   try {
     payload = JSON.parse(raw);
@@ -81,5 +90,6 @@ export async function POST(req: NextRequest) {
     });
   }
 
+  await markSeen("didit", raw);
   return NextResponse.json({ ok: true });
 }

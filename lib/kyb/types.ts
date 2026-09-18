@@ -31,7 +31,10 @@ export interface KybRequest {
   id: string;
   external_ref: string;
   status: KybStatus;
-  invitation_token_hash: string;
+  // `invitation_token_hash` existe en la tabla pero NO acá a propósito: es un
+  // secreto (lib/log/redact.ts ya lo trata como tal) y ninguna lectura lo
+  // necesita, así que dejarlo fuera del tipo evita que vuelva a colarse en un
+  // `select` que termine en un Server Component público.
   token_expires_at: string | null;
   form_version: string;
   created_at: string;

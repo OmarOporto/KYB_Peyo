@@ -73,14 +73,28 @@ export async function GET(
 }
 
 /**
- * Origen público de esta misma petición. Se prefiere a una variable de entorno
- * para que funcione igual en local, en preview y en producción.
+ * Origen al que navega el Chromium headless.
+ *
+ * El host sale de los headers para que funcione igual en local, en preview y en
+ * producción, pero solo si coincide con `NEXT_PUBLIC_APP_URL` o es local. Ese
+ * host termina como `domain` de las cookies de sesión que se le cargan al
+ * navegador (ver lib/pdf/render.ts), así que uno arbitrario entregaría la
+ * sesión del analista a donde diga el header. Explotarlo exige a la vez cookies
+ * válidas y control del `Host` —un navegador no puede fijarlo—, pero el
+ * fallback correcto es barato.
  */
 function requestOrigin(req: NextRequest): string {
+  const configured = env.appUrl();
   const host = req.headers.get("x-forwarded-host") ?? req.headers.get("host");
-  if (!host) return env.appUrl();
-  const proto =
-    req.headers.get("x-forwarded-proto") ?? (host.startsWith("localhost") ? "http" : "https");
+  if (!host) return configured;
+
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  if (!isLocal && host !== new URL(configured).host) {
+    console.warn(`[report] host no esperado (${host}); se usa ${configured}`);
+    return configured;
+  }
+
+  const proto = req.headers.get("x-forwarded-proto") ?? (isLocal ? "http" : "https");
   return `${proto}://${host}`;
 }
 

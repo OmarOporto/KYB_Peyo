@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { resolveKybSearch } from "@/lib/didit/verify";
 import { logAudit } from "@/lib/kyb/service";
+import { safeEqual } from "@/lib/tokens";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -40,15 +41,29 @@ export async function POST(req: NextRequest) {
     .eq("external_ref", requestId)
     .limit(1);
   const row = rows?.[0];
-  if (!row) return NextResponse.json({ ok: true, ignored: "no_pending_row" });
-  const result = (row.result ?? {}) as Record<string, unknown>;
-  if (result.phase !== "search") {
-    return NextResponse.json({ ok: true, ignored: "not_in_search" });
-  }
+  const result = (row?.result ?? {}) as Record<string, unknown>;
   const token = req.nextUrl.searchParams.get("t") ?? "";
-  if (!token || typeof result.search_token !== "string" || token !== result.search_token) {
-    console.warn(`[DIDIT] kyb-search callback rechazado (token) request_id=${requestId}`);
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
+
+  // Una sola respuesta para todos los fallos previos a autenticar. Antes cada
+  // motivo tenía su código ("no_pending_row", "not_in_search", 401), así que un
+  // llamador anónimo podía sondear qué request_id de DIDIT tenía una fila
+  // pendiente en fase de búsqueda. El motivo queda en el log del servidor.
+  const authorized =
+    !!row &&
+    result.phase === "search" &&
+    typeof result.search_token === "string" &&
+    safeEqual(token, result.search_token);
+
+  if (!authorized) {
+    console.warn(
+      `[DIDIT] kyb-search callback rechazado request_id=${requestId} ` +
+        `row=${!!row} phase=${String(result.phase)} token=${token ? "presente" : "ausente"}`,
+    );
+    // 200 y no 401: una entrega repetida sobre una fila ya resuelta es normal y
+    // debe cerrarse sin reintentos (este callback es idempotente por diseño).
+    // Al ser la misma respuesta que el rechazo por token, tampoco queda nada
+    // que sondear desde afuera.
+    return NextResponse.json({ ok: true });
   }
 
   const { data: kybReq } = await supabase

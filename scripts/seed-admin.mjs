@@ -1,7 +1,8 @@
 // Crea (o asegura) el analista de prueba usando la Auth Admin API.
-// Uso:  node scripts/seed-admin.mjs
+// Uso:  SEED_ADMIN_PASSWORD='...' node scripts/seed-admin.mjs
 // Requiere NEXT_PUBLIC_SUPABASE_URL y SUPABASE_SERVICE_ROLE_KEY en el entorno
 // (o en .env.local; este script los lee de process.env).
+// Solo corre contra un Supabase local salvo SEED_ADMIN_ALLOW_REMOTE=1.
 import { readFileSync } from "node:fs";
 import { createClient } from "@supabase/supabase-js";
 
@@ -23,8 +24,30 @@ if (!url || !serviceKey) {
   process.exit(1);
 }
 
-const email = "analyst@kyb.local";
-const password = "password123";
+// Este script crea un analista con rol `admin`. Dos guardas para que no pueda
+// dejar una cuenta con contraseña conocida en un entorno real:
+//
+// 1. Solo corre contra un Supabase local. Apuntar a un proyecto remoto es casi
+//    siempre un error de copiar y pegar el .env equivocado.
+// 2. La contraseña se pasa por entorno; ya no hay una por defecto en el código.
+const isLocal = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?/.test(url);
+if (!isLocal && process.env.SEED_ADMIN_ALLOW_REMOTE !== "1") {
+  console.error(
+    `Rechazado: ${url} no es local.\n` +
+      "Si de verdad quieres sembrar ahí, exporta SEED_ADMIN_ALLOW_REMOTE=1.",
+  );
+  process.exit(1);
+}
+
+const email = process.env.SEED_ADMIN_EMAIL ?? "analyst@kyb.local";
+const password = process.env.SEED_ADMIN_PASSWORD;
+if (!password) {
+  console.error(
+    "Falta SEED_ADMIN_PASSWORD.\n" +
+      "Ejemplo:  SEED_ADMIN_PASSWORD='...' npm run seed:admin",
+  );
+  process.exit(1);
+}
 
 const supabase = createClient(url, serviceKey, {
   auth: { autoRefreshToken: false, persistSession: false },
@@ -63,4 +86,4 @@ if (upsertErr) {
   process.exit(1);
 }
 
-console.log(`OK  analista listo: ${email} / ${password}`);
+console.log(`OK  analista listo: ${email} (contraseña: la de SEED_ADMIN_PASSWORD)`);

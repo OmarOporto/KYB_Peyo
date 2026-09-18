@@ -18,3 +18,13 @@ export function safeEqualHex(a: string, b: string): boolean {
   if (ba.length !== bb.length) return false;
   return timingSafeEqual(ba, bb);
 }
+
+/**
+ * Comparación en tiempo constante de dos secretos cualesquiera (no hex): el
+ * CRON_SECRET, el token del callback de kyb-search. Se comparan sus hashes, así
+ * que el largo de las entradas tampoco filtra nada por tiempo.
+ */
+export function safeEqual(a: string, b: string): boolean {
+  if (!a || !b) return false;
+  return safeEqualHex(hashToken(a), hashToken(b));
+}

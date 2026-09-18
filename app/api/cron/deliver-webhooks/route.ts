@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { env } from "@/lib/env";
+import { cronGuard } from "@/lib/auth/cronGuard";
 import { drainDueDeliveries } from "@/lib/kyb/webhook";
 
 export const runtime = "nodejs";
@@ -17,11 +17,8 @@ export const maxDuration = 120;
  * Fail-closed: sin `CRON_SECRET` configurado → 401.
  */
 export async function GET(req: NextRequest) {
-  const secret = env.cronSecret();
-  const auth = req.headers.get("authorization");
-  if (!secret || auth !== `Bearer ${secret}`) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
+  const denied = cronGuard(req);
+  if (denied) return denied;
 
   const { attempted, delivered } = await drainDueDeliveries();
 

@@ -1,30 +1,22 @@
+import "server-only";
+import { publicEnv, required } from "./env.public";
+
 /**
- * Acceso centralizado a variables de entorno.
- * Los helpers *server* solo deben importarse desde código server-only.
+ * Acceso centralizado a variables de entorno, SOLO desde el servidor: este
+ * módulo expone secretos, así que lleva `server-only` para que importarlo desde
+ * un módulo cliente rompa el build en vez de colarse en el bundle.
+ *
+ * Las `NEXT_PUBLIC_*` viven en `lib/env.public.ts` (que sí puede importar el
+ * cliente) y se re-exportan acá para que el servidor siga teniendo un único
+ * objeto `env`.
  */
-
-function required(name: string, value: string | undefined): string {
-  if (!value) {
-    throw new Error(`Falta la variable de entorno ${name}`);
-  }
-  return value;
-}
-
 export const env = {
-  supabaseUrl: () =>
-    required("NEXT_PUBLIC_SUPABASE_URL", process.env.NEXT_PUBLIC_SUPABASE_URL),
-  supabaseAnonKey: () =>
-    required(
-      "NEXT_PUBLIC_SUPABASE_ANON_KEY",
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
-    ),
-  // server-only
+  ...publicEnv,
   supabaseServiceRoleKey: () =>
     required(
       "SUPABASE_SERVICE_ROLE_KEY",
       process.env.SUPABASE_SERVICE_ROLE_KEY,
     ),
-  appUrl: () => process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
   amlProvider: () => process.env.AML_PROVIDER ?? "mock",
   diditApiUrl: () => process.env.DIDIT_API_URL ?? "",
   diditApiKey: () => process.env.DIDIT_API_KEY ?? "",

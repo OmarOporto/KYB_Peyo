@@ -276,7 +276,13 @@ export async function getRequestByToken(
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("kyb_requests")
-    .select("*")
+    // Lista explícita y no `*`: esta fila la resuelve el flujo PÚBLICO por
+    // token, y con `*` el `invitation_token_hash` acababa dentro del Server
+    // Component de /f/[token]. Hoy nadie lo pasa al cliente, pero basta un
+    // `<Comp {...req}>` para serializarlo al payload RSC.
+    // En una sola línea: Supabase infiere el tipo de la fila parseando este
+    // literal, y una concatenación le da `GenericStringError`.
+    .select("id, external_ref, status, token_expires_at, form_version, created_at, submitted_at, decided_at, decision, decided_by, form_id, form_definition, api_key_id, callback_url, return_url, webhook_endpoint_id, corrections, decision_reason, expiring_notified_at, form_revision")
     .eq("invitation_token_hash", hashToken(token))
     .maybeSingle();
 
