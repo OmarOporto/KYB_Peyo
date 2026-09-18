@@ -53,9 +53,11 @@ export async function ReportCheckBlock({
   const kybDeclared = isKyb ? (envl.declared as Node | undefined) : undefined;
 
   return (
-    <div className="print-block mt-2 rounded-lg border border-border border-l-2 border-l-brand bg-surface-2 p-3">
+    // El raíl a 3px en papel: 2px son 0,53mm y se leen como un borde cualquiera,
+    // no como el marcador de un bloque de verificación.
+    <div className="print-block mt-2 rounded-lg border border-border border-l-2 border-l-brand bg-surface-2 p-3 print:border-l-[3px]">
       <div className="mb-2 flex flex-wrap items-center gap-2">
-        <span className="text-[10px] font-semibold uppercase tracking-wide text-muted">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted">
           {tR("diditBlock")}
         </span>
         <span className="text-sm font-medium text-foreground">{title}</span>

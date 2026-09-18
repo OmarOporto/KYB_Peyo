@@ -22,8 +22,11 @@ type Size = "md" | "sm";
 const LABEL: Record<Size, string> = {
   // Preguntas del formulario: frases largas, nunca en mayúsculas.
   md: "text-xs font-semibold leading-snug text-muted",
-  // Campos curados de un check: etiquetas cortas, aguantan la versalita.
-  sm: "text-[11px] font-semibold uppercase tracking-wide text-muted",
+  // Campos curados de un check: etiquetas cortas, aguantan la versalita. En las
+  // columnas estrechas del bloque de verificación alguna parte en dos líneas
+  // («DOCUMENT NUMBER»); es aceptable y preferible a bajar de 12px, que en papel
+  // ya estaba al límite.
+  sm: "text-xs font-semibold uppercase tracking-wide text-muted",
 };
 
 const VALUE: Record<Size, string> = {

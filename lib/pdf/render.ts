@@ -21,9 +21,13 @@ const PAGE_MARGIN = { top: "14mm", right: "12mm", bottom: "14mm", left: "12mm" }
  * hereda ni la hoja de estilos ni el tamaño de fuente de la página, así que todo
  * va en línea (el default de Chrome es ilegible, ~6px). `pageNumber` y
  * `totalPages` son clases que Chrome rellena.
+ *
+ * El color DUPLICA el `--muted` del `@media print` de app/globals.css (#475569):
+ * si uno cambia, el otro también. Iba en #94a3b8, que sobre papel blanco da
+ * 2,56:1 y era el único elemento del informe fuera de la paleta de impresión.
  */
 const FOOTER_TEMPLATE = `
-  <div style="width:100%;padding:0 12mm;font-family:system-ui,sans-serif;font-size:8pt;color:#94a3b8;">
+  <div style="width:100%;padding:0 12mm;font-family:system-ui,sans-serif;font-size:8pt;color:#475569;">
     <div style="text-align:right;"><span class="pageNumber"></span> / <span class="totalPages"></span></div>
   </div>`;
 

@@ -287,23 +287,27 @@ export default async function RequestReport({
         )}
       </ReportSection>
 
-      {/* Respuestas contestadas, con su verificación debajo.
-          En papel cada sección abre página: el salto va en el <h2> (para que no
-          quede huérfano al pie de la página anterior) y en cada sección MENOS la
-          primera, que ya arranca con ese salto. */}
+      {/* Respuestas contestadas, con su verificación debajo. En papel el bloque
+          entero abre página; las secciones de dentro fluyen (ver abajo). */}
       <ReportSection title={tR("answers")} subject={subject} className="print-page">
         {groups.length === 0 && otherAnswers.length === 0 && (
           <p className="text-sm text-muted">{tR("noAnswers")}</p>
         )}
+        {/* En papel las secciones del formulario ya no abren hoja cada una: se
+            agrupan sin partirse (`print-group`) y solo los bloques grandes
+            fuerzan página. */}
         <div className="space-y-6">
           {groups.map((g, gi) => (
-            <section key={gi} className={gi > 0 ? "print-page" : ""}>
-              {/* La cabecera identifica la hoja: cada sección abre página. */}
-              <ReportSectionHeader as="h3" title={g.title} subject={subject} />
-              <Card className="p-4">
+            <section key={gi} className="print-group">
+              {/* Sin `subject`: con varias secciones por hoja, repetir el nombre
+                  junto a cada título deja de identificar la hoja y es ruido. La
+                  identidad la lleva la banda `h2`, que sí abre página. */}
+              <ReportSectionHeader as="h3" title={g.title} />
+              <Card className="print-flat p-4">
                 {/* `divide-y` y no `space-y-*` (no se mezclan): una línea entre
-                    pares ancla la lectura mejor que 16px de aire. */}
-                <dl className="divide-y divide-border">
+                    pares ancla la lectura mejor que 16px de aire. En impresión
+                    `report-pairs` mueve el filete arriba (ver globals.css). */}
+                <dl className="report-pairs divide-y divide-border">
                   {g.fields.map((f) => (
                     <AnswerField
                       key={f.id}
@@ -364,7 +368,7 @@ export default async function RequestReport({
       {/* Red de seguridad: nada contestado se pierde del informe */}
       {otherAnswers.length > 0 && (
         <ReportSection title={tR("otherAnswers")} subject={subject} className="print-page">
-          <Card className="print-block p-4">
+          <Card className="print-block print-flat p-4">
             <dl className="grid grid-cols-1 gap-x-6 gap-y-3 sm:grid-cols-2">
               {otherAnswers.map(([k, v]) => {
                 const field = fieldByKey.get(k);
@@ -441,7 +445,7 @@ function CountTile({
     // `flex-col-reverse`: el <dt> va primero en el DOM (lo exige <dl>) y el
     // número se pinta arriba.
     <div className="flex flex-col-reverse rounded-xl border border-border bg-surface px-3 py-2">
-      <dt className="text-[11px] font-semibold uppercase tracking-wide text-muted">
+      <dt className="text-xs font-semibold uppercase tracking-wide text-muted">
         {label}
       </dt>
       <dd

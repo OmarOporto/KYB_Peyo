@@ -34,10 +34,13 @@ export function Meter({
         <span className="text-muted">{label}</span>
         <span className="font-medium tabular-nums text-foreground">{pct.toFixed(2)}%</span>
       </div>
-      {/* El `ring` dibuja la pista: `bg-surface-2` sobre la Card blanca del
-          informe es casi invisible, y en papel más todavía. */}
+      {/* El BORDE dibuja la pista, no un `ring`: un `ring` es `box-shadow` y se
+          pinta por DEBAJO de los descendientes, así que el hijo relleno tapaba
+          el anillo en la zona llena y solo quedaba visible en la cola vacía —un
+          escalón a media barra. El borde queda fuera del content box y el hijo
+          no lo alcanza. `border-box` mantiene los 8px totales. */}
       <div
-        className="h-2 w-full overflow-hidden rounded-full bg-surface-2 ring-1 ring-inset ring-border"
+        className="h-2 w-full overflow-hidden rounded-full border border-border bg-surface-2"
         role="meter"
         aria-valuenow={Math.round(pct)}
         aria-valuemin={0}
@@ -152,7 +155,7 @@ export function KybDeclaredBlock({
             {cmp.map((c) => (
               <span
                 key={c.labelKey}
-                className={`rounded-full px-2 py-0.5 text-[10px] font-medium ${verdictCls[c.verdict]}`}
+                className={`rounded-full px-2 py-0.5 text-xs font-medium ${verdictCls[c.verdict]}`}
               >
                 {cf(c.labelKey)}: {verdictLabel[c.verdict]}
               </span>
@@ -193,7 +196,9 @@ export function KybRegistryPeople({
               <div
                 key={i}
                 className={`rounded-lg border border-border p-2 text-xs ${
-                  o.is_active === false ? "opacity-60" : ""
+                  // En papel el 60% deja el texto en 4,47:1, justo por debajo de
+                  // AA; el 80% desjerarquiza igual y sube a 8,68:1.
+                  o.is_active === false ? "opacity-60 print:opacity-80" : ""
                 }`}
               >
                 <span className="font-medium text-foreground">{fmt(o.name) || "—"}</span>

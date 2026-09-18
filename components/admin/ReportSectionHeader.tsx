@@ -2,9 +2,12 @@
  * Encabezado de sección del informe: una banda con superficie propia, barrita de
  * acento y el nombre del sujeto a la derecha.
  *
- * Antes era una píldora con borde y sin fondo, que flotaba sin anclar nada. Y es
- * un encabezado REAL (`<h2>`/`<h3>`), no un `<span>`: así hereda el
- * `break-after: avoid` del `@media print` y nunca queda huérfano al pie.
+ * Antes era una píldora con borde y sin fondo, que flotaba sin anclar nada.
+ *
+ * El `break-after: avoid` de los headings NO basta aquí: el `<h2>/<h3>` vive
+ * dentro de este flex y no es el último hijo, así que esa regla solo actúa en el
+ * límite heading↔span y no impide que la banda quede sola al pie de la página.
+ * De ahí `print-keep-next`, que marca la banda entera.
  */
 export function ReportSectionHeader({
   title,
@@ -23,7 +26,7 @@ export function ReportSectionHeader({
   return (
     // `surface-card` y no `surface-2`: en claro este último (#f1f5f9) es casi
     // idéntico al fondo de página (#f2f5f9) y la banda no se lee como banda.
-    <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-surface-card px-4 py-2.5">
+    <div className="print-keep-next mb-3 flex flex-wrap items-center gap-x-3 gap-y-1 rounded-xl border border-border bg-surface-card px-4 py-2.5">
       {/* Único uso deliberado del teal de marca en el admin. Como acento
           estructural funciona; como texto o estado no llegaría al contraste
           mínimo, así que no se usa para nada que signifique algo. */}

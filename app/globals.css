@@ -111,18 +111,26 @@ input[type="number"] {
   .dark {
     color-scheme: light;
 
+    /* En pantalla la jerarquía es ELEVACIÓN: la card es más clara que el fondo.
+       En papel eso no existe —`html,body` va forzado a blanco y el papel ya es
+       blanco—, así que no hay fondo sobre el que elevarse. Se invierte el
+       sistema: la card se queda sin relleno (la dibuja el borde) y los dos
+       niveles HUNDIDOS —banda de sección y bloque DIDIT— son los que llevan
+       tinte, cada uno el suyo. Antes ambos valían #f4f6f9: el mismo color,
+       1,08:1 contra el papel, o sea invisibles y además indistinguibles. */
     --background: #ffffff;
-    --surface: #ffffff;
-    --surface-2: #f4f6f9;
-    --surface-card: #f4f6f9;
+    --surface: #ffffff; /* = papel: cabecera, fichas y cards viven del borde */
+    --surface-2: #eaeff6; /* bloque DIDIT, thead, pista del medidor */
+    --surface-card: #dfe7f1; /* banda de sección: el nivel más hundido */
     --foreground: #0f172a;
     --muted: #475569; /* slate-600: más contraste que el muted de pantalla */
-    --border: #cbd5e1;
+    --border: #c2cdda; /* sube: con la card sin relleno, el borde la dibuja solo */
 
     --brand: #1d4ed8;
     --brand-hover: #1d4ed8;
     --success: #047857;
-    --warning: #b45309;
+    --warning: #92400e; /* amber-800: el b45309 sobre su propio tinte al 10% se
+                           quedaba en 3,82:1 y las pills de veredicto fallaban AA */
     --alert: #c2410c; /* orange-700 */
     --danger: #b91c1c;
     /* El teal de marca no tiene contraste sobre papel: la barrita del
@@ -206,9 +214,56 @@ input[type="number"] {
     display: table-header-group;
   }
 
-  /* Cada sección del informe abre página. */
+  /* Los bloques grandes del informe abren página. */
   .print-page {
     break-before: page;
+  }
+
+  /* Una sección del formulario no se parte si cabe entera en lo que queda de
+     hoja. Si no cabe, fluye: `avoid` es una preferencia, no una promesa. */
+  .print-group {
+    break-inside: avoid;
+  }
+
+  /* La banda de sección no se separa de su contenido. El `break-after: avoid`
+     de h1–h3 dejó de protegerla: desde el rediseño el heading vive dentro de un
+     flex y ya no es el último hijo, así que la regla solo actúa en el límite
+     heading↔span —dentro del flex, donde no hay saltos posibles— y no en el
+     límite banda↔contenido. La marca va ahora en la banda misma. */
+  .print-keep-next {
+    break-after: avoid;
+  }
+  .print-keep-next + * {
+    break-before: avoid;
+  }
+
+  /* La hoja YA es la card: sobre papel blanco un contorno redondeado no separa
+     nada, y al fragmentar entre páginas Chrome lo parte mal (`slice`: repite el
+     contorno o pierde el borde de la continuación). Se queda el contenido.
+     El padding HORIZONTAL sobrevive a propósito: alinea las preguntas con el
+     título de la banda, que tiene su propio `px-4`. */
+  .print-flat {
+    border-width: 0;
+    border-radius: 0;
+    box-shadow: none;
+    padding-top: 0;
+    padding-bottom: 0;
+  }
+
+  /* La sombra es profundidad de pantalla; impresa es una mancha gris. */
+  .print-doc .shadow-sm {
+    box-shadow: none;
+  }
+
+  /* `divide-y` es `border-bottom` en todos los hijos menos el último: si el
+     corte de página cae entre dos pares, esa línea queda colgando al pie de la
+     hoja sin nada debajo. Pasada a `border-top` encabeza la continuación, que
+     es como se lee una tabla partida. */
+  .report-pairs > :not(:last-child) {
+    border-bottom-width: 0;
+  }
+  .report-pairs > * + * {
+    border-top: 1px solid var(--border);
   }
 
   /* Un `overflow: hidden` vuelve la caja monolítica al fragmentar en Chrome: en
