@@ -23,7 +23,10 @@ export function DocLink({
     <button
       onClick={open}
       disabled={loading}
-      className="text-brand hover:underline disabled:opacity-50"
+      // Un `<button>` centra su texto y no cede ancho: sin esto, un nombre de
+      // archivo largo empuja el max-content de su caja y aplasta lo que tenga al
+      // lado —o se sale de la tarjeta si no hay espacios donde partir—.
+      className="max-w-full break-words text-left text-brand hover:underline disabled:opacity-50"
     >
       {loading ? "…" : filename}
     </button>

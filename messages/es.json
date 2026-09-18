@@ -354,6 +354,7 @@
     "rawResponse": "Respuesta cruda (JSON)",
     "checkFields": {
       "imageUsed": "Imagen recibida",
+      "docUsed": "Documento recibido",
       "refImage": "Documento de referencia",
       "matchScore": "Coincidencia",
       "liveness": "Vitalidad",

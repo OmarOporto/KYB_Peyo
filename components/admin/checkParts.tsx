@@ -7,6 +7,7 @@ import {
   type Node,
 } from "@/lib/didit/summary";
 import { AnswerField } from "@/components/admin/answerParts";
+import { DocPreview, isImagePath } from "@/components/admin/DocPreview";
 
 /**
  * Piezas visuales de un check de DIDIT, compartidas por la tarjeta operativa
@@ -16,6 +17,38 @@ import { AnswerField } from "@/components/admin/answerParts";
 
 /** Imagen (del solicitante) ya resuelta y firmada por la página. */
 export type CheckImage = { filename: string; path: string; url?: string };
+
+/**
+ * El documento que se verificó, al lado de los campos extraídos.
+ *
+ * `shrink-0` está para proteger la MINIATURA, que tiene ancho intrínseco. Cuando
+ * el archivo no es imagen no hay miniatura: `DocPreview` cae a un `DocLink` cuyo
+ * texto es el nombre COMPLETO del archivo, y ahí `shrink-0` blindaba su ancho
+ * max-content —524px medidos con un nombre real de DIDIT, de 696px útiles: los
+ * campos se quedaban en 158px y la rejilla los partía en dos columnas de 71px,
+ * con las etiquetas rotas en cuatro líneas y los valores carácter a carácter—.
+ * Sin miniatura ocupa su propia línea del flex y los campos bajan enteros.
+ */
+export function CheckDoc({
+  doc,
+  cf,
+  labelKey,
+}: {
+  doc: CheckImage;
+  cf: (k: string) => string;
+  labelKey: "imageUsed" | "refImage";
+}) {
+  const thumb = Boolean(doc.url) && isImagePath(doc.filename);
+  // «Imagen recibida» miente cuando lo recibido es un PDF. `refImage` ya es
+  // neutra («Documento de referencia»), así que solo se sustituye la otra.
+  const label = labelKey === "imageUsed" && !thumb ? "docUsed" : labelKey;
+  return (
+    <div className={thumb ? "shrink-0" : "min-w-0 basis-full"}>
+      <p className="mb-1 text-xs text-muted">{cf(label)}</p>
+      <DocPreview path={doc.path} filename={doc.filename} url={doc.url} />
+    </div>
+  );
+}
 
 /** Medidor de un valor 0–100. Verde = bueno; rojo = riesgo. El número siempre visible. */
 export function Meter({
@@ -69,13 +102,19 @@ export function CuratedFields({
   const rows = curatedRows(feature, node);
   if (rows.length === 0) return null;
   return (
-    <dl className="mt-2 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-      {rows.map((r) => (
-        <AnswerField key={r.labelKey} size="sm" label={cf(r.labelKey)}>
-          {r.value}
-        </AnswerField>
-      ))}
-    </dl>
+    // `@container` y no `sm:`: la rejilla vive en una columna de un flex, así que
+    // el ancho del VIEWPORT no dice nada de lo que ella tiene. Con `sm:` bastaba
+    // que un vecino se comiera la fila para acabar con dos columnas de 85px en
+    // una pantalla de escritorio. Dos columnas solo a partir de 24rem propios.
+    <div className="@container mt-2">
+      <dl className="grid grid-cols-1 gap-x-4 gap-y-2 @sm:grid-cols-2">
+        {rows.map((r) => (
+          <AnswerField key={r.labelKey} size="sm" label={cf(r.labelKey)}>
+            {r.value}
+          </AnswerField>
+        ))}
+      </dl>
+    </div>
   );
 }
 
@@ -141,13 +180,15 @@ export function KybDeclaredBlock({
   return (
     <div className="mt-2">
       <p className="text-xs font-medium text-foreground">{t("kybDeclared")}</p>
-      <dl className="mt-1 grid grid-cols-1 gap-x-4 gap-y-2 sm:grid-cols-2">
-        {rows.map((r) => (
-          <AnswerField key={r.label} size="sm" label={r.label}>
-            {r.value}
-          </AnswerField>
-        ))}
-      </dl>
+      <div className="@container mt-1">
+        <dl className="grid grid-cols-1 gap-x-4 gap-y-2 @sm:grid-cols-2">
+          {rows.map((r) => (
+            <AnswerField key={r.label} size="sm" label={r.label}>
+              {r.value}
+            </AnswerField>
+          ))}
+        </dl>
+      </div>
       {cmp.length > 0 && (
         <div className="mt-2">
           <p className="text-xs font-medium text-foreground">{t("kybCompare")}</p>

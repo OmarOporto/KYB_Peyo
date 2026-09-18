@@ -354,6 +354,7 @@
     "rawResponse": "Raw response (JSON)",
     "checkFields": {
       "imageUsed": "Image received",
+      "docUsed": "Document received",
       "refImage": "Reference document",
       "matchScore": "Match",
       "liveness": "Liveness",

@@ -5,6 +5,7 @@ import { DocPreview } from "@/components/admin/DocPreview";
 import { KybCandidatePicker } from "@/components/admin/KybCandidatePicker";
 import {
   AmlHits,
+  CheckDoc,
   CuratedFields,
   KybDeclaredBlock,
   KybRegistryPeople,
@@ -161,13 +162,11 @@ export async function AmlCheckCard({
       )}
 
       <div className="flex flex-wrap gap-3">
-        {image?.url && (
-          <div className="shrink-0">
-            <p className="mb-1 text-xs text-muted">{cf("imageUsed")}</p>
-            <DocPreview path={image.path} filename={image.filename} url={image.url} />
-          </div>
-        )}
-        <div className="min-w-0 flex-1">
+        {image && <CheckDoc doc={image} cf={cf} labelKey="imageUsed" />}
+        {/* `basis-72` y no `flex-1`: `flex-1` es base 0, y con base 0 la columna
+            SIEMPRE cabe en la línea, así que `flex-wrap` nunca la baja —solo la
+            comprime, hasta dejarla inservible—. Con base real envuelve. */}
+        <div className="min-w-0 grow basis-72">
           {typeof check.score === "number" && (
             <Meter value={check.score} risk={risk} label={cf(scoreLabelKey(feature))} />
           )}

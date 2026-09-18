@@ -1,8 +1,8 @@
 import { getTranslations } from "next-intl/server";
 import { StatusBadge } from "@/components/admin/StatusBadge";
-import { DocPreview } from "@/components/admin/DocPreview";
 import {
   AmlHits,
+  CheckDoc,
   CuratedFields,
   KybDeclaredBlock,
   KybRegistryPeople,
@@ -76,19 +76,13 @@ export async function ReportCheckBlock({
       )}
 
       <div className="flex flex-wrap gap-3">
-        {image?.url && (
-          <div className="shrink-0">
-            <p className="mb-1 text-xs text-muted">{cf("imageUsed")}</p>
-            <DocPreview path={image.path} filename={image.filename} url={image.url} />
-          </div>
-        )}
+        {image && <CheckDoc doc={image} cf={cf} labelKey="imageUsed" />}
         {refImages?.map((im, i) => (
-          <div key={i} className="shrink-0">
-            <p className="mb-1 text-xs text-muted">{cf("refImage")}</p>
-            <DocPreview path={im.path} filename={im.filename} url={im.url} />
-          </div>
+          <CheckDoc key={i} doc={im} cf={cf} labelKey="refImage" />
         ))}
-        <div className="min-w-0 flex-1">
+        {/* `basis-72` y no `flex-1`: ver `AmlCheckCard`. Con base 0 la columna no
+            envuelve nunca, se comprime. */}
+        <div className="min-w-0 grow basis-72">
           {typeof check.score === "number" && (
             <Meter value={check.score} risk={risk} label={cf(scoreLabelKey(feature))} />
           )}
