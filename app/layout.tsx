@@ -20,7 +20,6 @@ const manrope = Manrope({
 export const metadata: Metadata = {
   title: "Peyo · Verificación KYB",
   description: "Verificación de empresas (KYB) — Peyo",
-  icons: { icon: "/peyo-logo.png" },
 };
 
 export default async function RootLayout({
