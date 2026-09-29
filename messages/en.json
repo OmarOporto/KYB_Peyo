@@ -332,8 +332,13 @@
     "failed": "Failed"
   },
   "admin": {
-    "requestsTitle": "KYB requests",
+    "requestsTitle": "Form requests",
+    "resultsCount": "{count, plural, =0 {No requests} one {# request} other {# requests}}",
     "company": "Company (ref)",
+    "formDefault": "Default form",
+    "formDefaultHint": "Created without a pinned form: uses the default published form.",
+    "formDeleted": "Deleted form",
+    "revisionShort": "Rev. {n}",
     "status": "Status",
     "created": "Created",
     "originWeb": "Web",
@@ -459,7 +464,7 @@
     "allStatuses": "All statuses",
     "dateFrom": "From",
     "dateTo": "To",
-    "clearFilters": "Clear",
+    "clearFilters": "Clear filters",
     "previous": "Previous",
     "next": "Next",
     "pageOf": "Page {page} of {total}",

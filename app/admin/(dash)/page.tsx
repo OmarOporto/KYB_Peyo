@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { ChevronLeft, ChevronRight, Inbox } from "lucide-react";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { Card } from "@/components/ui/Card";
+import { buttonClass } from "@/components/ui/Button";
 import { ClickableRow } from "@/components/admin/ClickableRow";
 import { OriginBadge } from "@/components/admin/OriginBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { resolveText, type LocalizedText } from "@/lib/forms/definition";
 import type { KybStatus } from "@/lib/kyb/types";
 import { RequestsToolbar } from "./RequestsToolbar";
 import { requireAnalyst } from "@/lib/auth/admin";
@@ -28,6 +31,19 @@ const STATUSES: KybStatus[] = [
 function isStatus(v: string | undefined): v is KybStatus {
   return !!v && (STATUSES as string[]).includes(v);
 }
+
+type RequestRow = {
+  id: string;
+  external_ref: string;
+  status: string;
+  created_at: string;
+  api_key_id: string | null;
+  form_id: string | null;
+  form_revision: number | null;
+  /** `form_definition->title` del snapshot: sobrevive al borrado del formulario. */
+  snapshot_title: LocalizedText | null;
+  form: { name: string } | null;
+};
 
 const PUBLIC_PREFIX = "public:";
 
@@ -99,11 +115,14 @@ export default async function AdminHome({
   const hasFilters = Boolean(q || status || from || to);
 
   const supabase = await createServerSupabase();
+  // El formulario sale del join por `form_id` (nombre vigente). Si se eliminó,
+  // `form_id` quedó a null (0020) y el título del snapshot es lo que queda.
   let query = supabase
     .from("kyb_requests")
-    .select("id, external_ref, status, created_at, api_key_id", {
-      count: "exact",
-    });
+    .select(
+      "id, external_ref, status, created_at, api_key_id, form_id, form_revision, snapshot_title:form_definition->title, form:forms(name)",
+      { count: "exact" },
+    );
 
   if (q) query = query.ilike("external_ref", `%${q}%`);
   if (status) query = query.eq("status", status);
@@ -121,27 +140,69 @@ export default async function AdminHome({
 
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const rows = requests ?? [];
+  const rows = (requests ?? []) as unknown as RequestRow[];
   const labels = await clientLabels([
     ...new Set(
       rows.map((r) => r.api_key_id).filter((id): id is string => Boolean(id)),
     ),
   ]);
 
+  /**
+   * Nombre del formulario (el vigente, por `form_id`) y una línea de contexto.
+   * Sin join hay dos casos: se eliminó (queda el título del snapshot) o la
+   * solicitud nunca tuvo formulario fijado (API antigua → el publicado por
+   * defecto, que puede haber cambiado desde entonces).
+   */
+  function formCell(r: RequestRow) {
+    if (r.form) {
+      return {
+        name: r.form.name,
+        meta:
+          r.form_revision != null ? t("revisionShort", { n: r.form_revision }) : null,
+        muted: false,
+        hint: r.form.name,
+      };
+    }
+    const snapshot = resolveText(r.snapshot_title, locale);
+    if (snapshot) {
+      return {
+        name: snapshot,
+        meta: r.form_id ? null : t("formDeleted"),
+        muted: false,
+        hint: snapshot,
+      };
+    }
+    return { name: t("formDefault"), meta: null, muted: true, hint: t("formDefaultHint") };
+  }
+
   return (
-    <main className="mx-auto w-full max-w-5xl p-6">
-      <h1 className="mb-4 font-display text-2xl font-bold text-foreground">
-        {t("requestsTitle")}
-      </h1>
+    <main className="mx-auto w-full max-w-6xl p-6">
+      <header className="mb-5">
+        <h1 className="font-display text-2xl font-bold text-foreground">
+          {t("requestsTitle")}
+        </h1>
+        <p className="mt-0.5 text-sm text-muted">{t("resultsCount", { count: total })}</p>
+      </header>
 
       <RequestsToolbar current={filters} />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-left text-sm">
+          {/* `table-fixed` + anchos por columna: un texto largo (referencia de
+              la API, nombre del cliente o del formulario) se trunca con
+              tooltip en vez de empujar las otras columnas. Por debajo del
+              `min-w` la tabla scrollea en horizontal en lugar de aplastarse. */}
+          <table className="w-full min-w-190 table-fixed text-left text-sm">
+            <colgroup>
+              <col className="w-[34%]" />
+              <col className="w-[30%]" />
+              <col className="w-[18%]" />
+              <col className="w-[18%]" />
+            </colgroup>
             <thead className="bg-surface-2 text-muted">
               <tr>
                 <th className="px-4 py-2.5 font-medium">{t("company")}</th>
+                <th className="px-4 py-2.5 font-medium">{t("form")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("status")}</th>
                 <th className="px-4 py-2.5 font-medium">{t("created")}</th>
               </tr>
@@ -150,47 +211,80 @@ export default async function AdminHome({
               {rows.map((r) => {
                 const client = r.api_key_id ? labels.get(r.api_key_id) : null;
                 const api = Boolean(r.api_key_id);
+                const ref = displayRef(r.external_ref, api);
+                const form = formCell(r);
+                const created = new Date(r.created_at);
                 return (
                   <ClickableRow key={r.id} href={`/admin/requests/${r.id}`}>
-                    <td className="px-4 py-2.5">
-                      <span className="flex items-center gap-2">
+                    <td className="px-4 py-3">
+                      {/* La fila entera navega, pero el enlace real es lo que
+                          la hace accesible: foco por teclado y abrir en
+                          pestaña nueva. */}
+                      <Link
+                        href={`/admin/requests/${r.id}`}
+                        title={ref}
+                        className="block truncate rounded font-mono font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                      >
+                        {ref}
+                      </Link>
+                      <span className="mt-1 flex min-w-0 items-center gap-1.5">
                         <OriginBadge
                           api={api}
-                          label={
-                            api
-                              ? client
-                                ? `${t("originApi")} · ${client}`
-                                : t("originApi")
-                              : t("originWeb")
-                          }
+                          label={api ? t("originApi") : t("originWeb")}
                         />
-                        {/* La fila entera navega, pero el enlace real es lo que
-                            la hace accesible: foco por teclado y abrir en
-                            pestaña nueva. */}
-                        <Link
-                          href={`/admin/requests/${r.id}`}
-                          className="rounded font-mono font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
-                        >
-                          {displayRef(r.external_ref, api)}
-                        </Link>
+                        {client && (
+                          <span className="truncate text-xs text-muted" title={client}>
+                            {client}
+                          </span>
+                        )}
                       </span>
                     </td>
-                    <td className="px-4 py-2.5">
+                    <td className="px-4 py-3">
+                      <span
+                        className={`block truncate ${form.muted ? "text-muted" : "text-foreground"}`}
+                        title={form.hint}
+                      >
+                        {form.name}
+                      </span>
+                      {form.meta && (
+                        <span className="mt-0.5 block truncate text-xs text-muted">
+                          {form.meta}
+                        </span>
+                      )}
+                    </td>
+                    <td className="px-4 py-3">
                       <StatusBadge status={r.status} />
                     </td>
-                    <td className="px-4 py-2.5 text-muted">
-                      {new Date(r.created_at).toLocaleString(locale, {
-                        dateStyle: "medium",
-                        timeStyle: "short",
-                      })}
+                    <td className="px-4 py-3 whitespace-nowrap">
+                      <span className="block text-foreground">
+                        {created.toLocaleDateString(locale, { dateStyle: "medium" })}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted">
+                        {created.toLocaleTimeString(locale, { timeStyle: "short" })}
+                      </span>
                     </td>
                   </ClickableRow>
                 );
               })}
               {rows.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-muted">
-                    {hasFilters ? t("noResults") : t("noRequests")}
+                  <td colSpan={4} className="px-4 py-14">
+                    <div className="flex flex-col items-center gap-2 text-center">
+                      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-2 text-muted">
+                        <Inbox size={20} aria-hidden />
+                      </span>
+                      <p className="text-sm text-muted">
+                        {hasFilters ? t("noResults") : t("noRequests")}
+                      </p>
+                      {hasFilters && (
+                        <Link
+                          href="/admin"
+                          className="text-sm font-medium text-brand hover:underline"
+                        >
+                          {t("clearFilters")}
+                        </Link>
+                      )}
+                    </div>
                   </td>
                 </tr>
               )}
@@ -199,8 +293,8 @@ export default async function AdminHome({
         </div>
       </Card>
 
-      {total > 0 && (
-        <div className="mt-4 flex items-center justify-between text-sm">
+      {totalPages > 1 && (
+        <nav className="mt-4 flex items-center justify-between gap-2 text-sm">
           <span className="text-muted">
             {t("pageOf", { page, total: totalPages })}
           </span>
@@ -209,14 +303,16 @@ export default async function AdminHome({
               href={buildQuery(filters, page - 1)}
               disabled={page <= 1}
               label={t("previous")}
+              dir="prev"
             />
             <PageLink
               href={buildQuery(filters, page + 1)}
               disabled={page >= totalPages}
               label={t("next")}
+              dir="next"
             />
           </div>
-        </div>
+        </nav>
       )}
     </main>
   );
@@ -226,23 +322,42 @@ function PageLink({
   href,
   disabled,
   label,
+  dir,
 }: {
   href: string;
   disabled: boolean;
   label: string;
+  dir: "prev" | "next";
 }) {
-  const cls =
-    "rounded-lg border border-border px-3 py-1.5 text-sm font-medium transition-colors";
+  const content =
+    dir === "prev" ? (
+      <>
+        <ChevronLeft size={16} aria-hidden />
+        {label}
+      </>
+    ) : (
+      <>
+        {label}
+        <ChevronRight size={16} aria-hidden />
+      </>
+    );
   if (disabled) {
     return (
-      <span className={`${cls} cursor-not-allowed text-muted opacity-50`}>
-        {label}
+      <span
+        aria-disabled
+        className={buttonClass({
+          variant: "outline",
+          size: "sm",
+          className: "pointer-events-none opacity-50",
+        })}
+      >
+        {content}
       </span>
     );
   }
   return (
-    <Link href={href} className={`${cls} text-foreground hover:bg-surface-2`}>
-      {label}
+    <Link href={href} className={buttonClass({ variant: "outline", size: "sm" })}>
+      {content}
     </Link>
   );
 }

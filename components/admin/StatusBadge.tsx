@@ -20,7 +20,7 @@ export function StatusBadge({ status }: { status: string }) {
   const t = useTranslations("status");
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+      className={`inline-block whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${
         COLORS[status] ?? "bg-surface-2 text-muted"
       }`}
     >

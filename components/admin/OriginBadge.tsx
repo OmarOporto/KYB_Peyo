@@ -6,7 +6,7 @@
 export function OriginBadge({ label, api }: { label: string; api: boolean }) {
   return (
     <span
-      className={`inline-block rounded-full px-2.5 py-0.5 text-xs font-medium ${
+      className={`inline-block shrink-0 whitespace-nowrap rounded-full px-2.5 py-0.5 text-xs font-medium ${
         api ? "bg-brand/10 text-brand" : "bg-surface-2 text-muted"
       }`}
     >
