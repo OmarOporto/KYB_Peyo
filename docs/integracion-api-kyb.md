@@ -565,6 +565,7 @@ a la otra.
 |---|---|---|
 | 400 | `invalid_json` | Body no es JSON |
 | 401 | `unauthorized` | Falta/invalida la API key |
+| 403 | `organization_suspended` | Tu organización está suspendida: la API no acepta pedidos hasta que la reactiven. Los links de invitación ya emitidos siguen funcionando |
 | 404 | `not_found` | La solicitud no existe o no es tuya |
 | 409 | `idempotency_key_reuse` / `request_in_progress` | Misma Idempotency-Key con body distinto / en curso |
 | 409 | (re-emitir) | La solicitud ya fue enviada o cerrada |

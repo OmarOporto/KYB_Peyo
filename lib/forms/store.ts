@@ -18,14 +18,19 @@ export interface FormRow {
 const FORM_COLUMNS =
   "id, name, status, definition, source, source_ref, updated_at, org_id, version";
 
-/** Formulario PUBLICADO por id (para la ruta pública /forms/[id]). */
+/**
+ * Formulario PUBLICADO por id (para la ruta pública /forms/[id] y su intake).
+ * Excluye los de orgs suspendidas: una org suspendida no recibe solicitudes
+ * nuevas. Los links /f/[token] ya emitidos no pasan por acá y siguen andando.
+ */
 export async function getPublishedForm(id: string): Promise<FormRow | null> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("forms")
-    .select(FORM_COLUMNS)
+    .select(`${FORM_COLUMNS}, org:organizations!inner(disabled_at)`)
     .eq("id", id)
     .eq("status", "published")
+    .is("org.disabled_at", null)
     .maybeSingle();
   return validate(data);
 }

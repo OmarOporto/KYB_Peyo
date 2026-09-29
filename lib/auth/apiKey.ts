@@ -8,6 +8,12 @@ export interface ApiKeyIdentity {
   orgId: string;
   /** `KYB_FORM_ID` configurado en el panel (Clientes API), si hay. */
   defaultFormId: string | null;
+  /**
+   * La org dueña está suspendida (0028_accounts.sql). La key sigue siendo
+   * válida, pero apiGuard responde 403: el cliente sabe que no es un problema
+   * de credenciales.
+   */
+  orgSuspended: boolean;
 }
 
 /**
@@ -25,14 +31,17 @@ export async function verifyApiKey(
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("api_keys")
-    .select("id, org_id, default_form_id, revoked_at")
+    .select("id, org_id, default_form_id, revoked_at, org:organizations!inner(disabled_at)")
     .eq("key_hash", keyHash)
     .maybeSingle();
 
   if (!data || data.revoked_at) return null;
+  const org = data.org as { disabled_at: string | null } | { disabled_at: string | null }[];
+  const orgDisabledAt = Array.isArray(org) ? org[0]?.disabled_at : org?.disabled_at;
   return {
     keyId: data.id as string,
     orgId: data.org_id as string,
     defaultFormId: (data.default_form_id as string | null) ?? null,
+    orgSuspended: Boolean(orgDisabledAt),
   };
 }
