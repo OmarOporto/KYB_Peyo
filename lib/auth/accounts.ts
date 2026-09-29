@@ -148,11 +148,20 @@ export async function getAccount(userId: string): Promise<AccountRow | null> {
   return toAccounts(analysts, orgs, authById, mfaIds).find((a) => a.userId === userId) ?? null;
 }
 
-/** Admins activos (no suspendidos, org habilitada): los contactos posibles. */
+/**
+ * Admins activos (ni suspendidos, ni de una org suspendida, ni con la
+ * invitación pendiente): los contactos posibles de una suspensión.
+ */
 export async function listActiveAdmins(): Promise<{ userId: string; email: string; fullName: string | null }[]> {
   return (await listAccounts())
-    .filter((a) => a.role === "admin" && a.status !== "suspended" && !a.orgSuspended)
+    .filter((a) => a.role === "admin" && a.status === "active")
     .map((a) => ({ userId: a.userId, email: a.email, fullName: a.fullName }));
+}
+
+/** Usuario de Auth por email (tenga o no fila en `analysts`). */
+export async function findAuthUserByEmail(email: string): Promise<User | null> {
+  const wanted = email.toLowerCase();
+  return (await allAuthUsers()).find((u) => u.email?.toLowerCase() === wanted) ?? null;
 }
 
 export async function listOrgSummaries(): Promise<OrgSummary[]> {

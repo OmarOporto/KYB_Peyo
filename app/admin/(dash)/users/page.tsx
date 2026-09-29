@@ -9,6 +9,7 @@ import { TabLink } from "@/components/admin/TabLink";
 import { OrgTabs } from "@/components/admin/OrgTabs";
 import { AccountStatusBadge, RoleBadge } from "./badges";
 import { OrgsPanel } from "./OrgsPanel";
+import { NewAccountPanel } from "./NewAccountPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -51,7 +52,7 @@ export default async function UsersPage({
       </nav>
 
       {tab === "users" ? (
-        <UsersTab orgParam={sp.org} locale={locale} analyst={analyst} />
+        <UsersTab orgParam={sp.org} locale={locale} analyst={analyst} canManage={canManage} />
       ) : (
         <OrgsTab canManage={canManage} actorId={analyst.userId} />
       )}
@@ -63,10 +64,12 @@ async function UsersTab({
   orgParam,
   locale,
   analyst,
+  canManage,
 }: {
   orgParam?: string;
   locale: string;
   analyst: Awaited<ReturnType<typeof requireAdmin>>;
+  canManage: boolean;
 }) {
   const t = await getTranslations("accounts");
   const [{ scope, orgs }, accounts] = await Promise.all([
@@ -79,6 +82,9 @@ async function UsersTab({
 
   return (
     <>
+      {canManage && (
+        <NewAccountPanel orgs={orgs.filter((o) => !o.disabled)} defaultOrg={scope ?? analyst.orgId} />
+      )}
       <OrgTabs
         orgs={orgs}
         active={scope}

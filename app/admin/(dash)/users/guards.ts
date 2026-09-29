@@ -5,6 +5,8 @@ import { getAccount, listActiveAdmins, type AccountRow } from "@/lib/auth/accoun
 import { canManageAccount, type AccountAction } from "@/lib/auth/accountRules";
 import { isUuid } from "@/lib/auth/tenantRules";
 import { checkCurrentPassword } from "@/lib/auth/stepUp";
+import { consumeRate } from "@/lib/auth/rateLimit";
+import { publicEnv } from "@/lib/env.public";
 
 /**
  * Helpers de las acciones de cuentas. Viven FUERA del archivo "use server" a
@@ -30,6 +32,23 @@ export async function stepUp(actor: Analyst, password: string | undefined): Prom
   if (check === "ok") return null;
   return check === "limited" ? "auth.errRateLimit" : "accounts.errStepUp";
 }
+
+/** Correos de cuentas (invitaciones y links) por admin y minuto. */
+const ACCOUNT_MAILS_PER_MIN = 5;
+
+/** Frena a un admin (o una sesión robada) que dispara correos en serie. */
+export async function mailRate(actor: Analyst): Promise<string | null> {
+  const rate = await consumeRate(`acctmail:${actor.userId}`, ACCOUNT_MAILS_PER_MIN);
+  return rate.allowed ? null : "auth.errRateLimit";
+}
+
+/**
+ * A dónde vuelve el link de los correos. Las plantillas arman su propio link a
+ * /auth/confirm con el token; esto queda como respaldo si una plantilla usa
+ * {{ .ConfirmationURL }}.
+ */
+export const inviteRedirect = () => `${publicEnv.appUrl()}/auth/reset?invite=1`;
+export const resetRedirect = () => `${publicEnv.appUrl()}/auth/reset`;
 
 /** Traduce los errores de los triggers y constraints de 0028. */
 export function dbErrorKey(error: { message?: string; code?: string } | null): string {

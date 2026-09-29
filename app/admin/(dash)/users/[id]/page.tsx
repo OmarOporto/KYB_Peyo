@@ -9,6 +9,7 @@ import { isUuid } from "@/lib/auth/tenantRules";
 import { buttonClass } from "@/components/ui/Button";
 import { AccountStatusBadge, RoleBadge } from "../badges";
 import { AccountPanels } from "./AccountPanels";
+import { CredentialsPanel } from "./CredentialsPanel";
 
 export const dynamic = "force-dynamic";
 
@@ -68,7 +69,9 @@ export default async function AccountPage({ params }: { params: Promise<{ id: st
           admins={admins}
           actorId={actor.userId}
           canManage={actor.mfaEnabled}
-        />
+        >
+          <CredentialsPanel account={account} />
+        </AccountPanels>
       )}
     </main>
   );
