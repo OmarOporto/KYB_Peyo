@@ -18,6 +18,15 @@ const COOKIE_MAX_AGE = 60 * 60 * 24 * 365;
 const iconBtnCls =
   "inline-flex h-9 w-9 shrink-0 cursor-pointer items-center justify-center rounded-lg text-muted outline-none transition-colors hover:bg-surface-2 hover:text-foreground focus-visible:ring-2 focus-visible:ring-brand/30";
 
+/** Quién está en sesión, para el pie del sidebar. */
+export interface SidebarUser {
+  email: string;
+  fullName: string | null;
+  orgName: string;
+  /** Admin de plataforma (ve todas las orgs). */
+  isAdmin: boolean;
+}
+
 /**
  * Navegación del panel.
  * - Escritorio (md+): columna fija que se pliega a un riel de íconos. El
@@ -25,10 +34,10 @@ const iconBtnCls =
  * - Móvil: barra superior con menú hamburguesa que abre un panel lateral.
  */
 export function Sidebar({
-  email,
+  user,
   initialCollapsed,
 }: {
-  email: string;
+  user: SidebarUser;
   initialCollapsed: boolean;
 }) {
   const t = useTranslations("nav");
@@ -118,7 +127,7 @@ export function Sidebar({
               </button>
             </div>
             <NavLinks collapsed={false} onNavigate={closeMobile} />
-            <SidebarFooter collapsed={false} email={email} />
+            <SidebarFooter collapsed={false} user={user} />
           </div>
         </div>
       )}
@@ -154,7 +163,7 @@ export function Sidebar({
           </button>
         </div>
         <NavLinks collapsed={collapsed} />
-        <SidebarFooter collapsed={collapsed} email={email} />
+        <SidebarFooter collapsed={collapsed} user={user} />
       </aside>
     </>
   );
@@ -204,9 +213,12 @@ function NavLinks({
   );
 }
 
-function SidebarFooter({ collapsed, email }: { collapsed: boolean; email: string }) {
+function SidebarFooter({ collapsed, user }: { collapsed: boolean; user: SidebarUser }) {
   const tc = useTranslations("common");
-  const initial = email.trim().charAt(0).toUpperCase() || "?";
+  const tOrgs = useTranslations("orgs");
+  const name = user.fullName?.trim() || user.email;
+  const initial = name.trim().charAt(0).toUpperCase() || "?";
+  const who = `${name} · ${user.orgName}${user.isAdmin ? ` · ${tOrgs("adminRole")}` : ""}`;
 
   if (collapsed) {
     return (
@@ -214,7 +226,7 @@ function SidebarFooter({ collapsed, email }: { collapsed: boolean; email: string
         <ThemeToggle />
         <LanguageSwitcher compact />
         <span
-          title={email}
+          title={who}
           className="mt-1 flex h-8 w-8 items-center justify-center rounded-full bg-brand/10 text-xs font-semibold text-brand"
         >
           {initial}
@@ -238,13 +250,21 @@ function SidebarFooter({ collapsed, email }: { collapsed: boolean; email: string
         <LanguageSwitcher />
         <ThemeToggle />
       </div>
-      <div className="flex min-w-0 items-center gap-2 px-1">
-        <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-semibold text-brand">
+      <div className="flex min-w-0 items-center gap-2 px-1" title={`${who}\n${user.email}`}>
+        <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-brand/10 text-xs font-semibold text-brand">
           {initial}
         </span>
-        <p className="truncate text-xs text-muted" title={email}>
-          {email}
-        </p>
+        <div className="min-w-0 leading-tight">
+          <p className="truncate text-sm font-medium text-foreground">{name}</p>
+          <p className="flex min-w-0 items-center gap-1.5 text-xs text-muted">
+            <span className="truncate">{user.orgName}</span>
+            {user.isAdmin && (
+              <span className="shrink-0 rounded bg-brand/10 px-1 text-[10px] font-semibold text-brand uppercase">
+                {tOrgs("adminRole")}
+              </span>
+            )}
+          </p>
+        </div>
       </div>
       <form action={signOutAction}>
         <button className="flex w-full cursor-pointer items-center justify-center gap-2 rounded-lg border border-border px-3 py-2 text-sm text-foreground transition-colors hover:bg-surface-2">

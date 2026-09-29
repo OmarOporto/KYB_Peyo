@@ -13,6 +13,9 @@ import type { KybStatus } from "@/lib/kyb/types";
 import { RequestsToolbar, type FormOption } from "./RequestsToolbar";
 import { FORM_NONE } from "./requestFilters";
 import { requireAnalyst } from "@/lib/auth/admin";
+import { resolveListScope } from "@/lib/auth/tenant";
+import { clearedFilters, requestsHref, withOrg } from "@/lib/admin/requestsQuery";
+import { OrgTabs } from "@/components/admin/OrgTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -49,6 +52,7 @@ type RequestRow = {
   api_key_id: string | null;
   form_id: string | null;
   form_revision: number | null;
+  org_id: string;
   /** `form_definition->title` del snapshot: sobrevive al borrado del formulario. */
   snapshot_title: LocalizedText | null;
   form: { name: string } | null;
@@ -62,6 +66,8 @@ type RequestItem = {
   ref: string;
   api: boolean;
   client: string | null;
+  /** Nombre de la org dueña: solo en la pestaña "Todas" del admin. */
+  org: string | null;
   form: { name: string; meta: string | null; muted: boolean; hint: string };
   date: string;
   time: string;
@@ -93,26 +99,11 @@ async function clientLabels(keyIds: string[]): Promise<Map<string, string>> {
   return new Map((data ?? []).map((k) => [k.id as string, k.label as string]));
 }
 
-/** Query string preservando filtros, para los enlaces de paginación. */
-function buildQuery(
-  base: { q: string; status: string; form: string; from: string; to: string },
-  page: number,
-): string {
-  const params = new URLSearchParams();
-  if (base.q) params.set("q", base.q);
-  if (base.status) params.set("status", base.status);
-  if (base.form) params.set("form", base.form);
-  if (base.from) params.set("from", base.from);
-  if (base.to) params.set("to", base.to);
-  if (page > 1) params.set("page", String(page));
-  const qs = params.toString();
-  return qs ? `/admin?${qs}` : "/admin";
-}
-
 export default async function AdminHome({
   searchParams,
 }: {
   searchParams: Promise<{
+    org?: string;
     q?: string;
     status?: string;
     form?: string;
@@ -123,10 +114,15 @@ export default async function AdminHome({
 }) {
   // Guard propio y no solo el del layout: Next los renderiza en paralelo, y
   // esta página consulta con service-role (bypassa RLS) para los labels.
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
   const t = await getTranslations("admin");
   const locale = await getLocale();
   const sp = await searchParams;
+
+  // Pestaña de org: solo el admin elige; un miembro está siempre en la suya.
+  const { scope, orgs } = await resolveListScope(analyst, sp.org);
+  const showOrgs = analyst.role === "admin";
+  const orgName = new Map(orgs.map((o) => [o.id, o.name]));
 
   const q = (sp.q ?? "").trim();
   const status = isStatus(sp.status) ? sp.status : "";
@@ -136,19 +132,22 @@ export default async function AdminHome({
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const filters = { q, status, form, from, to };
+  const filters = { org: showOrgs ? (scope ?? "") : "", q, status, form, from, to };
   const hasFilters = Boolean(q || status || form || from || to);
 
   const supabase = await createServerSupabase();
   // El formulario sale del join por `form_id` (nombre vigente). Si se eliminó,
   // `form_id` quedó a null (0020) y el título del snapshot es lo que queda.
+  // Cliente de sesión: la RLS ya deja a cada miembro con lo de su org; el `eq`
+  // de abajo es la pestaña del admin.
   let query = supabase
     .from("kyb_requests")
     .select(
-      "id, external_ref, status, created_at, api_key_id, form_id, form_revision, snapshot_title:form_definition->title, form:forms(name)",
+      "id, external_ref, status, created_at, api_key_id, form_id, form_revision, org_id, snapshot_title:form_definition->title, form:forms(name)",
       { count: "exact" },
     );
 
+  if (scope) query = query.eq("org_id", scope);
   if (q) query = query.ilike("external_ref", `%${q}%`);
   if (status) query = query.eq("status", status);
   if (form === FORM_NONE) query = query.is("form_id", null);
@@ -161,10 +160,14 @@ export default async function AdminHome({
     query = query.lt("created_at", next.toISOString());
   }
 
+  // Opciones del filtro: todos, archivados incluidos (tienen solicitudes), de
+  // la misma org que la lista.
+  let formsQuery = supabase.from("forms").select("id, name, status").order("name");
+  if (scope) formsQuery = formsQuery.eq("org_id", scope);
+
   const [{ data: requests, count }, { data: formRows }] = await Promise.all([
     query.order("created_at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
-    // Opciones del filtro: todos, archivados incluidos (tienen solicitudes).
-    supabase.from("forms").select("id, name, status").order("name"),
+    formsQuery,
   ]);
   const formOptions: FormOption[] = (formRows ?? []).map((f) => ({
     id: f.id as string,
@@ -219,6 +222,8 @@ export default async function AdminHome({
       ref: displayRef(r.external_ref, api),
       api,
       client: r.api_key_id ? (labels.get(r.api_key_id) ?? null) : null,
+      // En una pestaña concreta la org es obvia; en "Todas" hace falta.
+      org: showOrgs && !scope ? (orgName.get(r.org_id) ?? null) : null,
       form: formCell(r),
       date: created.toLocaleDateString(locale, { dateStyle: "medium" }),
       time: created.toLocaleTimeString(locale, { timeStyle: "short" }),
@@ -227,6 +232,14 @@ export default async function AdminHome({
 
   const origin = (it: RequestItem) => (
     <span className="flex min-w-0 items-center gap-1.5">
+      {it.org && (
+        <span
+          className="shrink-0 rounded-md bg-brand/10 px-1.5 py-0.5 text-[11px] font-medium text-brand"
+          title={it.org}
+        >
+          {it.org}
+        </span>
+      )}
       <OriginBadge api={it.api} label={it.api ? t("originApi") : t("originWeb")} />
       {it.client && (
         <span className="truncate text-xs text-muted" title={it.client}>
@@ -247,13 +260,21 @@ export default async function AdminHome({
           {hasFilters && (
             <>
               <span aria-hidden> · </span>
-              <Link href="/admin" className="font-medium text-brand hover:underline">
+              <Link href={clearedFilters(filters)} className="font-medium text-brand hover:underline">
                 {t("clearFilters")}
               </Link>
             </>
           )}
         </p>
       </header>
+
+      {showOrgs && (
+        <OrgTabs
+          orgs={orgs}
+          active={scope}
+          hrefFor={(orgId) => withOrg(filters, orgId ?? "")}
+        />
+      )}
 
       <RequestsToolbar current={filters} forms={formOptions} />
 
@@ -269,7 +290,10 @@ export default async function AdminHome({
               {hasFilters ? t("noResults") : t("noRequests")}
             </p>
             {hasFilters && (
-              <Link href="/admin" className="text-sm font-medium text-brand hover:underline">
+              <Link
+                href={clearedFilters(filters)}
+                className="text-sm font-medium text-brand hover:underline"
+              >
                 {t("clearFilters")}
               </Link>
             )}
@@ -384,13 +408,13 @@ export default async function AdminHome({
           </span>
           <div className="flex gap-2">
             <PageLink
-              href={buildQuery(filters, page - 1)}
+              href={requestsHref({ ...filters, page: page - 1 })}
               disabled={page <= 1}
               label={t("previous")}
               dir="prev"
             />
             <PageLink
-              href={buildQuery(filters, page + 1)}
+              href={requestsHref({ ...filters, page: page + 1 })}
               disabled={page >= totalPages}
               label={t("next")}
               dir="next"

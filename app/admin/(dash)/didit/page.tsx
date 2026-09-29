@@ -7,6 +7,7 @@ import {
   DiditNotConfiguredError,
 } from "@/lib/didit/questionnaires";
 import { StatusBadge } from "@/components/admin/StatusBadge";
+import { TabLink } from "@/components/admin/TabLink";
 import { requireAnalyst } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
@@ -44,29 +45,6 @@ export default async function DiditPage({
 
       {active === "workflows" ? <WorkflowsTab /> : <QuestionnairesTab />}
     </main>
-  );
-}
-
-function TabLink({
-  href,
-  label,
-  isActive,
-}: {
-  href: string;
-  label: string;
-  isActive: boolean;
-}) {
-  return (
-    <Link
-      href={href}
-      className={`-mb-px border-b-2 px-4 py-2 text-sm font-medium transition-colors ${
-        isActive
-          ? "border-brand text-brand"
-          : "border-transparent text-muted hover:text-foreground"
-      }`}
-    >
-      {label}
-    </Link>
   );
 }
 

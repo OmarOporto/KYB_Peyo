@@ -33,12 +33,19 @@
     "forms": "Forms",
     "didit": "DIDIT forms",
     "clients": "API clients",
-    "aiUsage": "AI usage",
+    "aiUsage": "Usage",
     "main": "Main navigation",
     "collapse": "Collapse menu",
     "expand": "Expand menu",
     "openMenu": "Open menu",
     "closeMenu": "Close menu"
+  },
+  "orgs": {
+    "tabs": "Organizations",
+    "all": "All",
+    "disabled": "disabled",
+    "createIn": "Organization",
+    "adminRole": "Admin"
   },
   "clients": {
     "title": "API clients",
@@ -591,8 +598,8 @@
     "backToTemplates": "Back"
   },
   "aiUsage": {
-    "title": "AI usage",
-    "subtitle": "Tokens and cost of GPT translations. Cost is an estimate using the current rate, not the provider invoice.",
+    "title": "Usage",
+    "subtitle": "AI translations and DIDIT checks per organization. AI cost is an estimate using the current rate, not the provider's invoice.",
     "today": "Today",
     "last30": "Last 30 days",
     "allTime": "All time",
@@ -619,7 +626,18 @@
     "save": "Save",
     "priceSaved": "rate updated",
     "estimateWarning": "Costs on this screen are ESTIMATES: they use the rate configured below and do not account for cache discounts, provider price changes, or taxes. For actual spend and remaining balance, check your AI provider dashboard:",
-    "estimateWarningLink": "OpenAI → Usage ↗"
+    "estimateWarningLink": "OpenAI → Usage ↗",
+    "subtitleMember": "AI translations and DIDIT checks of your organization.",
+    "aiTitle": "AI translations",
+    "tokens": "tokens",
+    "colOrg": "Organization",
+    "diditTitle": "DIDIT checks",
+    "diditHint": "Number of checks run on requests. DIDIT does not report the price of each one.",
+    "diditEmpty": "No DIDIT checks yet.",
+    "colFeature": "Check",
+    "colThisMonth": "This month",
+    "colTotal": "Total",
+    "colBillable": "Billable validations"
   },
   "report": {
     "title": "Verification report",

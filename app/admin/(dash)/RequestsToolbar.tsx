@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import type { KybStatus } from "@/lib/kyb/types";
 import { FORM_NONE } from "./requestFilters";
+import { requestsHref } from "@/lib/admin/requestsQuery";
 
 const STATUSES: KybStatus[] = [
   "created",
@@ -36,6 +37,8 @@ const STATUSES: KybStatus[] = [
 const SEARCH_DEBOUNCE_MS = 350;
 
 export type RequestsFilters = {
+  /** Pestaña de org del admin; vacío = todas (o la propia, para un miembro). */
+  org: string;
   q: string;
   status: string;
   form: string;
@@ -99,15 +102,9 @@ export function RequestsToolbar({
 
   function navigate(next: Partial<RequestsFilters>, mode: "push" | "replace" = "push") {
     const merged = { ...current, q: q.trim(), ...next };
-    const params = new URLSearchParams();
-    if (merged.q) params.set("q", merged.q);
-    if (merged.status) params.set("status", merged.status);
-    if (merged.form) params.set("form", merged.form);
-    if (merged.from) params.set("from", merged.from);
-    if (merged.to) params.set("to", merged.to);
-    // Al cambiar un filtro volvemos a la primera página (no re-agregamos `page`).
-    const qs = params.toString();
-    const url = qs ? `/admin?${qs}` : "/admin";
+    // Al cambiar un filtro volvemos a la primera página (no se pasa `page`).
+    // La org viaja en `merged`: filtrar no saca al admin de su pestaña.
+    const url = requestsHref(merged);
     setSentQ(merged.q);
     startTransition(() => {
       if (mode === "replace") router.replace(url);

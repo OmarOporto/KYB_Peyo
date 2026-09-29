@@ -33,12 +33,19 @@
     "forms": "Formularios",
     "didit": "Formularios DIDIT",
     "clients": "Clientes API",
-    "aiUsage": "Uso de IA",
+    "aiUsage": "Consumo",
     "main": "Navegación principal",
     "collapse": "Contraer menú",
     "expand": "Expandir menú",
     "openMenu": "Abrir menú",
     "closeMenu": "Cerrar menú"
+  },
+  "orgs": {
+    "tabs": "Organizaciones",
+    "all": "Todas",
+    "disabled": "deshabilitada",
+    "createIn": "Organización",
+    "adminRole": "Admin"
   },
   "clients": {
     "title": "Clientes API 2",
@@ -591,8 +598,8 @@
     "backToTemplates": "Volver"
   },
   "aiUsage": {
-    "title": "Uso de IA",
-    "subtitle": "Tokens y costo de las traducciones con GPT. El costo es una estimación con la tarifa vigente, no la factura del proveedor.",
+    "title": "Consumo",
+    "subtitle": "Traducciones con IA y verificaciones DIDIT por organización. El costo de IA es una estimación con la tarifa vigente, no la factura del proveedor.",
     "today": "Hoy",
     "last30": "Últimos 30 días",
     "allTime": "Acumulado",
@@ -619,7 +626,18 @@
     "save": "Guardar",
     "priceSaved": "tarifa actualizada",
     "estimateWarning": "Los costos de esta pantalla son ESTIMADOS: se calculan con la tarifa cargada abajo y no contemplan descuentos por caché, cambios de precio del proveedor ni impuestos. Para el gasto real y el saldo disponible, consultá el panel de tu proveedor de IA:",
-    "estimateWarningLink": "OpenAI → Usage ↗"
+    "estimateWarningLink": "OpenAI → Usage ↗",
+    "subtitleMember": "Traducciones con IA y verificaciones DIDIT de tu organización.",
+    "aiTitle": "Traducciones con IA",
+    "tokens": "tokens",
+    "colOrg": "Organización",
+    "diditTitle": "Verificaciones DIDIT",
+    "diditHint": "Cantidad de verificaciones corridas sobre las solicitudes. DIDIT no informa el precio de cada una.",
+    "diditEmpty": "Todavía no hay verificaciones DIDIT.",
+    "colFeature": "Verificación",
+    "colThisMonth": "Este mes",
+    "colTotal": "Total",
+    "colBillable": "Validaciones cobrables"
   },
   "report": {
     "title": "Informe de verificación",

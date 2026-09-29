@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { OrgSelect } from "@/components/admin/OrgSelect";
+import type { OrgOption } from "@/lib/auth/tenant";
 import {
   createApiKeyAction,
   revokeApiKeyAction,
@@ -24,21 +26,33 @@ export type ClientRow = {
   revoked: boolean;
   /** Opt-in a traducir respuestas con IA (manda PII al proveedor). */
   aiTranslation: boolean;
+  /** Nombre de la org dueña: solo en la pestaña "Todas" del admin. */
+  org: string | null;
 };
 
 export function ClientsPanel({
   rows,
   defaultLimit,
+  isAdmin,
+  orgs,
+  defaultOrg,
 }: {
   rows: ClientRow[];
   defaultLimit: number;
+  /** El rate limit protege a la plataforma: solo el admin lo edita. */
+  isAdmin: boolean;
+  /** Solo para el admin: en qué org emitir la key. */
+  orgs: OrgOption[];
+  defaultOrg: string;
 }) {
   const t = useTranslations("clients");
+  const tOrgs = useTranslations("orgs");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [newKey, setNewKey] = useState<string | null>(null); // texto plano una vez
   const [label, setLabel] = useState("");
   const [newLimit, setNewLimit] = useState("");
+  const [org, setOrg] = useState(defaultOrg);
 
   async function run<T extends { ok: boolean; error?: string }>(fn: () => Promise<T>) {
     setBusy(true);
@@ -54,8 +68,8 @@ export function ClientsPanel({
 
   async function onCreate() {
     if (!label.trim()) return;
-    const limit = newLimit.trim() ? Number(newLimit) : null;
-    const res = await run(() => createApiKeyAction(label.trim(), limit));
+    const limit = isAdmin && newLimit.trim() ? Number(newLimit) : null;
+    const res = await run(() => createApiKeyAction(label.trim(), limit, org || null));
     if (res.ok && "apiKey" in res) {
       setNewKey(res.apiKey as string);
       setLabel("");
@@ -69,6 +83,9 @@ export function ClientsPanel({
       <Card className="mb-4 p-4">
         <p className="mb-2 text-sm font-medium text-foreground">{t("newClient")}</p>
         <div className="flex flex-wrap items-end gap-2">
+          {orgs.length > 0 && (
+            <OrgSelect orgs={orgs} label={tOrgs("createIn")} value={org} onChange={setOrg} />
+          )}
           <label className="flex flex-col text-xs text-muted">
             {t("clientName")}
             <input
@@ -78,17 +95,19 @@ export function ClientsPanel({
               placeholder={t("clientNamePlaceholder")}
             />
           </label>
-          <label className="flex flex-col text-xs text-muted">
-            {t("rateLimitOptional", { default: defaultLimit })}
-            <input
-              type="number"
-              min={1}
-              className="mt-1 w-32 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-brand"
-              value={newLimit}
-              onChange={(e) => setNewLimit(e.target.value)}
-              placeholder={String(defaultLimit)}
-            />
-          </label>
+          {isAdmin && (
+            <label className="flex flex-col text-xs text-muted">
+              {t("rateLimitOptional", { default: defaultLimit })}
+              <input
+                type="number"
+                min={1}
+                className="mt-1 w-32 rounded-lg border border-border bg-surface px-3 py-1.5 text-sm text-foreground outline-none focus:border-brand"
+                value={newLimit}
+                onChange={(e) => setNewLimit(e.target.value)}
+                placeholder={String(defaultLimit)}
+              />
+            </label>
+          )}
           <Button size="sm" onClick={onCreate} disabled={busy || !label.trim()}>
             {t("create")}
           </Button>
@@ -113,7 +132,14 @@ export function ClientsPanel({
             </thead>
             <tbody>
               {rows.map((r) => (
-                <ClientRowView key={r.id} row={r} defaultLimit={defaultLimit} onRun={run} onKey={setNewKey} />
+                <ClientRowView
+                  key={r.id}
+                  row={r}
+                  defaultLimit={defaultLimit}
+                  canEditLimit={isAdmin}
+                  onRun={run}
+                  onKey={setNewKey}
+                />
               ))}
               {rows.length === 0 && (
                 <tr>
@@ -160,11 +186,13 @@ export function ClientsPanel({
 function ClientRowView({
   row,
   defaultLimit,
+  canEditLimit,
   onRun,
   onKey,
 }: {
   row: ClientRow;
   defaultLimit: number;
+  canEditLimit: boolean;
   onRun: <T extends { ok: boolean; error?: string }>(fn: () => Promise<T>) => Promise<T>;
   onKey: (k: string) => void;
 }) {
@@ -180,6 +208,11 @@ function ClientRowView({
       {/* Única celda que puede envolver: un label largo no debe ensanchar la tabla. */}
       <td className="px-4 py-2.5 font-medium wrap-break-word whitespace-normal text-foreground">
         {row.label}
+        {row.org && (
+          <span className="ml-2 rounded-md bg-brand/10 px-1.5 py-0.5 text-[11px] font-medium text-brand">
+            {row.org}
+          </span>
+        )}
       </td>
       <td className="px-4 py-2.5">
         <span
@@ -208,7 +241,7 @@ function ClientRowView({
           : "—"}
       </td>
       <td className="px-4 py-2.5">
-        {row.revoked ? (
+        {row.revoked || !canEditLimit ? (
           <span className="text-muted">
             {row.rateLimit ?? `${defaultLimit} (${t("default")})`}
           </span>

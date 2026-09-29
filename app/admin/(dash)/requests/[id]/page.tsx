@@ -2,7 +2,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { getLocale, getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { getAnalyst, requireAnalyst } from "@/lib/auth/admin";
+import { requireAnalyst } from "@/lib/auth/admin";
 import {
   clientAllowsTranslation,
   translatableLocales,
@@ -44,9 +44,8 @@ export default async function RequestDetail({
   params: Promise<{ id: string }>;
   searchParams: Promise<{ tr?: string }>;
 }) {
-  // Guard propio: el `getAnalyst()` de más abajo es solo para el actor del
-  // audit, y el del layout corre en paralelo con esta página.
-  await requireAnalyst();
+  // Guard propio: el del layout corre en paralelo con esta página.
+  const viewer = await requireAnalyst();
   const t = await getTranslations("admin");
   const tCommon = await getTranslations("common");
   const tReport = await getTranslations("report");
@@ -60,6 +59,18 @@ export default async function RequestDetail({
     .eq("id", id)
     .maybeSingle();
   if (!request) notFound();
+
+  // Solo el admin necesita ver de qué org es (un miembro solo ve la suya).
+  const orgName =
+    viewer.role === "admin"
+      ? (((
+          await supabase
+            .from("organizations")
+            .select("name")
+            .eq("id", request.org_id as string)
+            .maybeSingle()
+        ).data?.name as string | undefined) ?? null)
+      : null;
 
   const [{ data: formRow }, { data: docs }, { data: aml }] = await Promise.all([
     supabase.from("kyb_form_responses").select("data").eq("request_id", id).maybeSingle(),
@@ -241,11 +252,9 @@ export default async function RequestDetail({
 
   let answerTranslations: Record<string, string> | undefined;
   if (trTarget && trAllowed) {
-    // El layout de (dash) ya exige analista; esto es solo para el actor del audit.
-    const analyst = await getAnalyst();
     try {
       const out = await translateAnswers(id, definition, formData, trTarget, {
-        actor: analyst?.email ?? "analyst",
+        actor: viewer.email,
         orgId: request.org_id as string,
       });
       answerTranslations = out.byKey;
@@ -278,6 +287,16 @@ export default async function RequestDetail({
               {request.external_ref}
             </h1>
             <StatusBadge status={request.status} />
+            {/* El admin ve solicitudes de todas las orgs: de quién es y un
+                atajo a la pestaña de esa org. */}
+            {orgName && (
+              <Link
+                href={`/admin?org=${request.org_id}`}
+                className="rounded-md bg-brand/10 px-1.5 py-0.5 text-xs font-medium text-brand hover:underline"
+              >
+                {orgName}
+              </Link>
+            )}
           </div>
           <p className="mt-0.5 text-xs text-muted">ID: {request.id}</p>
         </div>

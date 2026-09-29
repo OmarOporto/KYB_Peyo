@@ -11,6 +11,7 @@ import {
   type FormStatus,
 } from "@/lib/forms/definition";
 import { FormsToolbar } from "./FormsToolbar";
+import { OrgTabs } from "@/components/admin/OrgTabs";
 import {
   ArchiveFormButton,
   DeleteFormButton,
@@ -26,6 +27,7 @@ type Row = {
   source: string;
   definition: FormDefinition;
   updated_at: string;
+  org_id: string;
 };
 
 const BADGE: Record<FormStatus, string> = {
@@ -47,14 +49,16 @@ export default async function FormsList({
   // Los archivados son una vista aparte y no un filtro más: son justamente los
   // que el analista sacó de en medio, mezclarlos anularía el archivado.
   const showArchived = archived === "1";
-  const { scope } = await resolveListScope(analyst, org);
+  const { scope, orgs } = await resolveListScope(analyst, org);
+  const isAdmin = analyst.role === "admin";
+  const orgName = new Map(orgs.map((o) => [o.id, o.name]));
 
   // Cliente de sesión: la RLS ya deja a cada miembro con los de su org; el
   // `eq` es el filtro por pestaña del admin.
   const supabase = await createServerSupabase();
   let query = supabase
     .from("forms")
-    .select("id, name, status, source, definition, updated_at")
+    .select("id, name, status, source, definition, updated_at, org_id")
     .order("updated_at", { ascending: false });
   if (scope) query = query.eq("org_id", scope);
 
@@ -63,6 +67,13 @@ export default async function FormsList({
     : query.neq("status", "archived"));
 
   const forms = (data ?? []) as Row[];
+  const tabHref = (orgId: string | null) => {
+    const params = new URLSearchParams();
+    if (showArchived) params.set("archived", "1");
+    if (orgId) params.set("org", orgId);
+    const qs = params.toString();
+    return qs ? `/admin/forms?${qs}` : "/admin/forms";
+  };
 
   return (
     <main className="w-full p-6">
@@ -70,7 +81,14 @@ export default async function FormsList({
         {showArchived ? t("archivedTitle") : t("title")}
       </h1>
 
-      <FormsToolbar showArchived={showArchived} />
+      {isAdmin && <OrgTabs orgs={orgs} active={scope} hrefFor={tabHref} />}
+
+      <FormsToolbar
+        showArchived={showArchived}
+        orgs={isAdmin ? orgs : []}
+        defaultOrg={isAdmin ? (scope ?? analyst.orgId) : ""}
+        orgParam={isAdmin ? (scope ?? "") : ""}
+      />
 
       <Card className="overflow-hidden">
         <div className="overflow-x-auto">
@@ -95,6 +113,12 @@ export default async function FormsList({
                     >
                       {f.name}
                     </Link>
+                    {/* En "Todas" hace falta saber de qué cliente es. */}
+                    {isAdmin && !scope && (
+                      <span className="ml-2 rounded-md bg-brand/10 px-1.5 py-0.5 text-[11px] font-medium text-brand">
+                        {orgName.get(f.org_id) ?? "—"}
+                      </span>
+                    )}
                   </td>
                   <td className="px-4 py-2.5">
                     <span

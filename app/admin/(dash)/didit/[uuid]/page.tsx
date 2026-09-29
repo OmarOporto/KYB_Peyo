@@ -9,6 +9,8 @@ import {
 import { importQuestionnaire } from "../actions";
 import { ImportButton } from "./ImportButton";
 import { requireAnalyst } from "@/lib/auth/admin";
+import { listOrgs } from "@/lib/auth/tenant";
+import { OrgSelect } from "@/components/admin/OrgSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -19,8 +21,11 @@ export default async function DiditQuestionnaireDetail({
 }) {
   // Antes del fetch a DIDIT: el layout no alcanza, porque se renderiza en
   // paralelo con la página (ver app/admin/(dash)/didit/page.tsx).
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
   const { uuid } = await params;
+  const tOrgs = await getTranslations("orgs");
+  // El admin elige en qué org queda el formulario importado; un miembro, en la suya.
+  const orgs = analyst.role === "admin" ? await listOrgs() : [];
   const t = await getTranslations("didit");
   const locale = await getLocale();
 
@@ -45,7 +50,8 @@ export default async function DiditQuestionnaireDetail({
             v{q.source.version ?? "?"} · {q.questionCount} {t("questions")}
           </p>
         </div>
-        <form action={importQuestionnaire.bind(null, uuid)}>
+        <form action={importQuestionnaire.bind(null, uuid)} className="flex items-end gap-2">
+          <OrgSelect orgs={orgs} label={tOrgs("createIn")} defaultValue={analyst.orgId} />
           <ImportButton />
         </form>
       </header>

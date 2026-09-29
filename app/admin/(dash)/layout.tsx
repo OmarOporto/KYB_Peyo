@@ -19,7 +19,15 @@ export default async function DashboardLayout({
     // `data-print-shell`: en impresión este flex se aplana a bloque, si no
     // Chrome ignora los break-inside del informe (ver globals.css).
     <div data-print-shell className="flex min-h-screen flex-col md:flex-row">
-      <Sidebar email={analyst.email} initialCollapsed={collapsed} />
+      <Sidebar
+        user={{
+          email: analyst.email,
+          fullName: analyst.fullName,
+          orgName: analyst.orgName,
+          isAdmin: analyst.role === "admin",
+        }}
+        initialCollapsed={collapsed}
+      />
       <div className="min-w-0 flex-1">{children}</div>
     </div>
   );

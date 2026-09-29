@@ -6,6 +6,8 @@ import { assembleWorkflow } from "@/lib/didit/questionnaires";
 import { importWorkflow } from "../../actions";
 import { ImportButton } from "../../[uuid]/ImportButton";
 import { requireAnalyst } from "@/lib/auth/admin";
+import { listOrgs } from "@/lib/auth/tenant";
+import { OrgSelect } from "@/components/admin/OrgSelect";
 
 export const dynamic = "force-dynamic";
 
@@ -16,8 +18,11 @@ export default async function WorkflowDetail({
 }) {
   // Antes del fetch a DIDIT: el layout no alcanza, porque se renderiza en
   // paralelo con la página (ver app/admin/(dash)/didit/page.tsx).
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
   const { uuid } = await params;
+  const tOrgs = await getTranslations("orgs");
+  // El admin elige en qué org queda el formulario importado; un miembro, en la suya.
+  const orgs = analyst.role === "admin" ? await listOrgs() : [];
   const t = await getTranslations("didit");
   const locale = await getLocale();
 
@@ -39,7 +44,8 @@ export default async function WorkflowDetail({
             {form.questionCount} {t("questions")}
           </p>
         </div>
-        <form action={importWorkflow.bind(null, uuid)}>
+        <form action={importWorkflow.bind(null, uuid)} className="flex items-end gap-2">
+          <OrgSelect orgs={orgs} label={tOrgs("createIn")} defaultValue={analyst.orgId} />
           <ImportButton />
         </form>
       </header>

@@ -4,19 +4,36 @@ import { useState, type ChangeEvent } from "react";
 import Link from "next/link";
 import { useTranslations } from "next-intl";
 import { Button, buttonClass } from "@/components/ui/Button";
+import { OrgSelect } from "@/components/admin/OrgSelect";
+import type { OrgOption } from "@/lib/auth/tenant";
 import { createForm, importFormJson } from "./actions";
 
-export function FormsToolbar({ showArchived = false }: { showArchived?: boolean }) {
+export function FormsToolbar({
+  showArchived = false,
+  orgs = [],
+  defaultOrg = "",
+  orgParam = "",
+}: {
+  showArchived?: boolean;
+  /** Solo para el admin: en qué org crear. Vacío para un miembro. */
+  orgs?: OrgOption[];
+  /** Org preseleccionada (la pestaña actual, o la del admin en "Todas"). */
+  defaultOrg?: string;
+  /** `?org=` actual, para no perder la pestaña al alternar archivados. */
+  orgParam?: string;
+}) {
   const t = useTranslations("forms");
+  const tOrgs = useTranslations("orgs");
   const [showImport, setShowImport] = useState(false);
   const [json, setJson] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [org, setOrg] = useState(defaultOrg);
 
   async function onImport() {
     setBusy(true);
     setError(null);
-    const res = await importFormJson(json);
+    const res = await importFormJson(json, org || null);
     setBusy(false);
     if (res && !res.ok) setError(res.error);
   }
@@ -33,9 +50,21 @@ export function FormsToolbar({ showArchived = false }: { showArchived?: boolean 
     }
   }
 
+  const archivedHref = (archived: boolean) => {
+    const params = new URLSearchParams();
+    if (archived) params.set("archived", "1");
+    if (orgParam) params.set("org", orgParam);
+    const qs = params.toString();
+    return qs ? `/admin/forms?${qs}` : "/admin/forms";
+  };
+
   return (
-    <div className="mb-4 flex flex-wrap items-center gap-2">
+    <div className="mb-4 flex flex-wrap items-end gap-2">
+      {orgs.length > 0 && (
+        <OrgSelect orgs={orgs} label={tOrgs("createIn")} value={org} onChange={setOrg} />
+      )}
       <form action={createForm}>
+        {org && <input type="hidden" name="org" value={org} />}
         <Button type="submit">{t("newForm")}</Button>
       </form>
       <Button variant="outline" onClick={() => setShowImport((s) => !s)}>
@@ -44,7 +73,7 @@ export function FormsToolbar({ showArchived = false }: { showArchived?: boolean 
       {/* Los archivados viven en su propia vista: se llega por query string para
           que el enlace sea compartible y el back del navegador funcione. */}
       <Link
-        href={showArchived ? "/admin/forms" : "/admin/forms?archived=1"}
+        href={archivedHref(!showArchived)}
         className={buttonClass({ variant: "quiet", size: "sm", className: "ml-auto" })}
       >
         {showArchived ? t("showActive") : t("showArchived")}

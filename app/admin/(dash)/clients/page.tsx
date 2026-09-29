@@ -4,6 +4,7 @@ import { resolveListScope } from "@/lib/auth/tenant";
 import { createServiceClient } from "@/lib/supabase/service";
 import { env } from "@/lib/env";
 import { ClientsPanel, type ClientRow } from "./ClientsPanel";
+import { OrgTabs } from "@/components/admin/OrgTabs";
 
 export const dynamic = "force-dynamic";
 
@@ -33,7 +34,9 @@ export default async function ClientsPage({
 }) {
   const analyst = await requireAnalyst();
   const t = await getTranslations("clients");
-  const { scope } = await resolveListScope(analyst, (await searchParams).org);
+  const { scope, orgs } = await resolveListScope(analyst, (await searchParams).org);
+  const isAdmin = analyst.role === "admin";
+  const orgName = new Map(orgs.map((o) => [o.id, o.name]));
 
   // api_keys y su uso viven en tablas solo-service-role (sin políticas RLS),
   // así que se leen con el cliente service-role y el filtro de org va acá, a
@@ -43,7 +46,7 @@ export default async function ClientsPage({
   let keysQuery = supabase
     .from("api_keys")
     .select(
-      "id, label, created_at, revoked_at, last_used_at, rate_limit_per_min, allow_ai_translation",
+      "id, label, created_at, revoked_at, last_used_at, rate_limit_per_min, allow_ai_translation, org_id",
     )
     .order("created_at", { ascending: false });
   if (scope) keysQuery = keysQuery.eq("org_id", scope);
@@ -74,6 +77,8 @@ export default async function ClientsPage({
     rateLimit: (k.rate_limit_per_min as number | null) ?? null,
     revoked: Boolean(k.revoked_at),
     aiTranslation: k.allow_ai_translation === true,
+    // En "Todas" el admin necesita saber de qué cliente es cada key.
+    org: isAdmin && !scope ? (orgName.get(k.org_id as string) ?? null) : null,
   }));
 
   return (
@@ -83,7 +88,20 @@ export default async function ClientsPage({
         <BuildBadge />
       </div>
       <p className="mb-4 text-sm text-muted">{t("subtitle")}</p>
-      <ClientsPanel rows={rows} defaultLimit={env.apiRateLimitDefault()} />
+      {isAdmin && (
+        <OrgTabs
+          orgs={orgs}
+          active={scope}
+          hrefFor={(orgId) => (orgId ? `/admin/clients?org=${orgId}` : "/admin/clients")}
+        />
+      )}
+      <ClientsPanel
+        rows={rows}
+        defaultLimit={env.apiRateLimitDefault()}
+        isAdmin={isAdmin}
+        orgs={isAdmin ? orgs : []}
+        defaultOrg={isAdmin ? (scope ?? analyst.orgId) : ""}
+      />
     </main>
   );
 }
