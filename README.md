@@ -35,8 +35,10 @@ cp .env.example .env.local          # completar claves (ver abajo)
 npm run db:start                    # levanta Supabase (Docker). Imprime ANON_KEY / SERVICE_ROLE_KEY
 # copiar esas claves a .env.local si difieren
 
-npm run db:reset                    # aplica migraciones + seed (api key de prueba)
-npm run seed:admin                  # crea analista: analyst@kyb.local / password123
+npm run db:reset                    # aplica migraciones + seed (2 orgs, una api key de prueba c/u)
+
+cp scripts/provision/users.example.json scripts/provision/users.json
+PROVISION_PASSWORD='...' npm run provision -- apply   # crea orgs y usuarios del panel
 
 npm run dev                         # http://localhost:3000
 ```

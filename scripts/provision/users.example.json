@@ -1,0 +1,11 @@
+{
+  "organizations": [
+    { "slug": "peyo", "name": "Peyo" },
+    { "slug": "acme-demo", "name": "Acme Demo" }
+  ],
+  "users": [
+    { "email": "admin@peyo.local", "fullName": "Admin Peyo", "org": "peyo", "role": "admin", "locale": "es" },
+    { "email": "ana@peyo.local", "fullName": "Ana Analista", "org": "peyo", "role": "analyst", "locale": "es" },
+    { "email": "bob@acme.local", "fullName": "Bob Acme", "org": "acme-demo", "role": "analyst", "locale": "en" }
+  ]
+}

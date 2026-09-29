@@ -36,6 +36,10 @@ yarn-error.log*
 # didit — contenido extraído del cuestionario (no versionar)
 /didit
 
+# provisión de usuarios: emails y nombres reales (versionar solo el ejemplo)
+/scripts/provision/*.json
+!/scripts/provision/*.example.json
+
 # vercel
 .vercel
 
