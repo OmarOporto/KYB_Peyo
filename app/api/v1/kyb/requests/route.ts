@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { apiGuard } from "@/lib/auth/apiGuard";
-import { createRequest } from "@/lib/kyb/service";
+import { chooseRequestForm, createRequest } from "@/lib/kyb/service";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   claimIdempotency,
@@ -114,6 +114,13 @@ export async function POST(req: NextRequest) {
     }
   }
 
+  // Un 422 después del claim también se guarda: si no, la key quedaba "en
+  // curso" para siempre y cada reintento recibía 409 en vez del error real.
+  const reject = async (error: string) => {
+    if (idemKey) await storeIdempotentResponse(g.keyId, idemKey, 422, { error });
+    return NextResponse.json({ error }, { status: 422 });
+  };
+
   // El endpoint de webhook debe pertenecer a esta key y estar habilitado.
   if (webhook_endpoint_id) {
     const supabase = createServiceClient();
@@ -123,12 +130,24 @@ export async function POST(req: NextRequest) {
       .eq("id", webhook_endpoint_id)
       .eq("api_key_id", g.keyId)
       .maybeSingle();
-    if (!ep || !ep.enabled) {
-      return NextResponse.json({ error: "invalid_webhook_endpoint" }, { status: 422 });
-    }
+    if (!ep || !ep.enabled) return reject("invalid_webhook_endpoint");
   }
 
-  const result = await createRequest(external_ref, ttl_hours, form_id, undefined, {
+  // El formulario sale de la org de la key: el `form_id` pedido solo si es
+  // suyo y está publicado; sin `form_id`, su KYB_FORM_ID o el último publicado
+  // de la org. Antes valía cualquier formulario del sistema.
+  const choice = await chooseRequestForm({
+    orgId: g.orgId,
+    requestedId: form_id,
+    keyDefaultId: g.defaultFormId,
+  });
+  if (!choice.ok) return reject(choice.error);
+
+  const result = await createRequest({
+    orgId: g.orgId,
+    externalRef: external_ref,
+    ttlHours: ttl_hours,
+    form: { id: choice.formId, revision: choice.revision },
     apiKeyId: g.keyId,
     webhookEndpointId: webhook_endpoint_id ?? null,
     returnUrl: return_url ?? null,

@@ -41,7 +41,8 @@ export async function translateAnswers(
   definition: FormDefinition | null,
   data: Record<string, unknown>,
   targetLocale: string,
-  opts: { actor: string },
+  /** `orgId`: la org de la solicitud, a la que se imputa el consumo. */
+  opts: { actor: string; orgId: string },
 ): Promise<TranslatedAnswers> {
   if (!definition) return EMPTY;
   const src = definition.defaultLocale || "es";
@@ -149,6 +150,7 @@ export async function translateAnswers(
     inputTokens: usage?.inputTokens ?? 0,
     outputTokens: usage?.outputTokens ?? 0,
     actor: opts.actor,
+    orgId: opts.orgId,
     requestId,
   });
 

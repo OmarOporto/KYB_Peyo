@@ -86,10 +86,13 @@ Base: `KYB_BASE_URL/api/v1/kyb`
 | `return_url` | string (https, ≤2048) | no | A dónde redirigir el navegador del usuario tras enviar. |
 | `ttl_hours` | int > 0 | no | Vigencia del link de invitación (default 14 días, **máximo 2160 = 90 días**). |
 
-> \* `form_id` es opcional en el esquema, pero **recomendado**: si no lo envías, se
-> fija el formulario publicado por defecto **al momento de crear la solicitud** (lo
-> ves después en `formId`, §4.3); si luego se publica otro, esa solicitud no cambia.
-> Y sin un formulario válido no corren las verificaciones DIDIT.
+> \* `form_id` es opcional en el esquema, pero **recomendado**. Tiene que ser un
+> formulario **tuyo y publicado**; si no, respondemos `422 invalid_form` (no se cae a
+> otro formulario en silencio). Si no lo envías, se fija **al momento de crear la
+> solicitud** el `KYB_FORM_ID` configurado para tu API key o, si no hay, tu último
+> formulario publicado (lo ves después en `formId`, §4.3); si luego publicas otro, esa
+> solicitud no cambia. Si no tienes ningún formulario publicado, respondemos
+> `422 no_published_form`.
 
 **Cabecera opcional:** `Idempotency-Key: <valor-único>` — si reintentas con la misma
 key y el mismo body, devolvemos la respuesta original (no se duplica la solicitud).
@@ -390,7 +393,8 @@ claves que tu código consume y falle **antes** de desplegar.
 }
 ```
 
-- Solo formularios **publicados** (`404` si está en borrador o no existe).
+- Solo formularios **tuyos y publicados** (`404` si está en borrador, es de otro
+  cliente o no existe).
 - Las etiquetas viajan como objeto por locale, sin resolver, para que compares sin
   ambigüedad de idioma.
 - Las **`options[].value`** son los valores que vas a recibir en las respuestas y son
@@ -566,6 +570,8 @@ a la otra.
 | 409 | (re-emitir) | La solicitud ya fue enviada o cerrada |
 | 409 | (request-changes) | La solicitud no está en un estado que admita correcciones |
 | 422 | `invalid_body` / `invalid_return_url` / `invalid_webhook_endpoint` | Validación del body |
+| 422 | `invalid_form` | El `form_id` no es un formulario tuyo publicado |
+| 422 | `no_published_form` | Sin `form_id` y no tienes ningún formulario publicado |
 | 429 | `rate_limited` | Cuota excedida |
 
 ---

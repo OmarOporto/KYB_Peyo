@@ -22,6 +22,7 @@ import {
   type AmlCheckRow,
 } from "@/lib/didit/summary";
 import { createSignedDocUrls } from "@/lib/kyb/service";
+import { dropForeignFileRefs } from "@/lib/kyb/storagePaths";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { isAnswered, reachableSections, visibleFields } from "@/lib/forms/logic";
 import { resolveText, type Field } from "@/lib/forms/definition";
@@ -73,11 +74,16 @@ export default async function RequestReport({
     getAnalyst(),
   ]);
 
-  const formData = (formRow?.data as Record<string, unknown>) ?? {};
+  // Sin archivos de otras solicitudes (filas anteriores al saneo al escribir).
+  const formData = dropForeignFileRefs(
+    (formRow?.data as Record<string, unknown>) ?? {},
+    id,
+  );
   const checks = (aml ?? []) as AmlCheckRow[];
   const definition = await resolveRequestDefinition(
     (request as { form_definition?: unknown }).form_definition,
     (request as { form_id?: string | null }).form_id,
+    request.org_id as string,
   );
 
   // Una sola firma para todos los archivos: los de las respuestas (cualquier
@@ -85,10 +91,10 @@ export default async function RequestReport({
   const answerPaths = Object.values(formData).flatMap((v) =>
     fileRefsOf(v).map((r) => r.path),
   );
-  const signedUrls = await createSignedDocUrls([
-    ...(docs ?? []).map((d) => d.storage_path),
-    ...answerPaths,
-  ]);
+  const signedUrls = await createSignedDocUrls(
+    [...(docs ?? []).map((d) => d.storage_path), ...answerPaths],
+    id,
+  );
 
   const fieldByKey = new Map<string, Field>();
   const questionByKey = new Map<string, string>();

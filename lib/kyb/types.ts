@@ -45,6 +45,8 @@ export interface KybRequest {
   corrections: KybCorrections | null;
   decision_reason: string | null;
   expiring_notified_at: string | null;
+  /** Organización dueña (0025_organizations.sql). */
+  org_id: string;
 }
 
 export interface KybFormResponse {

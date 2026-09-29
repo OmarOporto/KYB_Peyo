@@ -77,6 +77,7 @@ export default async function FormPage({
     const definition = await resolveRequestDefinition(
       (req as { form_definition?: unknown }).form_definition,
       (req as { form_id?: string | null }).form_id,
+      req.org_id,
     );
     if (definition && corrections?.fields?.length) {
       const locale = await getLocale();
@@ -110,6 +111,7 @@ export default async function FormPage({
   // Formulario dinámico si hay uno asignado/publicado; si no, fallback al legacy.
   const form = await getFormForRequest(
     (req as { form_id?: string | null }).form_id,
+    req.org_id,
   );
   if (form) {
     const locale = await getLocale();

@@ -83,13 +83,14 @@ export async function runKybRegistryAction(
   const supabase = createServiceClient();
   const { data: req } = await supabase
     .from("kyb_requests")
-    .select("id, external_ref, form_id, form_definition")
+    .select("id, external_ref, form_id, form_definition, org_id")
     .eq("id", requestId)
     .maybeSingle();
   if (!req) return { ok: false, error: "Solicitud no encontrada." };
   const definition = await resolveRequestDefinition(
     (req as { form_definition?: unknown }).form_definition,
     req.form_id,
+    req.org_id as string,
   );
   if (!definition) return { ok: false, error: "La solicitud no tiene definición de formulario." };
   const { data: responseRow } = await supabase

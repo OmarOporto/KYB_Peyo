@@ -44,6 +44,20 @@ export function computeCost(
   return Math.round(cost * 1_000_000) / 1_000_000;
 }
 
+/**
+ * Tarifas y costo solo para el admin de plataforma.
+ *
+ * El costo en dinero es un dato de la plataforma (precio del proveedor), no del
+ * cliente: un miembro de una org ve sus tokens pero no cuánto le cuestan a
+ * Peyo. Deja en `null` las tarifas y el costo, que la UI ya muestra como "—".
+ */
+export function withoutPrices<
+  T extends { inputPer1M: number | null; outputPer1M: number | null; cost: number | null },
+>(value: T, isAdmin: boolean): T {
+  if (isAdmin) return value;
+  return { ...value, inputPer1M: null, outputPer1M: null, cost: null };
+}
+
 /** `US$ 0.2431` — con suficientes decimales para que una corrida chica no dé 0. */
 export function formatCost(cost: number | null | undefined, currency = DEFAULT_CURRENCY): string {
   if (cost == null) return "—";

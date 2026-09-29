@@ -50,6 +50,36 @@ export function isOwnedPath(path: string, requestId: string): boolean {
   return segments.every((s) => s !== "" && s !== "." && s !== "..");
 }
 
+/**
+ * Quita de las respuestas las referencias a archivos (`{ path, filename }`)
+ * cuyo path no es de esta solicitud.
+ *
+ * El borrador y el envío guardan lo que manda el navegador, y el schema de un
+ * campo de archivo no puede validar el path (`z.array(z.any())`). Sin este
+ * filtro, una solicitud podía guardar `{ path: "<otra-solicitud>/dni/x.pdf" }` y
+ * el panel, la API y DIDIT firmaban o descargaban ese archivo ajeno con
+ * service-role. Se aplica al escribir y, por las filas viejas, también al leer.
+ *
+ * Solo toca arrays con objetos que tienen `path`: el resto de las respuestas
+ * (textos, opciones múltiples) pasa intacto.
+ */
+export function dropForeignFileRefs(
+  data: Record<string, unknown>,
+  requestId: string,
+): Record<string, unknown> {
+  const out: Record<string, unknown> = {};
+  for (const [key, value] of Object.entries(data)) {
+    out[key] = Array.isArray(value)
+      ? value.filter(
+          (item) =>
+            !(item && typeof item === "object" && "path" in item) ||
+            isOwnedPath(String((item as { path: unknown }).path), requestId),
+        )
+      : value;
+  }
+  return out;
+}
+
 /** `<requestId>/<docType saneado>/<uuid>-<filename saneado>`. */
 export function documentPath(
   requestId: string,

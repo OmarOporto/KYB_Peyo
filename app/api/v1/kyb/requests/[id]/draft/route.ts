@@ -22,7 +22,7 @@ export async function GET(
   const request = await getOwnedRequest(
     g.keyId,
     id,
-    "id, external_ref, status, form_id, form_definition",
+    "id, external_ref, status, form_id, form_definition, org_id",
   );
   if (!request) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
@@ -37,6 +37,7 @@ export async function GET(
   const definition = await resolveRequestDefinition(
     request.form_definition,
     (request.form_id as string | null) ?? null,
+    request.org_id as string,
   );
   const locale =
     new URL(req.url).searchParams.get("locale") || definition?.defaultLocale || "es";

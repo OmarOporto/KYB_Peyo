@@ -16,9 +16,8 @@ export const runtime = "nodejs";
  * Se excluyen a propósito `visibleIf`, `review` (metadata de DIDIT), imágenes e
  * ids internos: cuanto menos superficie, menos contrato público que sostener.
  *
- * Solo formularios `published` (404 si no). No hay chequeo de pertenencia
- * porque los formularios no tienen dueño, a diferencia de las solicitudes: al
- * cliente se le entrega su `FORM_ID` al integrar.
+ * Solo formularios `published` de la org de la key (404 si no): un cliente no
+ * puede leer el contrato del formulario de otro.
  */
 export async function GET(
   req: NextRequest,
@@ -33,6 +32,7 @@ export async function GET(
     .from("forms")
     .select("id, version, definition")
     .eq("id", id)
+    .eq("org_id", g.orgId)
     .eq("status", "published")
     .maybeSingle();
 

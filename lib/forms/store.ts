@@ -10,14 +10,20 @@ export interface FormRow {
   source: string;
   source_ref: string | null;
   updated_at: string;
+  org_id: string;
+  /** Revisión vigente (0018_form_revision.sql). */
+  version: number | null;
 }
+
+const FORM_COLUMNS =
+  "id, name, status, definition, source, source_ref, updated_at, org_id, version";
 
 /** Formulario PUBLICADO por id (para la ruta pública /forms/[id]). */
 export async function getPublishedForm(id: string): Promise<FormRow | null> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("forms")
-    .select("id, name, status, definition, source, source_ref, updated_at")
+    .select(FORM_COLUMNS)
     .eq("id", id)
     .eq("status", "published")
     .maybeSingle();
@@ -29,44 +35,52 @@ export async function getFormById(id: string): Promise<FormRow | null> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("forms")
-    .select("id, name, status, definition, source, source_ref, updated_at")
+    .select(FORM_COLUMNS)
     .eq("id", id)
     .maybeSingle();
   return validate(data);
 }
 
-/** Resuelve el formulario para una solicitud: su form_id, o el publicado por defecto. */
+/**
+ * Resuelve el formulario para una solicitud: su form_id, o el publicado por
+ * defecto DE SU ORG. `orgId` es la org de la solicitud: sin él, el fallback
+ * caería en el formulario de otro cliente.
+ */
 export async function getFormForRequest(
   formId: string | null | undefined,
+  orgId: string,
 ): Promise<FormRow | null> {
   if (formId) {
     const byId = await getFormById(formId);
     if (byId) return byId;
   }
-  return getDefaultPublishedForm();
+  return getDefaultPublishedForm(orgId);
 }
 
 /**
  * Definición contra la que operar una solicitud: prioriza el snapshot congelado
  * en la solicitud (lo que el solicitante realmente llenó) y, si no existe o es
- * inválido (solicitudes viejas / creadas por API), cae al form vigente por id.
+ * inválido (solicitudes viejas / creadas por API), cae al form vigente por id,
+ * y si tampoco hay id, al publicado por defecto de la org de la solicitud.
  */
 export async function resolveRequestDefinition(
   snapshot: unknown,
   formId: string | null | undefined,
+  orgId: string,
 ): Promise<FormDefinition | null> {
   const parsed = formDefinitionSchema.safeParse(snapshot);
   if (parsed.success) return parsed.data;
-  const form = await getFormForRequest(formId);
+  const form = await getFormForRequest(formId, orgId);
   return form?.definition ?? null;
 }
 
-/** Formulario publicado por defecto: el más reciente. */
-export async function getDefaultPublishedForm(): Promise<FormRow | null> {
+/** Formulario publicado por defecto de una org: el más reciente. */
+export async function getDefaultPublishedForm(orgId: string): Promise<FormRow | null> {
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("forms")
-    .select("id, name, status, definition, source, source_ref, updated_at")
+    .select(FORM_COLUMNS)
+    .eq("org_id", orgId)
     .eq("status", "published")
     .order("updated_at", { ascending: false })
     .limit(1)

@@ -21,6 +21,8 @@ export interface AiUsageEntry {
   inputTokens: number;
   outputTokens: number;
   actor: string;
+  /** Org a la que se imputa el consumo (0025_organizations.sql). */
+  orgId: string;
   formId?: string | null;
   requestId?: string | null;
 }
@@ -102,6 +104,7 @@ export async function recordAiUsage(entry: AiUsageEntry): Promise<AiUsageResult>
       cost,
       currency,
       actor: entry.actor,
+      org_id: entry.orgId,
       form_id: entry.formId ?? null,
       request_id: entry.requestId ?? null,
     });

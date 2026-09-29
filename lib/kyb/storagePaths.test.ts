@@ -6,6 +6,7 @@ import {
   isOwnedPath,
   documentPath,
   mimeAllowed,
+  dropForeignFileRefs,
 } from "./storagePaths.ts";
 
 const REQ = "11111111-1111-4111-8111-111111111111";
@@ -51,6 +52,29 @@ test("documentPath arma una clave siempre dentro de la solicitud", () => {
   const path = documentPath(REQ, "../../escape", "../x.pdf", "uuid");
   assert.equal(isOwnedPath(path, REQ), true);
   assert.equal(path, `${REQ}/escape/uuid-_x.pdf`);
+});
+
+test("dropForeignFileRefs quita archivos de otra solicitud y deja el resto intacto", () => {
+  const mine = { path: `${REQ}/dni/a-x.pdf`, filename: "x.pdf" };
+  const foreign = { path: `${OTHER}/dni/b-y.pdf`, filename: "y.pdf" };
+  const traversal = { path: `${REQ}/../${OTHER}/dni/c.pdf`, filename: "c.pdf" };
+
+  const out = dropForeignFileRefs(
+    {
+      dni: [mine, foreign, traversal],
+      solo_ajeno: [foreign],
+      nombre: "ACME S.A.",
+      paises: ["AR", "UY"],
+      vacio: [],
+    },
+    REQ,
+  );
+
+  assert.deepEqual(out.dni, [mine]);
+  assert.deepEqual(out.solo_ajeno, []);
+  assert.equal(out.nombre, "ACME S.A.");
+  assert.deepEqual(out.paises, ["AR", "UY"]);
+  assert.deepEqual(out.vacio, []);
 });
 
 test("mimeAllowed entiende MIME, comodín y extensión", () => {

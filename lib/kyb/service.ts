@@ -8,6 +8,8 @@ import { buildAmlSubject } from "@/lib/aml/mapping";
 import { dispatchDiditReviews, type DiditCheckRow } from "@/lib/didit/verify";
 import { notifyClient } from "@/lib/kyb/webhook";
 import { resolveRequestDefinition } from "@/lib/forms/store";
+import { pickRequestForm, type FormCandidate, type FormChoice } from "@/lib/forms/formChoice";
+import { dropForeignFileRefs, isOwnedPath } from "@/lib/kyb/storagePaths";
 import { reachableFields } from "@/lib/forms/logic";
 import { fileRefsOf } from "@/lib/forms/answers";
 import { FORM_VERSION } from "@/lib/forms/schema";
@@ -45,6 +47,13 @@ interface AuditInput {
   fromStatus?: KybStatus | null;
   toStatus?: KybStatus | null;
   metadata?: Record<string, unknown>;
+  /**
+   * Org del evento. Con `requestId` no hace falta: un trigger la toma de la
+   * solicitud (0025). Pasarla en los eventos sin solicitud (keys, webhooks).
+   */
+  orgId?: string | null;
+  /** Usuario del panel que actuó, si fue uno (el `actor` es texto libre). */
+  actorUserId?: string | null;
 }
 
 export async function logAudit(input: AuditInput) {
@@ -56,46 +65,68 @@ export async function logAudit(input: AuditInput) {
     from_status: input.fromStatus ?? null,
     to_status: input.toStatus ?? null,
     metadata: input.metadata ?? null,
+    org_id: input.orgId ?? null,
+    actor_user_id: input.actorUserId ?? null,
   });
 }
 
 /**
- * Formulario que usará la solicitud y su revisión vigente (`forms.version`).
- * Espeja la resolución de `getFormForRequest`: por id si se pidió uno, o el
- * publicado por defecto. `null` si no hay formulario que resolver — es
- * información honesta, y mejor que estampar una revisión inventada.
+ * Formulario que usará una solicitud nueva de la org `orgId` (reglas en
+ * lib/forms/formChoice.ts). Lee los candidatos y delega la decisión.
  */
-async function resolveRequestForm(
-  formId: string | null | undefined,
-): Promise<{ id: string | null; revision: number | null }> {
+export async function chooseRequestForm(input: {
+  orgId: string;
+  /** `form_id` que pidió el llamador, si pidió uno. */
+  requestedId?: string | null;
+  /** Formulario por defecto de la API key (`api_keys.default_form_id`). */
+  keyDefaultId?: string | null;
+}): Promise<FormChoice> {
   const supabase = createServiceClient();
-  const { data } = formId
-    ? await supabase.from("forms").select("id, version").eq("id", formId).maybeSingle()
-    : await supabase
-        .from("forms")
-        .select("id, version")
-        .eq("status", "published")
-        .order("updated_at", { ascending: false })
-        .limit(1)
-        .maybeSingle();
-  return {
-    id: (data?.id as string | null) ?? null,
-    revision: (data?.version as number | null) ?? null,
-  };
+  const cols = "id, org_id, status, version";
+  const byId = async (id: string) =>
+    ((await supabase.from("forms").select(cols).eq("id", id).maybeSingle()).data ??
+      null) as FormCandidate | null;
+
+  if (input.requestedId) {
+    return pickRequestForm({
+      orgId: input.orgId,
+      requestedId: input.requestedId,
+      requested: await byId(input.requestedId),
+    });
+  }
+
+  const [keyDefault, latest] = await Promise.all([
+    input.keyDefaultId ? byId(input.keyDefaultId) : null,
+    supabase
+      .from("forms")
+      .select(cols)
+      .eq("org_id", input.orgId)
+      .eq("status", "published")
+      .order("updated_at", { ascending: false })
+      .limit(1)
+      .maybeSingle(),
+  ]);
+  return pickRequestForm({
+    orgId: input.orgId,
+    keyDefault,
+    latestPublished: (latest.data ?? null) as FormCandidate | null,
+  });
 }
 
 /** Crea una solicitud KYB y devuelve el token en claro (solo aquí). */
-export async function createRequest(
-  externalRef: string,
-  ttlHours = DEFAULT_TTL_HOURS,
-  formId?: string | null,
-  formDefinition?: unknown,
-  opts?: {
-    apiKeyId?: string | null;
-    webhookEndpointId?: string | null;
-    returnUrl?: string | null;
-  },
-): Promise<{
+export async function createRequest(input: {
+  /** Org dueña. Tiene que coincidir con la de la key y la del formulario (FKs de 0025). */
+  orgId: string;
+  externalRef: string;
+  ttlHours?: number;
+  /** Formulario ya elegido (ver {@link chooseRequestForm}) y su revisión vigente. */
+  form: { id: string; revision: number | null };
+  /** Snapshot de la definición, si el llamador la tiene (intake público). */
+  formDefinition?: unknown;
+  apiKeyId?: string | null;
+  webhookEndpointId?: string | null;
+  returnUrl?: string | null;
+}): Promise<{
   id: string;
   token: string;
   invitationUrl: string;
@@ -104,33 +135,31 @@ export async function createRequest(
   const supabase = createServiceClient();
   const token = generateToken();
   const expiresAt = new Date(
-    Date.now() + clampTtlHours(ttlHours) * 3600 * 1000,
+    Date.now() + clampTtlHours(input.ttlHours) * 3600 * 1000,
   ).toISOString();
-  const form = await resolveRequestForm(formId);
 
   const { data, error } = await supabase
     .from("kyb_requests")
     .insert({
-      external_ref: externalRef,
+      org_id: input.orgId,
+      external_ref: input.externalRef,
       invitation_token_hash: hashToken(token),
       token_expires_at: expiresAt,
       form_version: FORM_VERSION,
       status: "created",
-      // Sin `form_id` (API) se fija el publicado por defecto de ESTE momento.
-      // Antes quedaba null y la solicitud mostraba el que fuera el default al
-      // abrirla, sin registro de cuál era — y con `form_revision` estampada
-      // contra un formulario que no quedaba anotado.
-      form_id: formId ?? form.id,
+      // Siempre fijado al crear: sin él, la solicitud mostraba el formulario
+      // que fuera el default al abrirla, sin registro de cuál era.
+      form_id: input.form.id,
       // Snapshot de la definición para validar el envío contra lo que el
       // solicitante realmente llenó (aunque el form se edite después).
-      form_definition: formDefinition ?? null,
+      form_definition: input.formDefinition ?? null,
       // Revisión del formulario al crear: el cliente fija su mapeo de campos
       // contra este número (ver 0018_form_revision.sql).
-      form_revision: form.revision,
+      form_revision: input.form.revision,
       // Aislamiento por cliente: la solicitud pertenece a la API key que la creó.
-      api_key_id: opts?.apiKeyId ?? null,
-      webhook_endpoint_id: opts?.webhookEndpointId ?? null,
-      return_url: opts?.returnUrl ?? null,
+      api_key_id: input.apiKeyId ?? null,
+      webhook_endpoint_id: input.webhookEndpointId ?? null,
+      return_url: input.returnUrl ?? null,
     })
     .select("id")
     .single();
@@ -149,7 +178,7 @@ export async function createRequest(
     actor: "system",
     action: "request_created",
     toStatus: "created",
-    metadata: { externalRef },
+    metadata: { externalRef: input.externalRef },
   });
 
   return {
@@ -290,7 +319,7 @@ export async function getRequestByToken(
     // `<Comp {...req}>` para serializarlo al payload RSC.
     // En una sola línea: Supabase infiere el tipo de la fila parseando este
     // literal, y una concatenación le da `GenericStringError`.
-    .select("id, external_ref, status, token_expires_at, form_version, created_at, submitted_at, decided_at, decision, decided_by, form_id, form_definition, api_key_id, callback_url, return_url, webhook_endpoint_id, corrections, decision_reason, expiring_notified_at, form_revision")
+    .select("id, external_ref, status, token_expires_at, form_version, created_at, submitted_at, decided_at, decision, decided_by, form_id, form_definition, api_key_id, callback_url, return_url, webhook_endpoint_id, corrections, decision_reason, expiring_notified_at, form_revision, org_id")
     .eq("invitation_token_hash", hashToken(token))
     .maybeSingle();
 
@@ -396,7 +425,8 @@ export async function saveDraft(
   await supabase
     .from("kyb_form_responses")
     .upsert(
-      { request_id: requestId, data, form_version: FORM_VERSION },
+      // Solo archivos de ESTA solicitud (ver dropForeignFileRefs).
+      { request_id: requestId, data: dropForeignFileRefs(data, requestId), form_version: FORM_VERSION },
       { onConflict: "request_id" },
     );
 
@@ -427,12 +457,19 @@ export async function getDraft(
  * Genera URLs firmadas (temporales) para varios documentos del bucket privado.
  * Devuelve un mapa `path -> signedUrl`; omite los que fallen. Usado por el
  * detalle del request en admin para mostrar miniaturas inline.
+ *
+ * Solo firma paths de `requestId`: las respuestas pueden traer paths escritos
+ * por el navegador (filas anteriores a `dropForeignFileRefs`), y firmar uno
+ * ajeno con service-role expondría el documento de otra solicitud.
  */
 export async function createSignedDocUrls(
   paths: string[],
+  requestId: string,
   expiresIn = 3600,
 ): Promise<Record<string, string>> {
-  const unique = Array.from(new Set(paths.filter(Boolean)));
+  const unique = Array.from(
+    new Set(paths.filter((p) => Boolean(p) && isOwnedPath(p, requestId))),
+  );
   if (unique.length === 0) return {};
 
   const supabase = createServiceClient();
@@ -540,7 +577,7 @@ export async function submitRequest(
   const supabase = createServiceClient();
   const { data: req } = await supabase
     .from("kyb_requests")
-    .select("id, status, form_id, form_definition")
+    .select("id, status, form_id, form_definition, org_id")
     .eq("id", requestId)
     .single();
   if (!req) throw new Error("Solicitud no encontrada");
@@ -553,7 +590,7 @@ export async function submitRequest(
   // aún no alcanzada es legítima. Y solo para solicitudes con formulario dinámico
   // propio (snapshot o form_id): en el legacy `resolveRequestDefinition` caería al
   // form publicado por defecto —con otras keys— y borraría respuestas válidas.
-  let toSave = data;
+  let toSave = dropForeignFileRefs(data, requestId);
   const isDynamic =
     !!(req as { form_definition?: unknown }).form_definition ||
     !!(req as { form_id?: string | null }).form_id;
@@ -561,11 +598,12 @@ export async function submitRequest(
     const definition = await resolveRequestDefinition(
       (req as { form_definition?: unknown }).form_definition,
       (req as { form_id?: string | null }).form_id,
+      req.org_id as string,
     );
     if (definition) {
-      const keep = new Set(reachableFields(definition, data).map((f) => f.key));
+      const keep = new Set(reachableFields(definition, toSave).map((f) => f.key));
       toSave = Object.fromEntries(
-        Object.entries(data).filter(([k]) => keep.has(k)),
+        Object.entries(toSave).filter(([k]) => keep.has(k)),
       );
     }
   }
@@ -609,7 +647,7 @@ export async function runVerifications(
   const supabase = createServiceClient();
   const { data: req } = await supabase
     .from("kyb_requests")
-    .select("id, status, external_ref, form_id, form_definition")
+    .select("id, status, external_ref, form_id, form_definition, org_id")
     .eq("id", requestId)
     .single();
   if (!req) {
@@ -630,7 +668,12 @@ export async function runVerifications(
     .select("data")
     .eq("request_id", requestId)
     .maybeSingle();
-  const data = (responseRow?.data as Record<string, unknown>) ?? {};
+  // Sin archivos de otras solicitudes: DIDIT descarga con service-role cada
+  // path de las respuestas (ver dropForeignFileRefs).
+  const data = dropForeignFileRefs(
+    (responseRow?.data as Record<string, unknown>) ?? {},
+    requestId,
+  );
 
   // Dispara verificaciones: DIDIT real (por-feature) o mock.
   const amlProvider = env.amlProvider();
@@ -642,6 +685,7 @@ export async function runVerifications(
       const definition = await resolveRequestDefinition(
         (req as { form_definition?: unknown }).form_definition,
         req.form_id,
+        req.org_id as string,
       );
       if (!definition) {
         console.error(
@@ -817,7 +861,7 @@ export async function requestChanges(
   const supabase = createServiceClient();
   const { data: req } = await supabase
     .from("kyb_requests")
-    .select("id, status, corrections, form_id, form_definition")
+    .select("id, status, corrections, form_id, form_definition, org_id")
     .eq("id", requestId)
     .single();
   if (!req) return { ok: false, error: "Solicitud no encontrada" };
@@ -833,6 +877,7 @@ export async function requestChanges(
   const definition = await resolveRequestDefinition(
     (req as { form_definition?: unknown }).form_definition,
     (req as { form_id?: string | null }).form_id,
+    req.org_id as string,
   );
   if (!definition) {
     return {
@@ -889,6 +934,9 @@ export async function requestChanges(
   const answers = { ...((responseRow?.data as Record<string, unknown>) ?? {}) };
   for (const { key } of marked) {
     for (const ref of fileRefsOf(answers[key])) {
+      // Solo archivos de esta solicitud: el path viene del blob de respuestas, y
+      // en filas anteriores a dropForeignFileRefs podía apuntar a otra.
+      if (!isOwnedPath(ref.path, requestId)) continue;
       await deleteDocument({ requestId, storagePath: ref.path });
     }
     delete answers[key];

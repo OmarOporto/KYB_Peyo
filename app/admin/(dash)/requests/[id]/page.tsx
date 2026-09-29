@@ -30,6 +30,7 @@ import { resolveRequestDefinition } from "@/lib/forms/store";
 import { isAnswered } from "@/lib/forms/logic";
 import { resolveText, type Field } from "@/lib/forms/definition";
 import { fileRefsOf, isLongAnswer } from "@/lib/forms/answers";
+import { dropForeignFileRefs } from "@/lib/kyb/storagePaths";
 
 export const dynamic = "force-dynamic";
 // Las acciones de este detalle pueden llamar a DIDIT (re-verificar, seleccionar
@@ -76,7 +77,11 @@ export default async function RequestDetail({
       .order("created_at", { ascending: false }),
   ]);
 
-  const formData = (formRow?.data as Record<string, unknown>) ?? {};
+  // Sin archivos de otras solicitudes (filas anteriores al saneo al escribir).
+  const formData = dropForeignFileRefs(
+    (formRow?.data as Record<string, unknown>) ?? {},
+    id,
+  );
   const status = request.status as KybStatus;
   const closed = isTerminal(status);
   // Solo se puede decidir/pedir correcciones sobre una solicitud ya enviada y
@@ -89,6 +94,7 @@ export default async function RequestDetail({
   const definition = await resolveRequestDefinition(
     (request as { form_definition?: unknown }).form_definition,
     (request as { form_id?: string | null }).form_id,
+    request.org_id as string,
   );
 
   // Validación registral (kyb_registry): ciclo manual del analista.
@@ -127,10 +133,10 @@ export default async function RequestDetail({
           .flatMap((f) => fileRefsOf(formData[f.key])),
       )
     : [];
-  const signedUrls = await createSignedDocUrls([
-    ...(docs ?? []).map((d) => d.storage_path),
-    ...answerRefs.map((r) => r.path),
-  ]);
+  const signedUrls = await createSignedDocUrls(
+    [...(docs ?? []).map((d) => d.storage_path), ...answerRefs.map((r) => r.path)],
+    id,
+  );
 
   // Campo por key (imágenes de referencia) y origen (sección/pregunta) por key.
   const fieldByKey = new Map<string, Field>();
@@ -226,8 +232,8 @@ export default async function RequestDetail({
   // Se gatea con el opt-in del cliente DUEÑO de la solicitud: el consentimiento
   // es sobre el dato, no sobre quién lo mira, así que un analista tampoco puede
   // mandar a un proveedor externo lo que el cliente no habilitó. Los intakes
-  // públicos (`/forms/[id]`) no tienen dueño y quedan permitidos: son los
-  // formularios propios del operador.
+  // públicos (`/forms/[id]`) no tienen API key y quedan permitidos: los recibe
+  // la org dueña del formulario, en su propio panel.
   const ownerKeyId = (request as { api_key_id?: string | null }).api_key_id ?? null;
   const trLocales = translatableLocales(definition);
   const trTarget = tr && trLocales.includes(tr) ? tr : null;
@@ -240,6 +246,7 @@ export default async function RequestDetail({
     try {
       const out = await translateAnswers(id, definition, formData, trTarget, {
         actor: analyst?.email ?? "analyst",
+        orgId: request.org_id as string,
       });
       answerTranslations = out.byKey;
     } catch (e) {

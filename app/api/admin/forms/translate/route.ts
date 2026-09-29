@@ -1,7 +1,9 @@
 import { randomUUID } from "node:crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { getAnalyst } from "@/lib/auth/admin";
+import { loadOwnedForm } from "@/lib/auth/tenant";
 import { recordAiUsage } from "@/lib/i18n-ai/usage";
+import { withoutPrices } from "@/lib/i18n-ai/pricing";
 import { formDefinitionSchema } from "@/lib/forms/definition";
 import { getTranslationProvider, translateAll } from "@/lib/i18n-ai";
 import { collectTranslatable } from "@/lib/i18n-ai/walk";
@@ -48,6 +50,15 @@ export async function POST(req: NextRequest) {
 
   const to = typeof body.to === "string" ? body.to.trim() : "";
   if (!to) return NextResponse.json({ error: "missing_target_locale" }, { status: 400 });
+
+  // El consumo se imputa a la org del formulario, así que el formulario tiene
+  // que existir y ser de una org que el analista puede tocar. Antes el `formId`
+  // del body se guardaba tal cual en `ai_usage`, sin chequeo.
+  const form = await loadOwnedForm(
+    analyst,
+    typeof body.formId === "string" ? body.formId : "",
+  );
+  if (!form) return NextResponse.json({ error: "form_not_found" }, { status: 404 });
 
   const parsed = formDefinitionSchema.safeParse(body.definition);
   if (!parsed.success) {
@@ -97,7 +108,8 @@ export async function POST(req: NextRequest) {
       inputTokens: usage?.inputTokens ?? 0,
       outputTokens: usage?.outputTokens ?? 0,
       actor: analyst.email,
-      formId: typeof body.formId === "string" ? body.formId : null,
+      orgId: form.org_id as string,
+      formId: form.id as string,
     });
 
     return NextResponse.json({
@@ -109,7 +121,8 @@ export async function POST(req: NextRequest) {
       model: provider.model,
       provider: provider.name,
       usage,
-      accounted,
+      // Tarifas y costo, solo para el admin de plataforma.
+      accounted: withoutPrices(accounted, analyst.role === "admin"),
     });
   } catch (e) {
     const message = e instanceof Error ? e.message : "translation_failed";

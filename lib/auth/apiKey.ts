@@ -2,13 +2,21 @@ import "server-only";
 import { createServiceClient } from "@/lib/supabase/service";
 import { hashToken } from "@/lib/tokens";
 
+/** API key válida: su id, la org dueña y su formulario por defecto. */
+export interface ApiKeyIdentity {
+  keyId: string;
+  orgId: string;
+  /** `KYB_FORM_ID` configurado en el panel (Clientes API), si hay. */
+  defaultFormId: string | null;
+}
+
 /**
  * Verifica el header Authorization: Bearer <api_key> contra api_keys.
- * Devuelve el id de la key si es válida y no está revocada; null si no.
+ * Devuelve la identidad de la key si es válida y no está revocada; null si no.
  */
 export async function verifyApiKey(
   authHeader: string | null,
-): Promise<string | null> {
+): Promise<ApiKeyIdentity | null> {
   if (!authHeader) return null;
   const match = authHeader.match(/^Bearer\s+(.+)$/i);
   if (!match) return null;
@@ -17,10 +25,14 @@ export async function verifyApiKey(
   const supabase = createServiceClient();
   const { data } = await supabase
     .from("api_keys")
-    .select("id, revoked_at")
+    .select("id, org_id, default_form_id, revoked_at")
     .eq("key_hash", keyHash)
     .maybeSingle();
 
   if (!data || data.revoked_at) return null;
-  return data.id as string;
+  return {
+    keyId: data.id as string,
+    orgId: data.org_id as string,
+    defaultFormId: (data.default_form_id as string | null) ?? null,
+  };
 }

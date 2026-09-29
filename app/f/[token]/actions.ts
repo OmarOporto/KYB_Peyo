@@ -63,7 +63,7 @@ export async function saveDraftAction(
   // form_id) `resolveRequestDefinition` caería al formulario publicado por
   // defecto, con otras claves, y podaría respuestas válidas.
   if (snapshot || formId) {
-    const definition = await resolveRequestDefinition(snapshot, formId);
+    const definition = await resolveRequestDefinition(snapshot, formId, r.req.org_id);
     if (definition) {
       const known = new Set(
         definition.sections.flatMap((s) => s.fields).map((f) => f.key),
@@ -211,6 +211,7 @@ export async function confirmUploadAction(input: {
   const definition = await resolveRequestDefinition(
     (r.req as { form_definition?: unknown }).form_definition,
     (r.req as { form_id?: string | null }).form_id ?? null,
+    r.req.org_id,
   );
   const cfg = definition?.sections
     .flatMap((s) => s.fields)
@@ -315,7 +316,7 @@ export async function submitFormAction(
 
   const formId = (r.req as { form_id?: string | null }).form_id ?? null;
   const snapshot = (r.req as { form_definition?: unknown }).form_definition;
-  const definition = await resolveRequestDefinition(snapshot, formId);
+  const definition = await resolveRequestDefinition(snapshot, formId, r.req.org_id);
   if (!definition) {
     // La UI solo monta este formulario cuando hay definición: sin ella,
     // page.tsx cae al KybForm legacy, que envía por submitAction. Llegar acá

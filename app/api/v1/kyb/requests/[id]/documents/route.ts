@@ -36,6 +36,7 @@ export async function GET(
 
   const signedUrls = await createSignedDocUrls(
     (docs ?? []).map((d) => d.storage_path as string),
+    id,
     expiresIn,
   );
 

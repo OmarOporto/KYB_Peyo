@@ -1,7 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { verifyApiKey } from "@/lib/auth/apiKey";
-import { consumeApiKey } from "@/lib/auth/rateLimit";
-import { rateLimitResponse } from "@/lib/auth/rateLimitResponse";
+import { apiGuard } from "@/lib/auth/apiGuard";
 import { createServiceClient } from "@/lib/supabase/service";
 import { publicAmlChecks } from "@/lib/kyb/amlPublic";
 
@@ -17,13 +15,8 @@ export async function GET(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const keyId = await verifyApiKey(req.headers.get("authorization"));
-  if (!keyId) {
-    return NextResponse.json({ error: "unauthorized" }, { status: 401 });
-  }
-
-  const rl = await consumeApiKey(keyId);
-  if (!rl.allowed) return rateLimitResponse(rl);
+  const g = await apiGuard(req.headers.get("authorization"));
+  if ("response" in g) return g.response;
 
   const { id } = await params;
   const supabase = createServiceClient();
@@ -34,7 +27,7 @@ export async function GET(
       "id, external_ref, status, decision, decision_reason, corrections, form_id, form_revision, created_at, submitted_at, decided_at, token_expires_at",
     )
     .eq("id", id)
-    .eq("api_key_id", keyId)
+    .eq("api_key_id", g.keyId)
     .maybeSingle();
 
   if (!request) {

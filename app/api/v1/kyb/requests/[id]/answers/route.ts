@@ -5,6 +5,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createSignedDocUrls } from "@/lib/kyb/service";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { serializeAnswers, collectFileRefs } from "@/lib/kyb/apiSerialize";
+import { dropForeignFileRefs } from "@/lib/kyb/storagePaths";
 import { clientAllowsTranslation, translateAnswers } from "@/lib/i18n-ai/answers";
 
 export const runtime = "nodejs";
@@ -27,7 +28,7 @@ export async function GET(
   const request = await getOwnedRequest(
     g.keyId,
     id,
-    "id, external_ref, status, form_id, form_revision, form_definition",
+    "id, external_ref, status, form_id, form_revision, form_definition, org_id",
   );
   if (!request) return NextResponse.json({ error: "not_found" }, { status: 404 });
 
@@ -37,17 +38,25 @@ export async function GET(
     .select("data")
     .eq("request_id", id)
     .maybeSingle();
-  const data = (draftRow?.data as Record<string, unknown>) ?? {};
+  // Sin archivos de otras solicitudes (filas anteriores al saneo al escribir).
+  const data = dropForeignFileRefs(
+    (draftRow?.data as Record<string, unknown>) ?? {},
+    String(request.id),
+  );
 
   const definition = await resolveRequestDefinition(
     request.form_definition,
     (request.form_id as string | null) ?? null,
+    request.org_id as string,
   );
   const locale =
     new URL(req.url).searchParams.get("locale") || definition?.defaultLocale || "es";
 
   const refs = collectFileRefs(definition, data);
-  const signedUrls = await createSignedDocUrls(refs.map((r) => r.path));
+  const signedUrls = await createSignedDocUrls(
+    refs.map((r) => r.path),
+    String(request.id),
+  );
 
   // Traducción del texto libre que escribió el solicitante. Opt-in por cliente
   // (`api_keys.allow_ai_translation`): manda PII a un proveedor externo. Si el
@@ -61,6 +70,7 @@ export async function GET(
       try {
         const out = await translateAnswers(String(request.id), definition, data, locale, {
           actor: `api:${g.keyId}`,
+          orgId: request.org_id as string,
         });
         translations = out.byKey;
       } catch (e) {

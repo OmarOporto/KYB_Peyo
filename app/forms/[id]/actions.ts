@@ -50,7 +50,14 @@ export async function startPublicIntake(
   try {
     // external_ref distintivo para que admin identifique los intakes públicos.
     const externalRef = `public:${randomUUID().slice(0, 8)}`;
-    const created = await createRequest(externalRef, undefined, formId, form.definition);
+    // La solicitud es de la org dueña del formulario: sin API key, es lo único
+    // que la ata a un cliente.
+    const created = await createRequest({
+      orgId: form.org_id,
+      externalRef,
+      form: { id: form.id, revision: form.version },
+      formDefinition: form.definition,
+    });
     token = created.token;
   } catch (e) {
     console.error("[startPublicIntake] falló", e);
