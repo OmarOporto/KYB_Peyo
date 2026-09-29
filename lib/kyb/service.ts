@@ -60,25 +60,28 @@ export async function logAudit(input: AuditInput) {
 }
 
 /**
- * Revisión vigente (`forms.version`) del formulario que usará la solicitud.
+ * Formulario que usará la solicitud y su revisión vigente (`forms.version`).
  * Espeja la resolución de `getFormForRequest`: por id si se pidió uno, o el
  * publicado por defecto. `null` si no hay formulario que resolver — es
  * información honesta, y mejor que estampar una revisión inventada.
  */
-async function resolveFormRevision(
+async function resolveRequestForm(
   formId: string | null | undefined,
-): Promise<number | null> {
+): Promise<{ id: string | null; revision: number | null }> {
   const supabase = createServiceClient();
   const { data } = formId
-    ? await supabase.from("forms").select("version").eq("id", formId).maybeSingle()
+    ? await supabase.from("forms").select("id, version").eq("id", formId).maybeSingle()
     : await supabase
         .from("forms")
-        .select("version")
+        .select("id, version")
         .eq("status", "published")
         .order("updated_at", { ascending: false })
         .limit(1)
         .maybeSingle();
-  return (data?.version as number | null) ?? null;
+  return {
+    id: (data?.id as string | null) ?? null,
+    revision: (data?.version as number | null) ?? null,
+  };
 }
 
 /** Crea una solicitud KYB y devuelve el token en claro (solo aquí). */
@@ -103,6 +106,7 @@ export async function createRequest(
   const expiresAt = new Date(
     Date.now() + clampTtlHours(ttlHours) * 3600 * 1000,
   ).toISOString();
+  const form = await resolveRequestForm(formId);
 
   const { data, error } = await supabase
     .from("kyb_requests")
@@ -112,13 +116,17 @@ export async function createRequest(
       token_expires_at: expiresAt,
       form_version: FORM_VERSION,
       status: "created",
-      form_id: formId ?? null,
+      // Sin `form_id` (API) se fija el publicado por defecto de ESTE momento.
+      // Antes quedaba null y la solicitud mostraba el que fuera el default al
+      // abrirla, sin registro de cuál era — y con `form_revision` estampada
+      // contra un formulario que no quedaba anotado.
+      form_id: formId ?? form.id,
       // Snapshot de la definición para validar el envío contra lo que el
       // solicitante realmente llenó (aunque el form se edite después).
       form_definition: formDefinition ?? null,
       // Revisión del formulario al crear: el cliente fija su mapeo de campos
       // contra este número (ver 0018_form_revision.sql).
-      form_revision: await resolveFormRevision(formId),
+      form_revision: form.revision,
       // Aislamiento por cliente: la solicitud pertenece a la API key que la creó.
       api_key_id: opts?.apiKeyId ?? null,
       webhook_endpoint_id: opts?.webhookEndpointId ?? null,

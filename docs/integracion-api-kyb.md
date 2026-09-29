@@ -87,8 +87,9 @@ Base: `KYB_BASE_URL/api/v1/kyb`
 | `ttl_hours` | int > 0 | no | Vigencia del link de invitación (default 14 días, **máximo 2160 = 90 días**). |
 
 > \* `form_id` es opcional en el esquema, pero **recomendado**: si no lo envías, se
-> usa el formulario publicado por defecto. Y sin un formulario válido no corren las
-> verificaciones DIDIT.
+> fija el formulario publicado por defecto **al momento de crear la solicitud** (lo
+> ves después en `formId`, §4.3); si luego se publica otro, esa solicitud no cambia.
+> Y sin un formulario válido no corren las verificaciones DIDIT.
 
 **Cabecera opcional:** `Idempotency-Key: <valor-único>` — si reintentas con la misma
 key y el mismo body, devolvemos la respuesta original (no se duplica la solicitud).
