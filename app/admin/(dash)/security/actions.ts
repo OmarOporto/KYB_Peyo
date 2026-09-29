@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { requireAnalyst, type Analyst } from "@/lib/auth/admin";
 import { consumeRate } from "@/lib/auth/rateLimit";
 import { passwordIssues } from "@/lib/auth/passwordPolicy";
+import { isEmail, normalizeEmail } from "@/lib/auth/accountRules";
 import { logAudit } from "@/lib/kyb/service";
 import { createServerSupabase } from "@/lib/supabase/server";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -102,8 +103,8 @@ export async function changeEmailAction(
   currentPassword: string,
 ): Promise<Result> {
   const analyst = await requireAnalyst();
-  const email = newEmail.trim().toLowerCase();
-  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { ok: false, error: "auth.errEmailInvalid" };
+  const email = normalizeEmail(newEmail);
+  if (!isEmail(email)) return { ok: false, error: "auth.errEmailInvalid" };
   if (email === analyst.email.toLowerCase()) return { ok: false, error: "security.errSameEmail" };
 
   const check = await checkCurrentPassword(analyst, currentPassword);
