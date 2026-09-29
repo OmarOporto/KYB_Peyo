@@ -27,4 +27,11 @@ export const publicEnv = {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     ),
   appUrl: () => process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000",
+  /**
+   * Site key de Cloudflare Turnstile (pública). Opcional: sin ella el widget no
+   * se muestra y el login no manda `captchaToken`, que es lo correcto mientras
+   * el captcha esté apagado en Supabase. Por eso el código se despliega ANTES
+   * de encender el captcha en el dashboard.
+   */
+  turnstileSiteKey: () => process.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY?.trim() ?? "",
 };

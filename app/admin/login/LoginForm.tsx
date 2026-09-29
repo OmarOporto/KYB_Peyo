@@ -1,0 +1,118 @@
+"use client";
+
+import { useRef, useState, type FormEvent } from "react";
+import Link from "next/link";
+import { useRouter } from "next/navigation";
+import { useTranslations } from "next-intl";
+import { LoaderCircle, LogIn } from "lucide-react";
+import { createBrowserSupabase } from "@/lib/supabase/client";
+import { authErrorKey } from "@/lib/auth/authErrors";
+import { Turnstile, turnstileEnabled, type TurnstileHandle } from "@/components/auth/Turnstile";
+import { PasswordInput } from "@/components/auth/PasswordInput";
+import {
+  AuthAlert,
+  AuthLabel,
+  authButtonCls,
+  authInputCls,
+} from "@/components/auth/authUi";
+
+export function LoginForm() {
+  const t = useTranslations("auth");
+  const router = useRouter();
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [captcha, setCaptcha] = useState<string | null>(null);
+  const turnstile = useRef<TurnstileHandle>(null);
+  const needsCaptcha = turnstileEnabled();
+
+  async function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    if (needsCaptcha && !captcha) {
+      setError(t("errCaptchaPending"));
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    const supabase = createBrowserSupabase();
+    const { error } = await supabase.auth.signInWithPassword({
+      email: email.trim(),
+      password,
+      options: captcha ? { captchaToken: captcha } : undefined,
+    });
+    if (error) {
+      setLoading(false);
+      setError(t(authErrorKey(error)));
+      // El token de Turnstile ya se gastó en este intento.
+      turnstile.current?.reset();
+      return;
+    }
+
+    // Con 2FA activado, la sesión recién creada es de nivel 1 (solo
+    // contraseña): falta el código antes de entrar al panel.
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    const next = aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2" ? "/admin/login/mfa" : "/admin";
+    router.replace(next);
+    router.refresh();
+  }
+
+  return (
+    <form onSubmit={onSubmit} className="space-y-5" noValidate>
+      {error && <AuthAlert tone="danger">{error}</AuthAlert>}
+
+      <div>
+        <AuthLabel htmlFor="email">{t("email")}</AuthLabel>
+        <input
+          id="email"
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          className={authInputCls}
+          placeholder={t("emailPlaceholder")}
+          autoComplete="username"
+          autoFocus
+          required
+        />
+      </div>
+
+      <div>
+        <AuthLabel
+          htmlFor="password"
+          aside={
+            <Link
+              href="/admin/login/forgot"
+              className="text-sm font-medium text-brand hover:underline"
+            >
+              {t("forgotLink")}
+            </Link>
+          }
+        >
+          {t("password")}
+        </AuthLabel>
+        <PasswordInput
+          id="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          autoComplete="current-password"
+          required
+        />
+      </div>
+
+      <Turnstile ref={turnstile} onToken={setCaptcha} />
+
+      <button
+        type="submit"
+        disabled={loading || !email.trim() || !password || (needsCaptcha && !captcha)}
+        className={authButtonCls}
+      >
+        {loading ? (
+          <LoaderCircle size={18} className="animate-spin" aria-hidden />
+        ) : (
+          <LogIn size={18} aria-hidden />
+        )}
+        {loading ? t("signingIn") : t("signIn")}
+      </button>
+    </form>
+  );
+}

@@ -32,6 +32,9 @@ Tres superficies sobre una app Next.js (App Router) + Supabase:
 npm install
 cp .env.example .env.local          # completar claves (ver abajo)
 
+# captcha local (Turnstile, clave secreta de PRUEBA de Cloudflare; ver supabase/config.toml)
+echo "SUPABASE_AUTH_CAPTCHA_SECRET=1x0000000000000000000000000000000AA" > supabase/.env
+
 npm run db:start                    # levanta Supabase (Docker). Imprime ANON_KEY / SERVICE_ROLE_KEY
 # copiar esas claves a .env.local si difieren
 
@@ -43,7 +46,8 @@ PROVISION_PASSWORD='...' npm run provision -- apply   # crea orgs y usuarios del
 npm run dev                         # http://localhost:3000
 ```
 
-Studio de Supabase: http://127.0.0.1:54323
+Studio de Supabase: http://127.0.0.1:54323 · Correos de Auth (recuperación,
+invitación): Mailpit en http://127.0.0.1:54324
 
 ### Variables de entorno
 
