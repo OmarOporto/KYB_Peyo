@@ -17,6 +17,7 @@ import {
   DOCUMENTS_BUCKET,
 } from "@/lib/kyb/service";
 import { kybSelect, runKybRegistryCheck } from "@/lib/didit/verify";
+import { recordKybCharge } from "@/lib/didit/costs";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { notifyClient } from "@/lib/kyb/webhook";
 import { createServiceClient } from "@/lib/supabase/service";
@@ -241,6 +242,7 @@ export async function selectKybCandidateAction(
         },
       })
       .eq("id", checkId);
+    await recordKybCharge({ checkId, kind: "kyb_select", sessionId: sel.externalRef });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/\s4\d\d:/.test(msg)) {
@@ -258,6 +260,7 @@ export async function selectKybCandidateAction(
       .from("aml_checks")
       .update({ result: { ...reservedResult, selected: { ...selected, error: msg } } })
       .eq("id", checkId);
+    await recordKybCharge({ checkId, kind: "kyb_select", sessionId: null, unconfirmed: true });
     return { ok: false, error: msg };
   }
 

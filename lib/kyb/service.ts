@@ -6,6 +6,7 @@ import { env } from "@/lib/env";
 import { getAmlProvider } from "@/lib/aml";
 import { buildAmlSubject } from "@/lib/aml/mapping";
 import { dispatchDiditReviews, type DiditCheckRow } from "@/lib/didit/verify";
+import { recordCheckCharge } from "@/lib/didit/costs";
 import { notifyClient } from "@/lib/kyb/webhook";
 import { resolveRequestDefinition } from "@/lib/forms/store";
 import { pickRequestForm, type FormCandidate, type FormChoice } from "@/lib/forms/formChoice";
@@ -714,21 +715,36 @@ export async function runVerifications(
 
       // Inserta cada verificación apenas completa (sobrevive a un corte del background).
       const insertRow = async (r: DiditCheckRow) => {
-        const { error } = await supabase.from("aml_checks").insert({
-          request_id: requestId,
-          provider: "didit",
-          feature: r.feature,
-          field_key: r.fieldKey,
-          external_ref: r.externalRef,
-          status: r.status,
-          score: r.score,
-          result: r.result,
-        });
+        const { data: inserted, error } = await supabase
+          .from("aml_checks")
+          .insert({
+            request_id: requestId,
+            provider: "didit",
+            feature: r.feature,
+            field_key: r.fieldKey,
+            external_ref: r.externalRef,
+            status: r.status,
+            score: r.score,
+            result: r.result,
+          })
+          .select("id")
+          .single();
         if (error) {
           console.error(
             `[AML] request=${requestId} insert check (${r.feature}/${r.fieldKey ?? "-"}) falló:`,
             error.message,
           );
+        }
+        // El cargo va en su propio registro: una corrección puede borrar el
+        // check, pero DIDIT ya lo cobró. Una fila `error` no creó sesión.
+        if (r.externalRef && r.status !== "error") {
+          await recordCheckCharge({
+            orgId: req.org_id as string,
+            requestId,
+            checkId: (inserted?.id as string | undefined) ?? null,
+            feature: r.feature,
+            sessionId: r.externalRef,
+          });
         }
       };
 

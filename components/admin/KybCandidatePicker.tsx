@@ -21,7 +21,7 @@ export type KybCandidate = {
  * Selección de empresa cuando la búsqueda registral fue ambigua. El select de
  * DIDIT es FACTURABLE e irreversible: radio + confirmación en dos pasos con
  * aviso explícito. "Ninguna coincide" cierra el ciclo sin facturar; "Repetir
- * búsqueda" abre un ciclo nuevo (gratis).
+ * búsqueda" abre un ciclo nuevo (otra búsqueda, que puede cobrarse).
  */
 export function KybCandidatePicker({
   checkId,

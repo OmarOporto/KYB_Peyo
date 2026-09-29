@@ -31,6 +31,7 @@ import { isAnswered } from "@/lib/forms/logic";
 import { resolveText, type Field } from "@/lib/forms/definition";
 import { fileRefsOf, isLongAnswer } from "@/lib/forms/answers";
 import { dropForeignFileRefs } from "@/lib/kyb/storagePaths";
+import { formatCost } from "@/lib/i18n-ai/pricing";
 
 export const dynamic = "force-dynamic";
 // Las acciones de este detalle pueden llamar a DIDIT (re-verificar, seleccionar
@@ -72,7 +73,7 @@ export default async function RequestDetail({
         ).data?.name as string | undefined) ?? null)
       : null;
 
-  const [{ data: formRow }, { data: docs }, { data: aml }] = await Promise.all([
+  const [{ data: formRow }, { data: docs }, { data: aml }, { data: diditCharges }] = await Promise.all([
     supabase.from("kyb_form_responses").select("data").eq("request_id", id).maybeSingle(),
     supabase
       .from("kyb_documents")
@@ -86,7 +87,21 @@ export default async function RequestDetail({
       .select("id, provider, status, result, created_at, feature, field_key, score")
       .eq("request_id", id)
       .order("created_at", { ascending: false }),
+    // Costo DIDIT, solo para el admin (es la tarifa del proveedor a la
+    // plataforma). Sale del registro de cargos: incluye los checks que una
+    // corrección ya borró.
+    viewer.role === "admin"
+      ? supabase.from("didit_charges").select("amount, source").eq("request_id", id)
+      : Promise.resolve({ data: null }),
   ]);
+  const diditCost = diditCharges?.length
+    ? {
+        amount: diditCharges.reduce((n, c) => n + (c.amount == null ? 0 : Number(c.amount)), 0),
+        count: diditCharges.length,
+        estimated: diditCharges.some((c) => c.amount != null && c.source === "tariff"),
+        pending: diditCharges.filter((c) => c.amount == null).length,
+      }
+    : null;
 
   // Sin archivos de otras solicitudes (filas anteriores al saneo al escribir).
   const formData = dropForeignFileRefs(
@@ -319,7 +334,7 @@ export default async function RequestDetail({
               {t("reverify")}
             </Button>
           </form>
-          {/* Validación registral: ciclo manual (search gratis ~90s; el select
+          {/* Validación registral: ciclo manual (search ~90s, se cobra si hay candidatos; el select
               facturable queda detrás del picker o del match exacto) */}
           {hasKybField && (
             <RunKybRegistryButton
@@ -337,6 +352,16 @@ export default async function RequestDetail({
             />
           )}
         </div>
+        {diditCost && (
+          <p className="mb-2 text-xs text-muted">
+            {t("diditCost", {
+              amount: `${diditCost.estimated ? "≈ " : ""}${formatCost(diditCost.amount)}`,
+              count: diditCost.count,
+            })}
+            {diditCost.estimated && <> · {t("diditCostEstimated")}</>}
+            {diditCost.pending > 0 && <> · {t("diditCostPending", { count: diditCost.pending })}</>}
+          </p>
+        )}
         {(aml ?? []).length === 0 && (
           <p className="text-sm text-muted">{t("noChecks")}</p>
         )}

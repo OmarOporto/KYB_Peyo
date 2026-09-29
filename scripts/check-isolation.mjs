@@ -48,7 +48,7 @@ const TABLES = [
   "webhook_deliveries",
   "api_keys",
   "webhook_endpoints",
-  "didit_usage",
+  "didit_charges",
 ];
 
 const rows = [];

@@ -6,9 +6,15 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { Card } from "@/components/ui/Card";
 import { OrgTabs } from "@/components/admin/OrgTabs";
 import { DEFAULT_PRICES, formatCost, formatTokens } from "@/lib/i18n-ai/pricing";
+import { summarizeCharges, type ChargeRow, type DiditChargeKind, type DiditChargeSource } from "@/lib/didit/pricing";
+import { getDiditBalance } from "@/lib/didit/costs";
+import { DIDIT_FEATURES } from "@/lib/forms/definition";
 import { PricesPanel, type PriceRow } from "./PricesPanel";
+import { DiditPanel } from "./DiditPanel";
 
 export const dynamic = "force-dynamic";
+// "Sincronizar con DIDIT" recorre sesiones y pide el costo de cada una.
+export const maxDuration = 120;
 
 /** Tope de filas leídas. Suficiente para el historial visible sin paginar. */
 const MAX_ROWS = 1000;
@@ -51,13 +57,15 @@ type Run = {
   at: string;
 };
 
-type DiditUsageRow = {
-  org_id: string;
-  month: string;
+type DiditChargeDbRow = {
   feature: string;
-  status: string;
-  checks: number;
-  billable_selects: number;
+  kind: DiditChargeKind;
+  amount: string | number | null;
+  source: DiditChargeSource;
+  request_id: string | null;
+  created_at: string;
+  synced_at: string | null;
+  kyb_requests: { form_id: string | null } | { form_id: string | null }[] | null;
 };
 
 /**
@@ -92,11 +100,13 @@ export default async function AiUsagePage({
   if (scope) usageQuery = usageQuery.eq("org_id", scope);
 
   let diditQuery = supabase
-    .from("didit_usage")
-    .select("org_id, month, feature, status, checks, billable_selects");
+    .from("didit_charges")
+    .select("feature, kind, amount, source, request_id, created_at, synced_at, kyb_requests(form_id)")
+    .order("created_at", { ascending: false })
+    .limit(5000);
   if (scope) diditQuery = diditQuery.eq("org_id", scope);
 
-  const [{ data: usage }, { data: diditRows }, { data: prices }] = await Promise.all([
+  const [{ data: usage }, { data: diditRows }, { data: prices }, balance] = await Promise.all([
     usageQuery,
     diditQuery,
     // Las tarifas son solo del admin (también por RLS, 0025).
@@ -106,6 +116,8 @@ export default async function AiUsagePage({
           .select("model, input_per_1m, output_per_1m, currency, updated_at, updated_by")
           .order("model")
       : Promise.resolve({ data: [] as Record<string, unknown>[] }),
+    // Saldo real de la cuenta: dato de la plataforma, solo para el admin.
+    isAdmin ? getDiditBalance() : Promise.resolve(undefined),
   ]);
 
   const rows = (usage ?? []) as UsageRow[];
@@ -169,17 +181,29 @@ export default async function AiUsagePage({
     { label: t("allTime"), ...sum(billable) },
   ];
 
-  // DIDIT por feature: este mes, acumulado y validaciones de empresa cobrables.
-  const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
-  const didit = new Map<string, { month: number; total: number; billable: number }>();
-  for (const r of (diditRows ?? []) as DiditUsageRow[]) {
-    const acc = didit.get(r.feature) ?? { month: 0, total: 0, billable: 0 };
-    acc.total += r.checks;
-    acc.billable += r.billable_selects;
-    if (new Date(r.month).getTime() >= monthStart) acc.month += r.checks;
-    didit.set(r.feature, acc);
-  }
-  const diditFeatures = [...didit.entries()].sort((a, b) => b[1].total - a[1].total);
+  // Cobros DIDIT: por período, por verificación y por formulario.
+  const charges: ChargeRow[] = ((diditRows ?? []) as DiditChargeDbRow[]).map((r) => {
+    const req = Array.isArray(r.kyb_requests) ? r.kyb_requests[0] : r.kyb_requests;
+    return {
+      feature: r.feature,
+      kind: r.kind,
+      amount: r.amount == null ? null : Number(r.amount),
+      source: r.source,
+      requestId: r.request_id,
+      formId: req?.form_id ?? null,
+      createdAt: r.created_at,
+      syncedAt: r.synced_at,
+    };
+  });
+  const diditSummary = summarizeCharges(charges, now);
+  const featureLabels = Object.fromEntries(
+    DIDIT_FEATURES.map((f) => [f, tBuilder.has(`didit_${f}`) ? tBuilder(`didit_${f}`) : f]),
+  );
+  const formIds = diditSummary.forms.map((f) => f.formId).filter((id): id is string => Boolean(id));
+  const { data: formRows } = isAdmin && formIds.length
+    ? await supabase.from("forms").select("id, name").in("id", formIds)
+    : { data: [] as { id: string; name: string }[] };
+  const formNames = Object.fromEntries((formRows ?? []).map((f) => [f.id as string, f.name as string]));
 
   // Modelos conocidos por el código pero todavía sin fila en la tabla: se
   // muestran con su default para poder fijarlos antes de usarlos.
@@ -344,44 +368,25 @@ export default async function AiUsagePage({
         )}
       </Card>
 
+      {/* Tarifas de IA junto a su sección: debajo de DIDIT se leían como suyas. */}
+      {isAdmin && (
+        <div className="mb-6">
+          <PricesPanel rows={priceRows} />
+        </div>
+      )}
+
       <h2 className="mb-1 font-display text-lg font-semibold text-foreground">
         {t("diditTitle")}
       </h2>
-      <p className="mb-2 text-sm text-muted">{t("diditHint")}</p>
-      <Card className="mb-6 p-4">
-        {diditFeatures.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted">{t("diditEmpty")}</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-lg text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs uppercase text-muted">
-                  <th className="py-2 pr-3 font-medium">{t("colFeature")}</th>
-                  <th className="py-2 pr-3 text-right font-medium">{t("colThisMonth")}</th>
-                  <th className="py-2 pr-3 text-right font-medium">{t("colTotal")}</th>
-                  <th className="py-2 text-right font-medium">{t("colBillable")}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {diditFeatures.map(([feature, n]) => (
-                  <tr key={feature} className="border-b border-border/60 last:border-0">
-                    <td className="py-2 pr-3">
-                      {tBuilder.has(`didit_${feature}`) ? tBuilder(`didit_${feature}`) : feature}
-                    </td>
-                    <td className="py-2 pr-3 text-right tabular-nums">{n.month}</td>
-                    <td className="py-2 pr-3 text-right tabular-nums">{n.total}</td>
-                    <td className="py-2 text-right tabular-nums text-muted">
-                      {feature === "kyb_registry" ? n.billable : "—"}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </Card>
+      <p className="mb-2 text-sm text-muted">{isAdmin ? t("diditHint") : t("diditHintMember")}</p>
+      <DiditPanel
+        summary={diditSummary}
+        isAdmin={isAdmin}
+        balance={balance}
+        featureLabels={featureLabels}
+        formNames={formNames}
+      />
 
-      {isAdmin && <PricesPanel rows={priceRows} />}
     </main>
   );
 }

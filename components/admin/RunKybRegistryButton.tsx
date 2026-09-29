@@ -15,8 +15,8 @@ export type KybDeclaredPreview = {
 };
 
 /**
- * Dispara un ciclo de validación registral (kyb_registry). La búsqueda es
- * gratis pero tarda ~90s: el botón queda en busy mientras corre y refresca el
+ * Dispara un ciclo de validación registral (kyb_registry). La búsqueda se
+ * cobra si encuentra candidatos y tarda ~90s: el botón queda en busy mientras corre y refresca el
  * detalle al terminar. Al hover muestra qué datos se enviarán a DIDIT.
  */
 export function RunKybRegistryButton({

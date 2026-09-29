@@ -10,6 +10,8 @@ import {
   KYB_COUNTRY_RES,
 } from "@/lib/forms/definition";
 import { alpha3ToAlpha2 } from "@/lib/forms/countries";
+import { diditApiKey, diditBase } from "./http";
+import { recordKybCharge } from "./costs";
 
 // Bucket privado donde viven los archivos/selfies (igual que lib/kyb/service.ts).
 const DOCUMENTS_BUCKET = "kyb-documents";
@@ -24,16 +26,10 @@ export interface DiditCheckRow {
 }
 
 // ------------------------------------------------------------
-// HTTP hacia DIDIT (host verification.didit.me, auth x-api-key)
+// HTTP hacia DIDIT (host y key en lib/didit/http.ts)
 // ------------------------------------------------------------
-function base(): string {
-  return (env.diditApiUrl() || "https://verification.didit.me").replace(/\/+$/, "");
-}
-function apiKey(): string {
-  const k = env.diditApiKey();
-  if (!k) throw new Error("DIDIT_API_KEY no configurado");
-  return k;
-}
+const base = diditBase;
+const apiKey = diditApiKey;
 
 // Log conciso por llamada. NO se vuelca el body (trae PII: nombre, documento,
 // fecha de nacimiento, URLs firmadas); el detalle completo queda en aml_checks.result.
@@ -146,8 +142,9 @@ function siblingText(section: Section, answers: Record<string, unknown>) {
 // ------------------------------------------------------------
 // KYB Registry (registro mercantil de empresas)
 // ------------------------------------------------------------
-// Search (POST /v3/kyb/search/) es GRATIS y no crea registros en la consola
-// DIDIT; select (POST /v3/kyb/select/) es FACTURABLE y crea una sesión
+// Search (POST /v3/kyb/search/) cuesta US$0.50 si DIDIT la resuelve con una
+// fuente paga (vacías y fallidas no se cobran) y no crea registros en la
+// consola DIDIT; select (POST /v3/kyb/select/) es FACTURABLE y crea una sesión
 // empresarial (Manual Check). El ciclo es MANUAL (runKybRegistryCheck, botón
 // del analista) con fases en result.phase: search → candidate_selection |
 // select → completed. Auto-select SOLO con nº de registro declarado + match
@@ -330,6 +327,8 @@ export async function resolveKybSearch(input: {
     });
     return;
   }
+  // Resuelta con candidatos: la única búsqueda que DIDIT puede cobrar.
+  await recordKybCharge({ checkId, kind: "kyb_search", sessionId: searchRef });
 
   // Candidatos anotados con el motivo de coincidencia (para el picker).
   const declaredReg =
@@ -391,11 +390,12 @@ export async function resolveKybSearch(input: {
         kyb_registry: sel.node,
       },
     });
+    await recordKybCharge({ checkId, kind: "kyb_select", sessionId: sel.externalRef });
   } catch (e) {
     const msg = e instanceof Error ? e.message : String(e);
     if (/\s4\d\d:/.test(msg)) {
       // DIDIT rechazó el select (no facturó): el ciclo termina en error y un
-      // nuevo run parte de cero (search gratis).
+      // nuevo run parte de cero con otra búsqueda.
       await setRow({ status: "error", result: { phase: "search", ...baseResult, error: msg } });
     } else {
       // Enviado sin confirmación: pudo facturarse. Queda pending/select/unknown
@@ -403,6 +403,7 @@ export async function resolveKybSearch(input: {
       await setRow({
         result: { phase: "select", ...baseResult, selected: { ...selected, error: msg } },
       });
+      await recordKybCharge({ checkId, kind: "kyb_select", sessionId: null, unconfirmed: true });
     }
   }
 }
@@ -479,7 +480,7 @@ export async function runKybRegistryCheck(input: {
   const setRow = (patch: Record<string, unknown>) =>
     supabase.from("aml_checks").update(patch).eq("id", checkId);
 
-  // --- search async (gratis): DIDIT responde al instante y resuelve en ~90s
+  // --- search async (se cobra solo si resuelve con candidatos): DIDIT responde al instante y resuelve en ~90s
   // llamando a nuestro webhook con el token por-búsqueda. Sin webhook_url la
   // búsqueda sería efímera (no hay polling).
   const searchToken = randomUUID();

@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { getAnalyst } from "@/lib/auth/admin";
 import { createServiceClient } from "@/lib/supabase/service";
 import { logAudit } from "@/lib/kyb/service";
+import { syncDiditCharges, type SyncResult } from "@/lib/didit/costs";
 
 type Result = { ok: true } | { ok: false; error: string };
 
@@ -74,4 +75,31 @@ export async function setModelPriceAction(
 
   revalidatePath("/admin/ai-usage");
   return { ok: true };
+}
+
+/**
+ * Reconciliación con DIDIT: completa montos pendientes, agrega las sesiones de
+ * esta base que falten y registra las validaciones de empresa previas. **Solo
+ * rol `admin`.** Hace solo lecturas (GET) contra DIDIT: nada se cobra.
+ */
+export async function syncDiditChargesAction(): Promise<
+  { ok: true; result: SyncResult } | { ok: false; error: string }
+> {
+  const analyst = await getAnalyst();
+  if (!analyst) return { ok: false, error: "No autenticado." };
+  if (analyst.role !== "admin") {
+    return { ok: false, error: "Solo un administrador puede sincronizar con DIDIT." };
+  }
+
+  const result = await syncDiditCharges();
+  await logAudit({
+    requestId: null,
+    actor: analyst.email,
+    actorUserId: analyst.userId,
+    action: "didit_charges_synced",
+    metadata: { ...result },
+  });
+
+  revalidatePath("/admin/ai-usage");
+  return { ok: true, result };
 }
