@@ -1,6 +1,8 @@
 import Link from "next/link";
+import { notFound } from "next/navigation";
 import { getTranslations } from "next-intl/server";
 import { requireAnalyst } from "@/lib/auth/admin";
+import { loadOwnedApiKey } from "@/lib/auth/tenant";
 import { createServiceClient } from "@/lib/supabase/service";
 import { env } from "@/lib/env";
 import { WebhooksPanel, type WebhookRow } from "./WebhooksPanel";
@@ -14,25 +16,28 @@ export default async function WebhooksPage({
 }: {
   params: Promise<{ keyId: string }>;
 }) {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
   const { keyId } = await params;
   const t = await getTranslations("webhooks");
 
+  // Todo lo de esta página cuelga de la key, así que se verifica una vez acá:
+  // una key de otra org (o inexistente) es un 404, no una página con su id.
+  const key = await loadOwnedApiKey(analyst, keyId, "id, label, key_prefix, default_form_id");
+  if (!key) notFound();
+
   const supabase = createServiceClient();
-  const [{ data: key }, { data: eps }, { data: forms }] = await Promise.all([
-    supabase
-      .from("api_keys")
-      .select("id, label, key_prefix, default_form_id")
-      .eq("id", keyId)
-      .maybeSingle(),
+  const [{ data: eps }, { data: forms }] = await Promise.all([
     supabase
       .from("webhook_endpoints")
       .select("id, url, secret_last4, enabled, created_at")
       .eq("api_key_id", keyId)
       .order("created_at", { ascending: false }),
+    // Solo formularios de la org de la KEY (no de quien mira: el admin ve la
+    // key de un cliente y le ofrece los formularios de ese cliente).
     supabase
       .from("forms")
       .select("id, name")
+      .eq("org_id", key.org_id as string)
       .eq("status", "published")
       .order("updated_at", { ascending: false }),
   ]);
@@ -85,14 +90,14 @@ export default async function WebhooksPage({
       <h1 className="mt-3 mb-1 font-display text-2xl font-bold text-foreground">
         {t("title")}
       </h1>
-      <p className="mb-4 text-sm text-muted">{(key?.label as string) ?? keyId}</p>
+      <p className="mb-4 text-sm text-muted">{key.label as string}</p>
 
       <IntegrationConfig
         apiKeyId={keyId}
         baseUrl={env.appUrl()}
-        keyPrefix={(key?.key_prefix as string | null) ?? null}
+        keyPrefix={(key.key_prefix as string | null) ?? null}
         forms={publishedForms}
-        defaultFormId={(key?.default_form_id as string | null) ?? null}
+        defaultFormId={(key.default_form_id as string | null) ?? null}
         endpointIds={enabledEndpointIds}
       />
 

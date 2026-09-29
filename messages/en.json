@@ -163,7 +163,6 @@
     "confirmDeleteBody": "“{name}” will be deleted along with all its questions and translations. This action cannot be undone.",
     "confirmDeleteBodyWithRequests": "“{name}” will be deleted along with all its questions and translations, and {count, plural, one {# request will be unlinked} other {# requests will be unlinked}} (they keep their own copy of the form). This action cannot be undone.",
     "actionBlockedTitle": "Not possible yet",
-    "errorNotAdmin": "Only an administrator can delete forms. You can archive it instead.",
     "errorAssignedToClient": "This form is assigned to {clients}. Reassign that client before archiving or deleting it.",
     "errorRequestsNoSnapshot": "{count, plural, one {# request depends} other {# requests depend}} on this form and keep no copy of its definition: deleting it would stop them from showing what the applicant filled in. Archive it instead."
   },

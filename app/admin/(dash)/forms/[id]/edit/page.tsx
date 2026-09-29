@@ -2,7 +2,7 @@ import { notFound } from "next/navigation";
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { isAdmin, requireAnalyst } from "@/lib/auth/admin";
+import { requireAnalyst } from "@/lib/auth/admin";
 import {
   formDefinitionSchema,
   emptyForm,
@@ -17,20 +17,18 @@ export default async function EditFormPage({
 }: {
   params: Promise<{ id: string }>;
 }) {
-  // `isAdmin()` de abajo solo decide qué se muestra; el permiso de entrar lo
-  // exige esto, sin depender de que el layout gane la carrera del render.
+  // El permiso de entrar lo exige esto, sin depender de que el layout gane la
+  // carrera del render. El formulario se lee con la sesión: la RLS deja fuera
+  // los de otra org (404).
   await requireAnalyst();
   const { id } = await params;
   const t = await getTranslations("forms");
   const supabase = await createServerSupabase();
-  const [{ data: form }, admin] = await Promise.all([
-    supabase
-      .from("forms")
-      .select("id, name, status, definition")
-      .eq("id", id)
-      .maybeSingle(),
-    isAdmin(),
-  ]);
+  const { data: form } = await supabase
+    .from("forms")
+    .select("id, name, status, definition")
+    .eq("id", id)
+    .maybeSingle();
   if (!form) notFound();
 
   const parsed = formDefinitionSchema.safeParse(form.definition);
@@ -48,7 +46,6 @@ export default async function EditFormPage({
         initialName={form.name}
         initialStatus={form.status as FormStatus}
         initialDef={definition}
-        isAdmin={admin}
       />
     </div>
   );

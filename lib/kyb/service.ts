@@ -835,6 +835,7 @@ export async function decideRequest(
   await logAudit({
     requestId,
     actor: analyst.email,
+    actorUserId: analyst.userId,
     action: "decision",
     fromStatus: req.status,
     toStatus: to,

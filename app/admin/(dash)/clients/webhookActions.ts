@@ -2,6 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAnalyst } from "@/lib/auth/admin";
+import { loadOwnedApiKey, loadOwnedDelivery, loadOwnedEndpoint } from "@/lib/auth/tenant";
 import { createServiceClient } from "@/lib/supabase/service";
 import { generateToken } from "@/lib/tokens";
 import { seal } from "@/lib/crypto/secretBox";
@@ -10,6 +11,15 @@ import { resendDelivery } from "@/lib/kyb/webhook";
 import { logAudit } from "@/lib/kyb/service";
 
 type Result<T = object> = ({ ok: true } & T) | { ok: false; error: string };
+
+/**
+ * Los endpoints pertenecen a la org de su API key. Cada acción verifica que la
+ * key sea de la org del analista y, cuando recibe también el id del endpoint o
+ * de la entrega, que cuelgue de ESA key: antes el `apiKeyId` solo se usaba
+ * para revalidar la página y el update iba por el id suelto.
+ */
+
+const NOT_FOUND = { ok: false as const, error: "Endpoint no encontrado." };
 
 function newSecret(): string {
   return `whsec_${generateToken(24)}`;
@@ -20,7 +30,11 @@ export async function createWebhookEndpointAction(
   apiKeyId: string,
   url: string,
 ): Promise<Result<{ secret: string }>> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  // Sin este chequeo, cualquiera registraba su URL en la key de otro cliente y
+  // recibía sus `decision.made` con datos del solicitante.
+  const key = await loadOwnedApiKey(analyst, apiKeyId);
+  if (!key) return { ok: false, error: "Cliente no encontrado." };
   try {
     await assertPublicHttpsUrl(url.trim());
   } catch (e) {
@@ -41,6 +55,15 @@ export async function createWebhookEndpointAction(
     secret_last4: secret.slice(-4),
   });
   if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    requestId: null,
+    orgId: key.org_id as string,
+    actor: analyst.email,
+    actorUserId: analyst.userId,
+    action: "webhook_endpoint_created",
+    metadata: { apiKeyId, url: url.trim() },
+  });
   revalidatePath(`/admin/clients/${apiKeyId}/webhooks`);
   return { ok: true, secret };
 }
@@ -50,7 +73,10 @@ export async function rotateWebhookSecretAction(
   id: string,
   apiKeyId: string,
 ): Promise<Result<{ secret: string }>> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  const endpoint = await loadOwnedEndpoint(analyst, id, apiKeyId);
+  if (!endpoint) return NOT_FOUND;
+
   const secret = newSecret();
   let secretEncrypted: string;
   try {
@@ -68,6 +94,15 @@ export async function rotateWebhookSecretAction(
     })
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  await logAudit({
+    requestId: null,
+    orgId: endpoint.org_id,
+    actor: analyst.email,
+    actorUserId: analyst.userId,
+    action: "webhook_secret_rotated",
+    metadata: { endpointId: id, apiKeyId },
+  });
   revalidatePath(`/admin/clients/${apiKeyId}/webhooks`);
   return { ok: true, secret };
 }
@@ -78,7 +113,10 @@ export async function setWebhookEnabledAction(
   apiKeyId: string,
   enabled: boolean,
 ): Promise<Result> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  const endpoint = await loadOwnedEndpoint(analyst, id, apiKeyId);
+  if (!endpoint) return NOT_FOUND;
+
   const supabase = createServiceClient();
   const { error } = await supabase
     .from("webhook_endpoints")
@@ -99,11 +137,16 @@ export async function resendWebhookDeliveryAction(
   apiKeyId: string,
 ): Promise<Result> {
   const analyst = await requireAnalyst();
+  const delivery = await loadOwnedDelivery(analyst, deliveryId, apiKeyId);
+  if (!delivery) return { ok: false, error: "Entrega no encontrada." };
+
   const ok = await resendDelivery(deliveryId);
   if (!ok) return { ok: false, error: "No se pudo reencolar la entrega." };
   await logAudit({
     requestId: null,
+    orgId: delivery.org_id,
     actor: analyst.email,
+    actorUserId: analyst.userId,
     action: "webhook_delivery_resent",
     metadata: { deliveryId, apiKeyId },
   });

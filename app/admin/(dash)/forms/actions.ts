@@ -3,7 +3,8 @@
 import { randomUUID } from "crypto";
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
-import { isAdmin, requireAnalyst } from "@/lib/auth/admin";
+import { requireAnalyst } from "@/lib/auth/admin";
+import { creationOrg, loadOwnedForm } from "@/lib/auth/tenant";
 import { createServiceClient } from "@/lib/supabase/service";
 import {
   emptyForm,
@@ -18,10 +19,7 @@ import { isGoogleFormExport, fromGoogleForm } from "@/lib/forms/import-google";
  * `params`. El `error` que viaja al lado es el fallback en español, para los
  * call-sites que solo pintan el string.
  */
-export type FormActionErrorCode =
-  | "not_admin"
-  | "assigned_to_client"
-  | "requests_no_snapshot";
+export type FormActionErrorCode = "assigned_to_client" | "requests_no_snapshot";
 
 type Result =
   | { ok: true; id?: string }
@@ -35,13 +33,27 @@ type Result =
 const FORM_ASSETS_BUCKET = "form-assets";
 const MAX_IMAGE_BYTES = 5 * 1024 * 1024; // 5 MB
 
-export async function createForm() {
-  await requireAnalyst();
+/**
+ * Cada formulario es de una org. Las acciones que reciben un `id` verifican
+ * primero que sea de una org que el analista puede tocar (el admin, todas);
+ * si no, responden como si el formulario no existiera.
+ */
+const NOT_FOUND: Result = { ok: false, error: "Formulario no encontrado." };
+
+/**
+ * `<form action={createForm}>`: el campo `org` solo lo manda el selector del
+ * admin; un miembro crea siempre en su org (ver resolveCreationOrg).
+ */
+export async function createForm(formData?: FormData) {
+  const analyst = await requireAnalyst();
+  const org = await creationOrg(analyst, formData?.get("org")?.toString());
+  if (!org) throw new Error("Organización inválida.");
   const def = emptyForm();
   const supabase = createServiceClient();
   const { data, error } = await supabase
     .from("forms")
     .insert({
+      org_id: org,
       name: resolveText(def.title, "es") || "Nuevo formulario",
       status: "draft",
       source: "manual",
@@ -57,7 +69,8 @@ export async function saveForm(
   id: string,
   payload: { name: string; definition: unknown },
 ): Promise<Result> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  if (!(await loadOwnedForm(analyst, id))) return NOT_FOUND;
   const parsed = formDefinitionSchema.safeParse(payload.definition);
   if (!parsed.success) {
     return { ok: false, error: "La definición del formulario no es válida." };
@@ -81,8 +94,17 @@ export async function setFormStatus(
   id: string,
   status: "draft" | "published",
 ): Promise<Result> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  if (!(await loadOwnedForm(analyst, id))) return NOT_FOUND;
   const supabase = createServiceClient();
+
+  // Despublicar el formulario por defecto de una key la deja sin formulario:
+  // la API caería al último publicado de la org sin que nadie lo decida. Se
+  // bloquea igual que archivar.
+  if (status === "draft") {
+    const { clients } = await formBlockers(id);
+    if (clients.length > 0) return assignedToClient(clients);
+  }
 
   const update: Record<string, unknown> = {
     status,
@@ -114,23 +136,20 @@ export async function setFormStatus(
 }
 
 export async function duplicateForm(id: string) {
-  await requireAnalyst();
-  const supabase = createServiceClient();
-  const { data, error } = await supabase
-    .from("forms")
-    .select("name, source, source_ref, definition")
-    .eq("id", id)
-    .maybeSingle();
-  if (error || !data) {
-    throw new Error(error?.message ?? "Formulario no encontrado.");
-  }
+  const analyst = await requireAnalyst();
+  const data = await loadOwnedForm(analyst, id, "name, source, source_ref, definition");
+  if (!data) throw new Error("Formulario no encontrado.");
   const parsed = formDefinitionSchema.safeParse(data.definition);
   if (!parsed.success) {
     throw new Error("La definición del formulario no es válida.");
   }
+  const supabase = createServiceClient();
   const { data: created, error: insertError } = await supabase
     .from("forms")
     .insert({
+      // La copia queda en la org del original, no en la de quien duplica (el
+      // admin duplicando el formulario de un cliente se lo deja al cliente).
+      org_id: data.org_id,
       name: `${data.name} (copia)`,
       status: "draft",
       source: data.source,
@@ -148,7 +167,12 @@ export async function duplicateForm(id: string) {
 // Archivar / eliminar
 // ============================================================
 
-/** Quién depende de este formulario. Ver `formUsage` para la versión pública. */
+/**
+ * Quién depende de este formulario. Ver `formUsage` para la versión pública.
+ * No hace falta filtrar por org: las FKs compuestas de 0025 impiden que una
+ * key o una solicitud de otra org apunte a este formulario, así que todo lo
+ * que devuelve es de su misma org.
+ */
 async function formBlockers(id: string) {
   const supabase = createServiceClient();
   const [keys, all, orphans] = await Promise.all([
@@ -199,7 +223,10 @@ export interface FormUsage {
  * pedir una confirmación a ciegas.
  */
 export async function formUsage(id: string): Promise<FormUsage> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  if (!(await loadOwnedForm(analyst, id))) {
+    return { clients: [], requests: 0, requestsWithoutSnapshot: 0, canDelete: false };
+  }
   const b = await formBlockers(id);
   return {
     ...b,
@@ -216,7 +243,8 @@ export async function formUsage(id: string): Promise<FormUsage> {
  * bloquea igual que el borrado.
  */
 export async function archiveForm(id: string, archived: boolean): Promise<Result> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  if (!(await loadOwnedForm(analyst, id))) return NOT_FOUND;
 
   if (archived) {
     const { clients } = await formBlockers(id);
@@ -240,8 +268,10 @@ export async function archiveForm(id: string, archived: boolean): Promise<Result
 }
 
 /**
- * Borrado definitivo. Solo `admin`: es irreversible y se lleva las traducciones
- * del formulario con él (viven dentro de `definition`).
+ * Borrado definitivo. Es irreversible y se lleva las traducciones del
+ * formulario con él (viven dentro de `definition`). Lo puede hacer la org
+ * dueña (antes era solo del admin, cuando el panel era de un único equipo);
+ * los bloqueos de abajo impiden romper una integración o una solicitud.
  *
  * Ya no redirige ni lanza: devuelve el motivo para que la UI lo muestre. La
  * versión anterior hacía `throw` dentro de un `<form action>`, así que cualquier
@@ -249,14 +279,8 @@ export async function archiveForm(id: string, archived: boolean): Promise<Result
  * error genérico de Next.
  */
 export async function deleteForm(id: string): Promise<Result> {
-  await requireAnalyst();
-  if (!(await isAdmin())) {
-    return {
-      ok: false,
-      code: "not_admin",
-      error: "Solo un administrador puede eliminar formularios.",
-    };
-  }
+  const analyst = await requireAnalyst();
+  if (!(await loadOwnedForm(analyst, id))) return NOT_FOUND;
 
   const { clients, requestsWithoutSnapshot } = await formBlockers(id);
   if (clients.length > 0) return assignedToClient(clients);
@@ -290,8 +314,11 @@ function assignedToClient(clients: string[]): Result {
   };
 }
 
-export async function importFormJson(json: string): Promise<Result> {
-  await requireAnalyst();
+/** `orgId`: solo lo usa el admin (selector de org); un miembro importa en la suya. */
+export async function importFormJson(json: string, orgId?: string | null): Promise<Result> {
+  const analyst = await requireAnalyst();
+  const org = await creationOrg(analyst, orgId);
+  if (!org) return { ok: false, error: "Organización inválida." };
   let raw: unknown;
   try {
     raw = JSON.parse(json);
@@ -317,6 +344,7 @@ export async function importFormJson(json: string): Promise<Result> {
   const { data, error } = await supabase
     .from("forms")
     .insert({
+      org_id: org,
       name: resolveText(parsed.data.title, "es") || "Formulario importado",
       status: "draft",
       source: "manual",

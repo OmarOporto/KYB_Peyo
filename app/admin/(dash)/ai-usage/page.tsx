@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { requireAnalyst } from "@/lib/auth/admin";
+import { resolveListScope } from "@/lib/auth/tenant";
 import { createServiceClient } from "@/lib/supabase/service";
 import { Card } from "@/components/ui/Card";
 import { DEFAULT_PRICES, formatCost, formatTokens } from "@/lib/i18n-ai/pricing";
@@ -47,19 +48,27 @@ type Run = {
   at: string;
 };
 
-export default async function AiUsagePage() {
-  await requireAnalyst();
+export default async function AiUsagePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ org?: string }>;
+}) {
+  const analyst = await requireAnalyst();
   const t = await getTranslations("aiUsage");
+  const { scope } = await resolveListScope(analyst, (await searchParams).org);
 
+  // Service-role: el filtro de org va a mano (un miembro solo ve su consumo).
   const supabase = createServiceClient();
+  let usageQuery = supabase
+    .from("ai_usage")
+    .select(
+      "run_id, operation, provider, model, to_locale, items, items_returned, input_tokens, output_tokens, cost, currency, actor, form_id, request_id, created_at",
+    )
+    .order("created_at", { ascending: false })
+    .limit(MAX_ROWS);
+  if (scope) usageQuery = usageQuery.eq("org_id", scope);
   const [{ data: usage }, { data: prices }] = await Promise.all([
-    supabase
-      .from("ai_usage")
-      .select(
-        "run_id, operation, provider, model, to_locale, items, items_returned, input_tokens, output_tokens, cost, currency, actor, form_id, request_id, created_at",
-      )
-      .order("created_at", { ascending: false })
-      .limit(MAX_ROWS),
+    usageQuery,
     supabase
       .from("ai_model_prices")
       .select("model, input_per_1m, output_per_1m, currency, updated_at, updated_by")

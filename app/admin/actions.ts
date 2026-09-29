@@ -1,9 +1,14 @@
 "use server";
 
 import { revalidatePath } from "next/cache";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
 import { requireAnalyst } from "@/lib/auth/admin";
+import {
+  loadOwnedCheck,
+  loadOwnedDocPath,
+  loadOwnedRequest,
+} from "@/lib/auth/tenant";
 import {
   decideRequest,
   requestChanges,
@@ -18,12 +23,20 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { KybDecision } from "@/lib/kyb/types";
 
+/**
+ * Todas las acciones de este archivo reciben ids del cliente y operan con
+ * service-role, así que cada una verifica primero que el recurso sea de una org
+ * que el analista puede tocar (lib/auth/tenant.ts). Si no, responde como si no
+ * existiera.
+ */
+
 export async function decideAction(
   requestId: string,
   decision: KybDecision,
   formData?: FormData,
 ) {
   const analyst = await requireAnalyst();
+  if (!(await loadOwnedRequest(analyst, requestId))) notFound();
   const reason = formData ? String(formData.get("reason") ?? "") : undefined;
   await decideRequest(
     requestId,
@@ -49,6 +62,11 @@ export async function requestChangesAction(
   | { ok: false; error: string }
 > {
   const analyst = await requireAnalyst();
+  // Devuelve un link de invitación vivo: sin este chequeo, cualquier analista
+  // abría el formulario (con sus respuestas) de una solicitud ajena.
+  if (!(await loadOwnedRequest(analyst, requestId))) {
+    return { ok: false, error: "Solicitud no encontrada." };
+  }
   const res = await requestChanges(requestId, fields, {
     actor: analyst.email,
     source: "admin",
@@ -66,7 +84,8 @@ export async function requestChangesAction(
  * las verificaciones ya exitosas.
  */
 export async function rerunVerificationsAction(requestId: string) {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
+  if (!(await loadOwnedRequest(analyst, requestId))) notFound();
   await runVerifications(requestId, { force: true });
   revalidatePath(`/admin/requests/${requestId}`);
 }
@@ -81,15 +100,15 @@ export async function runKybRegistryAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const analyst = await requireAnalyst();
   const supabase = createServiceClient();
-  const { data: req } = await supabase
-    .from("kyb_requests")
-    .select("id, external_ref, form_id, form_definition, org_id")
-    .eq("id", requestId)
-    .maybeSingle();
+  const req = await loadOwnedRequest(
+    analyst,
+    requestId,
+    "id, external_ref, form_id, form_definition",
+  );
   if (!req) return { ok: false, error: "Solicitud no encontrada." };
   const definition = await resolveRequestDefinition(
-    (req as { form_definition?: unknown }).form_definition,
-    req.form_id,
+    req.form_definition,
+    (req.form_id as string | null) ?? null,
     req.org_id as string,
   );
   if (!definition) return { ok: false, error: "La solicitud no tiene definición de formulario." };
@@ -102,7 +121,7 @@ export async function runKybRegistryAction(
 
   const res = await runKybRegistryCheck({
     requestId,
-    externalRef: req.external_ref,
+    externalRef: req.external_ref as string,
     definition,
     answers,
   });
@@ -119,6 +138,7 @@ export async function runKybRegistryAction(
   await logAudit({
     requestId,
     actor: analyst.email,
+    actorUserId: analyst.userId,
     action: "kyb_registry_run",
   });
   revalidatePath(`/admin/requests/${requestId}`);
@@ -137,11 +157,12 @@ export async function selectKybCandidateAction(
   const analyst = await requireAnalyst();
   const supabase = createServiceClient();
 
-  const { data: check } = await supabase
-    .from("aml_checks")
-    .select("id, request_id, provider, feature, status, result")
-    .eq("id", checkId)
-    .maybeSingle();
+  // Facturable: solo sobre checks de solicitudes de la org del analista.
+  const check = await loadOwnedCheck(
+    analyst,
+    checkId,
+    "id, provider, feature, status, result",
+  );
   if (!check) return { ok: false, error: "Check no encontrado." };
   if (check.provider !== "didit" || check.feature !== "kyb_registry") {
     return { ok: false, error: "El check no es de registro mercantil." };
@@ -169,7 +190,7 @@ export async function selectKybCandidateAction(
   const { data: req } = await supabase
     .from("kyb_requests")
     .select("external_ref")
-    .eq("id", check.request_id)
+    .eq("id", check.request_id as string)
     .maybeSingle();
   if (!req) return { ok: false, error: "Solicitud no encontrada." };
 
@@ -241,8 +262,9 @@ export async function selectKybCandidateAction(
   }
 
   await logAudit({
-    requestId: check.request_id,
+    requestId: check.request_id as string,
     actor: analyst.email,
+    actorUserId: analyst.userId,
     action: "kyb_registry_selected",
     metadata: { checkId, kybResponseId },
   });
@@ -259,11 +281,11 @@ export async function dismissKybCandidatesAction(
 ): Promise<{ ok: true } | { ok: false; error: string }> {
   const analyst = await requireAnalyst();
   const supabase = createServiceClient();
-  const { data: check } = await supabase
-    .from("aml_checks")
-    .select("id, request_id, provider, feature, status, result")
-    .eq("id", checkId)
-    .maybeSingle();
+  const check = await loadOwnedCheck(
+    analyst,
+    checkId,
+    "id, provider, feature, status, result",
+  );
   if (!check) return { ok: false, error: "Check no encontrado." };
   const result = (check.result ?? {}) as Record<string, unknown>;
   const selected = result.selected as Record<string, unknown> | undefined;
@@ -286,8 +308,9 @@ export async function dismissKybCandidatesAction(
     .eq("status", "pending");
   if (error) return { ok: false, error: error.message };
   await logAudit({
-    requestId: check.request_id,
+    requestId: check.request_id as string,
     actor: analyst.email,
+    actorUserId: analyst.userId,
     action: "kyb_registry_dismissed",
     metadata: { checkId },
   });
@@ -297,20 +320,15 @@ export async function dismissKybCandidatesAction(
 
 /** URL firmada temporal para descargar un documento (solo analistas). */
 export async function getDocUrlAction(path: string): Promise<string | null> {
-  await requireAnalyst();
+  const analyst = await requireAnalyst();
   const supabase = createServiceClient();
 
-  // Firmar solo rutas que correspondan a un documento registrado. Sin esto la
-  // acción firma cualquier objeto del bucket privado que se le pase: hoy el
-  // llamador siempre es un analista, pero deja suelta una primitiva que no
-  // hace falta.
-  const { data: doc } = await supabase
-    .from("kyb_documents")
-    .select("storage_path")
-    .eq("storage_path", path)
-    .maybeSingle();
+  // Firmar solo rutas que correspondan a un documento registrado de una
+  // solicitud de la org del analista. Sin esto la acción firmaba cualquier
+  // objeto del bucket privado que se le pasara.
+  const doc = await loadOwnedDocPath(analyst, path);
   if (!doc) {
-    console.warn(`[getDocUrlAction] ruta no registrada: ${path}`);
+    console.warn(`[getDocUrlAction] ruta no registrada o ajena: ${path}`);
     return null;
   }
 

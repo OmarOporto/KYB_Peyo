@@ -166,14 +166,11 @@ export function FormBuilder({
   initialName,
   initialStatus,
   initialDef,
-  isAdmin,
 }: {
   id: string;
   initialName: string;
   initialStatus: FormStatus;
   initialDef: FormDefinition;
-  /** El borrado definitivo es solo para admin; el action lo re-verifica. */
-  isAdmin: boolean;
 }) {
   const t = useTranslations("builder");
   // Los mensajes de rechazo de archivar/eliminar viven en "forms": son los
@@ -834,19 +831,17 @@ export function FormBuilder({
             + {t("addSection")}
           </Button>
 
-          {isAdmin && (
-            <div className="pt-4">
-              <button
-                type="button"
-                disabled={busy}
-                className="text-sm text-danger hover:underline disabled:cursor-not-allowed disabled:opacity-60"
-                onClick={onDelete}
-              >
-                {t("deleteForm")}
-              </button>
-              <p className="mt-1 text-xs text-muted">{t("deleteFormHint")}</p>
-            </div>
-          )}
+          <div className="pt-4">
+            <button
+              type="button"
+              disabled={busy}
+              className="text-sm text-danger hover:underline disabled:cursor-not-allowed disabled:opacity-60"
+              onClick={onDelete}
+            >
+              {t("deleteForm")}
+            </button>
+            <p className="mt-1 text-xs text-muted">{t("deleteFormHint")}</p>
+          </div>
         </div>
       )}
       {summary && (

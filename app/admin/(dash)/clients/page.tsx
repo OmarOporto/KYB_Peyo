@@ -1,5 +1,6 @@
 import { getTranslations } from "next-intl/server";
 import { requireAnalyst } from "@/lib/auth/admin";
+import { resolveListScope } from "@/lib/auth/tenant";
 import { createServiceClient } from "@/lib/supabase/service";
 import { env } from "@/lib/env";
 import { ClientsPanel, type ClientRow } from "./ClientsPanel";
@@ -25,22 +26,34 @@ function BuildBadge() {
   );
 }
 
-export default async function ClientsPage() {
-  await requireAnalyst();
+export default async function ClientsPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ org?: string }>;
+}) {
+  const analyst = await requireAnalyst();
   const t = await getTranslations("clients");
+  const { scope } = await resolveListScope(analyst, (await searchParams).org);
 
   // api_keys y su uso viven en tablas solo-service-role (sin políticas RLS),
-  // así que se leen con el cliente service-role. NUNCA se selecciona key_hash.
+  // así que se leen con el cliente service-role y el filtro de org va acá, a
+  // mano: sin él, cada cliente veía las keys de todos. NUNCA se selecciona
+  // key_hash.
   const supabase = createServiceClient();
-  const [{ data: keys }, { data: usage }] = await Promise.all([
-    supabase
-      .from("api_keys")
-      .select(
-        "id, label, created_at, revoked_at, last_used_at, rate_limit_per_min, allow_ai_translation",
-      )
-      .order("created_at", { ascending: false }),
-    supabase.from("api_key_usage").select("api_key_id, day, count"),
-  ]);
+  let keysQuery = supabase
+    .from("api_keys")
+    .select(
+      "id, label, created_at, revoked_at, last_used_at, rate_limit_per_min, allow_ai_translation",
+    )
+    .order("created_at", { ascending: false });
+  if (scope) keysQuery = keysQuery.eq("org_id", scope);
+  const { data: keys } = await keysQuery;
+
+  // Uso solo de las keys visibles (antes se leía la tabla entera).
+  const keyIds = (keys ?? []).map((k) => k.id as string);
+  const { data: usage } = keyIds.length
+    ? await supabase.from("api_key_usage").select("api_key_id, day, count").in("api_key_id", keyIds)
+    : { data: [] };
 
   const today = new Date().toISOString().slice(0, 10);
   const totals = new Map<string, number>();

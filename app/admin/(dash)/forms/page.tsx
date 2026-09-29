@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
 import { createServerSupabase } from "@/lib/supabase/server";
-import { isAdmin, requireAnalyst } from "@/lib/auth/admin";
+import { requireAnalyst } from "@/lib/auth/admin";
+import { resolveListScope } from "@/lib/auth/tenant";
 import { Card } from "@/components/ui/Card";
 import { ClickableRow } from "@/components/admin/ClickableRow";
 import {
@@ -36,27 +37,30 @@ const BADGE: Record<FormStatus, string> = {
 export default async function FormsList({
   searchParams,
 }: {
-  searchParams: Promise<{ archived?: string }>;
+  searchParams: Promise<{ archived?: string; org?: string }>;
 }) {
-  // `isAdmin()` de abajo solo decide qué se muestra; el permiso de entrar lo
-  // exige esto, sin depender de que el layout gane la carrera del render.
-  await requireAnalyst();
+  // El permiso de entrar lo exige esto, sin depender de que el layout gane la
+  // carrera del render.
+  const analyst = await requireAnalyst();
   const t = await getTranslations("forms");
-  const { archived } = await searchParams;
+  const { archived, org } = await searchParams;
   // Los archivados son una vista aparte y no un filtro más: son justamente los
   // que el analista sacó de en medio, mezclarlos anularía el archivado.
   const showArchived = archived === "1";
+  const { scope } = await resolveListScope(analyst, org);
 
+  // Cliente de sesión: la RLS ya deja a cada miembro con los de su org; el
+  // `eq` es el filtro por pestaña del admin.
   const supabase = await createServerSupabase();
-  const query = supabase
+  let query = supabase
     .from("forms")
     .select("id, name, status, source, definition, updated_at")
     .order("updated_at", { ascending: false });
+  if (scope) query = query.eq("org_id", scope);
 
-  const [{ data }, admin] = await Promise.all([
-    showArchived ? query.eq("status", "archived") : query.neq("status", "archived"),
-    isAdmin(),
-  ]);
+  const { data } = await (showArchived
+    ? query.eq("status", "archived")
+    : query.neq("status", "archived"));
 
   const forms = (data ?? []) as Row[];
 
@@ -114,9 +118,9 @@ export default async function FormsList({
                         name={f.name}
                         archived={f.status === "archived"}
                       />
-                      {/* Eliminar es irreversible y se lleva las traducciones:
-                          solo admin (el action lo revalida server-side). */}
-                      {admin && <DeleteFormButton id={f.id} name={f.name} />}
+                      {/* Eliminar es irreversible, pero es de la org dueña:
+                          el action verifica la org y los bloqueos. */}
+                      <DeleteFormButton id={f.id} name={f.name} />
                     </div>
                   </td>
                 </ClickableRow>

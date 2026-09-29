@@ -18,8 +18,6 @@ export interface ActionError {
  */
 export function formActionError(t: Translator, res: ActionError): string {
   switch (res.code) {
-    case "not_admin":
-      return t("errorNotAdmin");
     case "assigned_to_client":
       return t("errorAssignedToClient", { clients: String(res.params?.clients ?? "") });
     case "requests_no_snapshot":
