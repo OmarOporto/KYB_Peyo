@@ -126,7 +126,7 @@ export function Sidebar({
                 <X size={20} aria-hidden />
               </button>
             </div>
-            <NavLinks collapsed={false} onNavigate={closeMobile} />
+            <NavLinks collapsed={false} isAdmin={user.isAdmin} onNavigate={closeMobile} />
             <SidebarFooter collapsed={false} user={user} />
           </div>
         </div>
@@ -162,7 +162,7 @@ export function Sidebar({
             )}
           </button>
         </div>
-        <NavLinks collapsed={collapsed} />
+        <NavLinks collapsed={collapsed} isAdmin={user.isAdmin} />
         <SidebarFooter collapsed={collapsed} user={user} />
       </aside>
     </>
@@ -171,9 +171,11 @@ export function Sidebar({
 
 function NavLinks({
   collapsed,
+  isAdmin,
   onNavigate,
 }: {
   collapsed: boolean;
+  isAdmin: boolean;
   onNavigate?: () => void;
 }) {
   const t = useTranslations("nav");
@@ -182,7 +184,11 @@ function NavLinks({
   const items: { href: string; label: string; icon: ReactNode; exact: boolean }[] = [
     { href: "/admin", label: t("requests"), icon: <ListIcon />, exact: true },
     { href: "/admin/forms", label: t("forms"), icon: <TemplateIcon />, exact: false },
-    { href: "/admin/didit", label: t("didit"), icon: <FormIcon />, exact: false },
+    // El catálogo de DIDIT es el de la cuenta de Peyo: solo el admin (las
+    // páginas lo exigen también; esto solo evita mostrar un link que da 404).
+    ...(isAdmin
+      ? [{ href: "/admin/didit", label: t("didit"), icon: <FormIcon />, exact: false }]
+      : []),
     { href: "/admin/clients", label: t("clients"), icon: <KeyIcon />, exact: false },
     { href: "/admin/ai-usage", label: t("aiUsage"), icon: <ChartIcon />, exact: false },
     {

@@ -1,6 +1,6 @@
 import "server-only";
 import { cache } from "react";
-import { redirect } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { Role } from "./tenantRules";
 import { mfaGate } from "./mfaGate";
@@ -108,7 +108,8 @@ export async function requireAnalyst(): Promise<Analyst> {
 }
 
 /**
- * Exige rol `admin` (de plataforma), no solo ser analista.
+ * Exige rol `admin` (de plataforma), no solo ser analista. Para cualquier otro
+ * la página o la acción "no existe" (404): no se anuncia qué hay detrás.
  *
  * Ojo: `analysts.role` tiene default `'analyst'` (0001_init.sql), así que un
  * panel sin ninguna fila con `role='admin'` deja estas acciones inaccesibles
@@ -116,7 +117,7 @@ export async function requireAnalyst(): Promise<Analyst> {
  */
 export async function requireAdmin(): Promise<Analyst> {
   const analyst = await requireAnalyst();
-  if (analyst.role !== "admin") redirect("/admin?error=forbidden");
+  if (analyst.role !== "admin") notFound();
   return analyst;
 }
 

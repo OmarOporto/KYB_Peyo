@@ -602,7 +602,10 @@
     "previous": "Anterior",
     "next": "Siguiente",
     "pageOf": "Página {page} de {total}",
-    "noResults": "No hay resultados."
+    "noResults": "No hay resultados.",
+    "notFoundTitle": "No encontramos esta página",
+    "notFoundBody": "Puede que no exista o que no esté disponible para tu cuenta.",
+    "notFoundBack": "Ir a Solicitudes"
   },
   "form": {
     "invalidTitle": "Invitación inválida",

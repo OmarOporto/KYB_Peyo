@@ -5,7 +5,7 @@ import { DiditFlow } from "@/components/admin/DiditFlow";
 import { assembleWorkflow } from "@/lib/didit/questionnaires";
 import { importWorkflow } from "../../actions";
 import { ImportButton } from "../../[uuid]/ImportButton";
-import { requireAnalyst } from "@/lib/auth/admin";
+import { requireAdmin } from "@/lib/auth/admin";
 import { listOrgs } from "@/lib/auth/tenant";
 import { OrgSelect } from "@/components/admin/OrgSelect";
 
@@ -18,11 +18,11 @@ export default async function WorkflowDetail({
 }) {
   // Antes del fetch a DIDIT: el layout no alcanza, porque se renderiza en
   // paralelo con la página (ver app/admin/(dash)/didit/page.tsx).
-  const analyst = await requireAnalyst();
+  const analyst = await requireAdmin();
   const { uuid } = await params;
   const tOrgs = await getTranslations("orgs");
-  // El admin elige en qué org queda el formulario importado; un miembro, en la suya.
-  const orgs = analyst.role === "admin" ? await listOrgs() : [];
+  // El admin elige en qué org queda el formulario importado.
+  const orgs = await listOrgs();
   const t = await getTranslations("didit");
   const locale = await getLocale();
 

@@ -8,7 +8,7 @@ import {
 } from "@/lib/didit/questionnaires";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { TabLink } from "@/components/admin/TabLink";
-import { requireAnalyst } from "@/lib/auth/admin";
+import { requireAdmin } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
 
@@ -21,7 +21,11 @@ export default async function DiditPage({
   // en paralelo: sin este guard, una petición anónima ya habría disparado las
   // llamadas a la API de DIDIT (con la key del servidor) antes de que el
   // redirect del layout abortara la respuesta.
-  await requireAnalyst();
+  //
+  // Solo admin: el catálogo es el de la cuenta DIDIT de Peyo, compartida por
+  // todas las orgs. Hasta poder separarlo por cliente, los miembros no lo ven
+  // (siguen pudiendo marcar preguntas para DIDIT en sus formularios).
+  await requireAdmin();
   const t = await getTranslations("didit");
   const { tab } = await searchParams;
   const active = tab === "questionnaires" ? "questionnaires" : "workflows";
