@@ -270,7 +270,8 @@ function FilterSelect({
 }) {
   const active = value !== "";
   return (
-    <label className={`relative min-w-0 flex-1 sm:flex-none ${widthCls}`}>
+    // En móvil a ancho completo: dos por fila truncaban "Todos los estados".
+    <label className={`relative min-w-0 basis-full sm:basis-auto ${widthCls}`}>
       <span className="sr-only">{label}</span>
       <span
         className={`pointer-events-none absolute inset-y-0 left-3 flex items-center ${

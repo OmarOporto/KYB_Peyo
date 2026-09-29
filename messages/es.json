@@ -33,7 +33,12 @@
     "forms": "Formularios",
     "didit": "Formularios DIDIT",
     "clients": "Clientes API",
-    "aiUsage": "Uso de IA"
+    "aiUsage": "Uso de IA",
+    "main": "Navegación principal",
+    "collapse": "Contraer menú",
+    "expand": "Expandir menú",
+    "openMenu": "Abrir menú",
+    "closeMenu": "Cerrar menú"
   },
   "clients": {
     "title": "Clientes API 2",

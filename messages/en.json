@@ -33,7 +33,12 @@
     "forms": "Forms",
     "didit": "DIDIT forms",
     "clients": "API clients",
-    "aiUsage": "AI usage"
+    "aiUsage": "AI usage",
+    "main": "Main navigation",
+    "collapse": "Collapse menu",
+    "expand": "Expand menu",
+    "openMenu": "Open menu",
+    "closeMenu": "Close menu"
   },
   "clients": {
     "title": "API clients",
