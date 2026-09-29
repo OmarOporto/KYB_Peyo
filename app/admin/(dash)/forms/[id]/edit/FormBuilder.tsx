@@ -33,6 +33,7 @@ import {
   isMachineTranslated,
   markHuman,
   optionPath,
+  PATH_TITLE,
   renameProvenance,
   sectionPath,
   type Coverage,
@@ -530,12 +531,14 @@ export function FormBuilder({
     <main className="mx-auto w-full max-w-5xl p-6">
       {/* Toolbar */}
       <div className="mb-4 flex flex-wrap items-center gap-2">
-        <input
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          className={`${inputCls} max-w-xs`}
-          placeholder={t("formName")}
-        />
+        <h1
+          className={`min-w-0 max-w-md truncate font-display text-xl font-bold ${
+            name.trim() ? "text-foreground" : "text-muted"
+          }`}
+          title={name}
+        >
+          {name.trim() || t("formName")}
+        </h1>
         <span
           className={`rounded-full px-2 py-0.5 text-xs font-medium ${
             status === "published"
@@ -677,10 +680,61 @@ export function FormBuilder({
 
       {preview ? (
         <div className="mx-auto max-w-2xl">
+          {/* Mismo encabezado que la página pública /forms/[id]. */}
+          <h2 className="mb-4 font-display text-2xl font-bold text-foreground">
+            {resolveText(def.title, locale)}
+          </h2>
           <DynamicForm definition={def} locale={locale} mode="preview" />
         </div>
       ) : (
         <div className="space-y-4">
+          {/* Identidad del formulario: el nombre interno (panel, filtros) y el
+              título que ve el solicitante, que se traduce como el resto. */}
+          <div className="grid gap-4 rounded-2xl border border-border bg-surface p-4 shadow-sm md:grid-cols-2">
+            <div>
+              <label
+                htmlFor="form-internal-name"
+                className="mb-1 block text-sm font-medium text-foreground"
+              >
+                {t("internalName")}
+              </label>
+              <input
+                id="form-internal-name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                className={inputCls}
+                placeholder={t("formName")}
+              />
+              <p className="mt-1 text-xs text-muted">{t("internalNameHint")}</p>
+            </div>
+            <div>
+              <label
+                htmlFor="form-public-title"
+                className="mb-1 flex items-center gap-2 text-sm font-medium text-foreground"
+              >
+                {t("publicTitle")}
+                <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] leading-none font-semibold text-muted uppercase">
+                  {locale}
+                </span>
+              </label>
+              <div className="relative">
+                <input
+                  id="form-public-title"
+                  className={inputCls + autoPad(i18nCtx.isAuto(PATH_TITLE))}
+                  placeholder={t("publicTitle")}
+                  value={getLoc(def.title, locale, srcLocale)}
+                  onChange={(e) =>
+                    update((d) => {
+                      d.title = writeLoc(d, PATH_TITLE, locale, d.title, e.target.value);
+                    })
+                  }
+                />
+                <AutoTag show={i18nCtx.isAuto(PATH_TITLE)} tip={t("autoTip")} />
+              </div>
+              <p className="mt-1 text-xs text-muted">{t("publicTitleHint")}</p>
+            </div>
+          </div>
+
           {/* Selector de packs de campos prearmados */}
           <div className="flex flex-wrap items-center gap-2 rounded-2xl border border-dashed border-border bg-surface-2/40 p-3">
             <span className="text-xs font-semibold uppercase text-muted">
