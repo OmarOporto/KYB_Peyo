@@ -5,7 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, X } from "lucide-react";
+import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, X } from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -185,6 +185,12 @@ function NavLinks({
     { href: "/admin/didit", label: t("didit"), icon: <FormIcon />, exact: false },
     { href: "/admin/clients", label: t("clients"), icon: <KeyIcon />, exact: false },
     { href: "/admin/ai-usage", label: t("aiUsage"), icon: <ChartIcon />, exact: false },
+    {
+      href: "/admin/security",
+      label: t("security"),
+      icon: <ShieldCheck size={18} aria-hidden />,
+      exact: false,
+    },
   ];
 
   return (

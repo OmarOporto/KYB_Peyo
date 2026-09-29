@@ -3,6 +3,7 @@ import { cache } from "react";
 import { redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { Role } from "./tenantRules";
+import { mfaGate } from "./mfaGate";
 
 export interface Analyst {
   userId: string;
@@ -14,8 +15,17 @@ export interface Analyst {
   fullName: string | null;
 }
 
-/** Sesión sin autenticar (`signedIn: false`) vs autenticada sin fila de analista. */
-type AuthState = { signedIn: boolean; analyst: Analyst | null };
+/**
+ * Estado de la sesión: sin autenticar (`signedIn: false`), autenticada pero
+ * con el 2FA pendiente (`mfaPending`), o autenticada con o sin fila de analista.
+ */
+export type AuthState = {
+  signedIn: boolean;
+  mfaPending: boolean;
+  /** Email de la sesión (aunque no sea analista o le falte el 2FA). */
+  email: string | null;
+  analyst: Analyst | null;
+};
 
 type OrgEmbed = { name: string; disabled_at: string | null };
 
@@ -28,7 +38,18 @@ const resolveAnalyst = cache(async (): Promise<AuthState> => {
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { signedIn: false, analyst: null };
+  if (!user) return { signedIn: false, mfaPending: false, email: null, analyst: null };
+
+  // 2FA: los factores salen de getUser() (servidor de Auth), no de la cookie.
+  // Con el 2FA pendiente ni se mira la fila de analista: la RLS ya no deja leer
+  // la org (mfa_ok, 0026) y quedaría como "sin acceso" en vez de "falta el código".
+  const verifiedFactors = (user.factors ?? []).filter((f) => f.status === "verified").length;
+  if (verifiedFactors > 0) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    if (mfaGate({ currentLevel: aal?.currentLevel, verifiedFactors }) === "pending") {
+      return { signedIn: true, mfaPending: true, email: user.email ?? null, analyst: null };
+    }
+  }
 
   const { data: analyst } = await supabase
     .from("analysts")
@@ -41,11 +62,13 @@ const resolveAnalyst = cache(async (): Promise<AuthState> => {
   const rawOrg = analyst?.org as OrgEmbed | OrgEmbed[] | null | undefined;
   const org = Array.isArray(rawOrg) ? rawOrg[0] : rawOrg;
   if (!analyst || analyst.disabled_at || !org || org.disabled_at) {
-    return { signedIn: true, analyst: null };
+    return { signedIn: true, mfaPending: false, email: user.email ?? null, analyst: null };
   }
 
   return {
     signedIn: true,
+    mfaPending: false,
+    email: user.email ?? null,
     analyst: {
       userId: analyst.user_id as string,
       // El email de Auth es la fuente de verdad (el usuario lo puede cambiar);
@@ -59,17 +82,27 @@ const resolveAnalyst = cache(async (): Promise<AuthState> => {
   };
 });
 
+/** Estado completo de la sesión (para las pantallas de acceso). */
+export async function getAuthState(): Promise<AuthState> {
+  return resolveAnalyst();
+}
+
 /**
- * Analista autenticado, o `null`. Variante sin redirect para Route Handlers,
- * que deben responder 401 JSON a un `fetch` en vez de mandar un redirect.
+ * Analista autenticado, o `null` (también con el 2FA pendiente). Variante sin
+ * redirect para Route Handlers, que deben responder 401 JSON a un `fetch` en
+ * vez de mandar un redirect.
  */
 export async function getAnalyst(): Promise<Analyst | null> {
   return (await resolveAnalyst()).analyst;
 }
 
-/** Exige un analista autenticado; redirige a /admin/login si no lo hay. */
+/**
+ * Exige un analista autenticado; redirige a /admin/login si no lo hay, o al
+ * paso del código si tiene 2FA y todavía no lo pasó.
+ */
 export async function requireAnalyst(): Promise<Analyst> {
-  const { signedIn, analyst } = await resolveAnalyst();
+  const { signedIn, mfaPending, analyst } = await resolveAnalyst();
+  if (mfaPending) redirect("/admin/login/mfa");
   if (!analyst) redirect(signedIn ? "/admin/login?error=forbidden" : "/admin/login");
   return analyst;
 }

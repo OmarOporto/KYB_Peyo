@@ -340,8 +340,13 @@ export async function getDocUrlAction(path: string): Promise<string | null> {
   return data?.signedUrl ?? null;
 }
 
+/**
+ * Cierra la sesión de ESTE dispositivo. El default de Supabase (`global`)
+ * cerraba todas las sesiones de la cuenta; para eso está "Cerrar sesión en
+ * otros dispositivos" en Seguridad.
+ */
 export async function signOutAction() {
   const supabase = await createServerSupabase();
-  await supabase.auth.signOut();
+  await supabase.auth.signOut({ scope: "local" });
   redirect("/admin/login");
 }

@@ -3,6 +3,15 @@ import assert from "node:assert/strict";
 import { authErrorKey } from "./authErrors.ts";
 import { MIN_PASSWORD_LENGTH, passwordIssues } from "./passwordPolicy.ts";
 import { confirmDestination, parseConfirmLink } from "./confirmLink.ts";
+import { mfaGate } from "./mfaGate.ts";
+
+test("mfaGate: sin factores no pide nada; con factores exige aal2", () => {
+  assert.equal(mfaGate({ currentLevel: "aal1", verifiedFactors: 0 }), "ok");
+  assert.equal(mfaGate({ currentLevel: null, verifiedFactors: 0 }), "ok");
+  assert.equal(mfaGate({ currentLevel: "aal1", verifiedFactors: 1 }), "pending");
+  assert.equal(mfaGate({ currentLevel: undefined, verifiedFactors: 2 }), "pending");
+  assert.equal(mfaGate({ currentLevel: "aal2", verifiedFactors: 1 }), "ok");
+});
 
 test("authErrorKey decide por código, no por mensaje", () => {
   assert.equal(authErrorKey({ code: "invalid_credentials" }), "errInvalidCredentials");

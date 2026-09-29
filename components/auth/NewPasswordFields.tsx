@@ -16,11 +16,13 @@ export function NewPasswordFields({
   confirm,
   onPassword,
   onConfirm,
+  size = "lg",
 }: {
   password: string;
   confirm: string;
   onPassword: (v: string) => void;
   onConfirm: (v: string) => void;
+  size?: "lg" | "md";
 }) {
   const t = useTranslations("auth");
   const issues = new Set(passwordIssues(password));
@@ -40,6 +42,7 @@ export function NewPasswordFields({
           value={password}
           onChange={(e) => onPassword(e.target.value)}
           autoComplete="new-password"
+          size={size}
           required
         />
         <ul className="mt-2 space-y-1">
@@ -64,6 +67,7 @@ export function NewPasswordFields({
           value={confirm}
           onChange={(e) => onConfirm(e.target.value)}
           autoComplete="new-password"
+          size={size}
           aria-invalid={mismatch}
           required
         />

@@ -233,7 +233,10 @@ enable_signup = true
 # addresses. If disabled, only the new email is required to confirm.
 double_confirm_changes = true
 # If enabled, users need to confirm their email address before signing in.
-enable_confirmations = false
+# En true como en producción: con false GoTrue "autoconfirma" y se saltea la
+# doble confirmación del cambio de email de arriba. No afecta a los usuarios
+# del script de provisión (se crean confirmados o por invitación).
+enable_confirmations = true
 # If enabled, users will need to reauthenticate or have logged in recently to change their password.
 secure_password_change = false
 # Controls the minimum amount of time that must pass before sending another signup confirmation or password reset email.
