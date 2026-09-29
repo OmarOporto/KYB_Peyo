@@ -61,6 +61,40 @@ Ver `.env.example`. Claves relevantes:
 - `AML_PROVIDER` — `mock` (local) | `didit` (prod)
 - `DIDIT_API_URL`, `DIDIT_API_KEY`, `DIDIT_WEBHOOK_SECRET` — solo con `AML_PROVIDER=didit`
 
+## Panel: accesos y cuentas
+
+Dos logins para el mismo panel; cada uno acepta solo su rol:
+
+- **`/login`**: usuarios de cada organización (ven solo lo de su org).
+- **`/admin/login`**: administradores de la plataforma (ven y gestionan todas las orgs).
+
+Las pantallas compartidas viven en `/auth/*`: recuperar contraseña (`forgot`),
+links de los correos (`confirm`), contraseña nueva (`reset`), código 2FA (`mfa`)
+y cuenta suspendida (`suspended`). La cookie `kyb_portal` recuerda por qué login
+entró cada uno, para mandarlo ahí al cerrar sesión o cuando vence.
+
+**Página Usuarios** (`/admin/users`, solo admin):
+
+- Crear cuentas por invitación (el correo lo manda Supabase), reenviarlas o
+  cancelarlas mientras no se acepten.
+- Editar nombre, rol y organización; cambiar email, definir contraseña o mandar
+  el link para restablecerla. A **otro admin** solo se le manda el link.
+- Suspender y reactivar usuarios y organizaciones, eligiendo el admin de
+  contacto cuyo email ve el suspendido en `/auth/suspended`.
+  - Usuario suspendido: no entra al panel.
+  - Organización suspendida: sus usuarios no entran, su API responde
+    `403 organization_suspended` y sus formularios públicos (`/forms/<id>`) no
+    toman solicitudes nuevas. Los `/f/<token>` en curso siguen andando.
+- Para modificar hace falta que el admin tenga **2FA activado** (Seguridad); dar
+  rol admin, invitar, cambiar email o contraseña y reactivar a un admin vuelven
+  a pedir su contraseña.
+- La base garantiza que nunca queden cero admins activos y que no se suspenda
+  una org con admins (`0028_accounts.sql`).
+
+El script `npm run provision` sigue sirviendo para el alta inicial y para
+`disable <email> --contact <admin>`, `enable`, `reset-mfa` (quitar el 2FA de
+alguien, que el panel no hace) y `recovery-link`.
+
 ## API
 
 Crear solicitud:
@@ -214,3 +248,24 @@ del formulario se envían (`lib/aml/mapping.ts`). El resultado asíncrono llega 
 - `supabase link` + `supabase db push` a un proyecto Supabase Cloud.
 - Deploy de la app en Vercel con las env vars de producción.
 - `AML_PROVIDER=didit` + credenciales reales.
+
+### Cuentas y logins (0028)
+
+Antes del push que aplica `0028_accounts.sql`:
+
+- En el SQL editor de producción, `select count(*) from auth.sessions;` tiene
+  que andar como `postgres`. `session_alive()` (security definer) lo lee dentro
+  de la RLS: si no tuviera permiso, el panel dejaría de ver datos.
+- **Authentication → Emails → SMTP**: Resend. El remitente de Supabase no
+  alcanza para invitaciones y links de restablecer.
+- **Emails → Templates**: pegar de nuevo las de `supabase/templates/`; los links
+  ahora apuntan a `/auth/confirm` y `/auth/forgot`.
+- **URL Configuration**: Site URL = `NEXT_PUBLIC_APP_URL`; en Redirect URLs,
+  `<app>/auth/reset` y `<app>/auth/reset?invite=1`.
+
+Después del deploy:
+
+- Un admin activa su 2FA en Seguridad (sin eso la página Usuarios es de solo
+  lectura).
+- Mandar un link de restablecer desde Usuarios con el captcha encendido: con
+  service role GoTrue no lo pide (verificado en local).
