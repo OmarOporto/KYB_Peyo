@@ -214,3 +214,21 @@ $$;
 
 revoke execute on function public.admin_revoke_sessions(uuid) from public, anon, authenticated;
 grant  execute on function public.admin_revoke_sessions(uuid) to service_role;
+
+-- ------------------------------------------------------------
+-- Quién tiene 2FA
+-- ------------------------------------------------------------
+-- listUsers de GoTrue no trae los factores; la página Usuarios los lee de acá
+-- en una sola consulta. SOLO service_role.
+create or replace function public.admin_mfa_user_ids()
+returns setof uuid
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select distinct user_id from auth.mfa_factors where status = 'verified';
+$$;
+
+revoke execute on function public.admin_mfa_user_ids() from public, anon, authenticated;
+grant  execute on function public.admin_mfa_user_ids() to service_role;

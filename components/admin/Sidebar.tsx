@@ -5,7 +5,15 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useTranslations } from "next-intl";
-import { LogOut, Menu, PanelLeftClose, PanelLeftOpen, ShieldCheck, X } from "lucide-react";
+import {
+  LogOut,
+  Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
+  ShieldCheck,
+  Users,
+  X,
+} from "lucide-react";
 import { Brand } from "@/components/Brand";
 import { LanguageSwitcher } from "@/components/LanguageSwitcher";
 import { ThemeToggle } from "@/components/ThemeToggle";
@@ -191,6 +199,18 @@ function NavLinks({
       : []),
     { href: "/admin/clients", label: t("clients"), icon: <KeyIcon />, exact: false },
     { href: "/admin/ai-usage", label: t("aiUsage"), icon: <ChartIcon />, exact: false },
+    // Gestión de cuentas: solo el admin (la página exige además su 2FA para
+    // modificar).
+    ...(isAdmin
+      ? [
+          {
+            href: "/admin/users",
+            label: t("users"),
+            icon: <Users size={18} aria-hidden />,
+            exact: false,
+          },
+        ]
+      : []),
     {
       href: "/admin/security",
       label: t("security"),

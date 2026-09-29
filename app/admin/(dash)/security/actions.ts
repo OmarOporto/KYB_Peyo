@@ -2,7 +2,7 @@
 
 import { revalidatePath } from "next/cache";
 import { requireAnalyst, type Analyst } from "@/lib/auth/admin";
-import { consumeRate } from "@/lib/auth/rateLimit";
+import { checkCurrentPassword as checkPassword } from "@/lib/auth/stepUp";
 import { passwordIssues } from "@/lib/auth/passwordPolicy";
 import { isEmail, normalizeEmail } from "@/lib/auth/accountRules";
 import { logAudit } from "@/lib/kyb/service";
@@ -18,28 +18,9 @@ import { createServiceClient } from "@/lib/supabase/service";
  */
 type Result = { ok: true } | { ok: false; error: string };
 
-/** Intentos de contraseña actual por usuario y minuto. */
-const PASSWORD_ATTEMPTS_PER_MIN = 5;
-
-/**
- * ¿Es su contraseña actual? Con rate limit por usuario: sin él, una sesión
- * robada podría probar contraseñas a mansalva para después cambiarla.
- */
-async function checkCurrentPassword(
-  analyst: Analyst,
-  password: string,
-): Promise<"ok" | "wrong" | "limited"> {
-  const rate = await consumeRate(`pwverify:${analyst.userId}`, PASSWORD_ATTEMPTS_PER_MIN);
-  if (!rate.allowed) return "limited";
-  const { data, error } = await createServiceClient().rpc("verify_user_password", {
-    p_user_id: analyst.userId,
-    p_password: password,
-  });
-  if (error) {
-    console.error("[security] verify_user_password falló:", error.message);
-    return "wrong";
-  }
-  return data === true ? "ok" : "wrong";
+/** La contraseña actual (lib/auth/stepUp.ts, con rate limit por usuario). */
+function checkCurrentPassword(analyst: Analyst, password: string) {
+  return checkPassword(analyst.userId, password);
 }
 
 const PASSWORD_ERRORS = { wrong: "security.errCurrentPassword", limited: "auth.errRateLimit" } as const;
