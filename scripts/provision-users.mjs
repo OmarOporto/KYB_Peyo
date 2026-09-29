@@ -2,8 +2,8 @@
 //
 // Uso:
 //   node scripts/provision-users.mjs apply [--file <ruta>] [--dry-run]
-//   node scripts/provision-users.mjs disable <email>      # baja lógica (ban + disabled_at)
-//   node scripts/provision-users.mjs enable <email>
+//   node scripts/provision-users.mjs disable <email> [--contact <admin-email>]  # suspende
+//   node scripts/provision-users.mjs enable <email>       # reactiva
 //   node scripts/provision-users.mjs reset-mfa <email>    # borra sus factores 2FA
 //   node scripts/provision-users.mjs recovery-link <email> # imprime un link para definir contraseña
 //
@@ -216,21 +216,38 @@ async function apply() {
   console.log("\nListo.");
 }
 
+/**
+ * Suspende o reactiva. SIN ban de Supabase Auth: el suspendido tiene que poder
+ * iniciar sesión para ver la pantalla de "cuenta suspendida" con el email de
+ * contacto; la app y la RLS (disabled_at) le cortan el acceso igual
+ * (0028_accounts.sql). Lo mismo hace la página Usuarios del panel.
+ */
 async function setDisabled(email, disabled) {
   const user = await requireUser(email);
-  const { error: banErr } = await supabase.auth.admin.updateUserById(user.id, {
-    // ~100 años: Supabase no tiene "ban para siempre". "none" lo levanta.
-    ban_duration: disabled ? "876000h" : "none",
-  });
-  if (banErr) fail(`ban ${email}: ${banErr.message}`);
-  // disabled_at corta también la RLS al instante; el ban solo impide renovar
-  // la sesión, y un token ya emitido sigue valiendo hasta que vence (1 h).
+  let contactId = null;
+  if (disabled) {
+    const contactEmail = option("--contact");
+    if (contactEmail) {
+      const contact = await requireUser(contactEmail);
+      contactId = contact.id;
+    }
+  } else {
+    // Cuentas suspendidas con la versión anterior del script quedaron baneadas.
+    const { error: banErr } = await supabase.auth.admin.updateUserById(user.id, {
+      ban_duration: "none",
+    });
+    if (banErr) fail(`quitar ban ${email}: ${banErr.message}`);
+  }
   const { error } = await supabase
     .from("analysts")
-    .update({ disabled_at: disabled ? new Date().toISOString() : null })
+    .update(
+      disabled
+        ? { disabled_at: new Date().toISOString(), suspension_contact_id: contactId }
+        : { disabled_at: null, suspended_by: null, suspension_contact_id: null },
+    )
     .eq("user_id", user.id);
   if (error) fail(`analista ${email}: ${error.message}`);
-  console.log(`${disabled ? "Deshabilitado" : "Habilitado"}: ${email}`);
+  console.log(`${disabled ? "Suspendido" : "Reactivado"}: ${email}`);
 }
 
 async function resetMfa(email) {
@@ -278,7 +295,7 @@ switch (command) {
     break;
   default:
     fail(
-      "Comandos: apply [--file <ruta>] [--dry-run] | disable <email> | enable <email> | " +
+      "Comandos: apply [--file <ruta>] [--dry-run] | disable <email> [--contact <admin-email>] | enable <email> | " +
         "reset-mfa <email> | recovery-link <email>",
     );
 }

@@ -1,9 +1,17 @@
 import "server-only";
 import { cache } from "react";
+import { cookies } from "next/headers";
 import { notFound, redirect } from "next/navigation";
 import { createServerSupabase } from "@/lib/supabase/server";
 import type { Role } from "./tenantRules";
 import { mfaGate } from "./mfaGate";
+import {
+  PORTAL_COOKIE,
+  accountState,
+  loginPath,
+  parsePortal,
+  type AccountState,
+} from "./accountRules";
 
 export interface Analyst {
   userId: string;
@@ -13,72 +21,111 @@ export interface Analyst {
   orgId: string;
   orgName: string;
   fullName: string | null;
+  /** Tiene 2FA (TOTP) verificado. Gestionar cuentas lo exige. */
+  mfaEnabled: boolean;
 }
 
 /**
- * Estado de la sesión: sin autenticar (`signedIn: false`), autenticada pero
- * con el 2FA pendiente (`mfaPending`), o autenticada con o sin fila de analista.
+ * Estado de la sesión. `state` es la fuente de verdad (ver accountState); los
+ * demás campos son atajos para las pantallas de acceso.
  */
 export type AuthState = {
+  state: AccountState;
   signedIn: boolean;
   mfaPending: boolean;
-  /** Email de la sesión (aunque no sea analista o le falte el 2FA). */
+  suspended: "user" | "org" | null;
+  /** Usuario de Auth y su email, aunque no sea analista o esté suspendido. */
+  userId: string | null;
   email: string | null;
+  /** Rol de su fila de analista, si tiene (también con 2FA pendiente). */
+  role: Role | null;
+  /** Solo con la cuenta activa. */
   analyst: Analyst | null;
 };
 
-type OrgEmbed = { name: string; disabled_at: string | null };
+const SIGNED_OUT: AuthState = {
+  state: { kind: "signed_out" },
+  signedIn: false,
+  mfaPending: false,
+  suspended: null,
+  userId: null,
+  email: null,
+  role: null,
+  analyst: null,
+};
 
 /**
  * `cache()`: el layout, la página y cada `isAdmin()` lo piden en el mismo
  * render, y sin memo cada llamada era un `getUser()` de red.
+ *
+ * Orden (accountState): fila propia de `analysts` → 2FA → suspensión del
+ * usuario → org. La fila propia se lee aun a aal1 o suspendido (la política de
+ * `analysts` deja leer siempre la propia), así el rol se conoce desde el login.
+ * La org, en cambio, pasa por la RLS (auth_org_ids / is_platform_admin): si no
+ * se puede leer o está deshabilitada, la org está suspendida.
  */
 const resolveAnalyst = cache(async (): Promise<AuthState> => {
   const supabase = await createServerSupabase();
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  if (!user) return { signedIn: false, mfaPending: false, email: null, analyst: null };
+  if (!user) return SIGNED_OUT;
 
-  // 2FA: los factores salen de getUser() (servidor de Auth), no de la cookie.
-  // Con el 2FA pendiente ni se mira la fila de analista: la RLS ya no deja leer
-  // la org (mfa_ok, 0026) y quedaría como "sin acceso" en vez de "falta el código".
-  const verifiedFactors = (user.factors ?? []).filter((f) => f.status === "verified").length;
-  if (verifiedFactors > 0) {
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    if (mfaGate({ currentLevel: aal?.currentLevel, verifiedFactors }) === "pending") {
-      return { signedIn: true, mfaPending: true, email: user.email ?? null, analyst: null };
-    }
-  }
-
-  const { data: analyst } = await supabase
+  const { data: row } = await supabase
     .from("analysts")
-    .select("user_id, email, role, org_id, full_name, disabled_at, org:organizations(name, disabled_at)")
+    .select("user_id, email, role, org_id, full_name, disabled_at")
     .eq("user_id", user.id)
     .maybeSingle();
 
-  // El embed de la org pasa por su RLS, que ya excluye orgs y usuarios
-  // deshabilitados: sin org resuelta, no hay acceso.
-  const rawOrg = analyst?.org as OrgEmbed | OrgEmbed[] | null | undefined;
-  const org = Array.isArray(rawOrg) ? rawOrg[0] : rawOrg;
-  if (!analyst || analyst.disabled_at || !org || org.disabled_at) {
-    return { signedIn: true, mfaPending: false, email: user.email ?? null, analyst: null };
+  // 2FA: los factores salen de getUser() (servidor de Auth), no de la cookie.
+  const verifiedFactors = (user.factors ?? []).filter((f) => f.status === "verified").length;
+  let mfaPending = false;
+  if (verifiedFactors > 0) {
+    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
+    mfaPending = mfaGate({ currentLevel: aal?.currentLevel, verifiedFactors }) === "pending";
   }
 
-  return {
+  type OrgRow = { name: string; disabled_at: string | null };
+  let org: OrgRow | null = null;
+  if (row && !mfaPending && !row.disabled_at) {
+    const { data } = await supabase
+      .from("organizations")
+      .select("name, disabled_at")
+      .eq("id", row.org_id as string)
+      .maybeSingle();
+    org = (data as OrgRow | null) ?? null;
+  }
+
+  const role = (row?.role as Role | undefined) ?? null;
+  const state = accountState({
     signedIn: true,
-    mfaPending: false,
+    row: row && role ? { role, disabled: Boolean(row.disabled_at) } : null,
+    mfaPending,
+    orgUsable: Boolean(org && !org.disabled_at),
+  });
+
+  return {
+    state,
+    signedIn: true,
+    mfaPending: state.kind === "mfa_pending",
+    suspended: state.kind === "suspended" ? state.scope : null,
+    userId: user.id,
     email: user.email ?? null,
-    analyst: {
-      userId: analyst.user_id as string,
-      // El email de Auth es la fuente de verdad (el usuario lo puede cambiar);
-      // `analysts.email` es una copia.
-      email: user.email ?? (analyst.email as string),
-      role: analyst.role as Role,
-      orgId: analyst.org_id as string,
-      orgName: org.name,
-      fullName: (analyst.full_name as string | null) ?? null,
-    },
+    role,
+    analyst:
+      state.kind === "active" && row && org
+        ? {
+            userId: row.user_id as string,
+            // El email de Auth es la fuente de verdad (el usuario lo puede
+            // cambiar); `analysts.email` es una copia.
+            email: user.email ?? (row.email as string),
+            role: row.role as Role,
+            orgId: row.org_id as string,
+            orgName: org.name,
+            fullName: (row.full_name as string | null) ?? null,
+            mfaEnabled: verifiedFactors > 0,
+          }
+        : null,
   };
 });
 
@@ -88,23 +135,38 @@ export async function getAuthState(): Promise<AuthState> {
 }
 
 /**
- * Analista autenticado, o `null` (también con el 2FA pendiente). Variante sin
- * redirect para Route Handlers, que deben responder 401 JSON a un `fetch` en
- * vez de mandar un redirect.
+ * Analista autenticado y ACTIVO, o `null` (también con el 2FA pendiente o
+ * suspendido). Variante sin redirect para Route Handlers, que deben responder
+ * 401 JSON a un `fetch` en vez de mandar un redirect.
  */
 export async function getAnalyst(): Promise<Analyst | null> {
   return (await resolveAnalyst()).analyst;
 }
 
+/** Login al que volver: el del rol si se conoce, si no el de la última visita. */
+export async function loginPathFor(role: Role | null): Promise<string> {
+  if (role) return loginPath(role === "admin" ? "admin" : "user");
+  return loginPath(parsePortal((await cookies()).get(PORTAL_COOKIE)?.value));
+}
+
 /**
- * Exige un analista autenticado; redirige al login si no lo hay, o al
- * paso del código si tiene 2FA y todavía no lo pasó.
+ * Exige un analista activo. Si no: al login, al paso del código (2FA), a la
+ * pantalla de cuenta suspendida o al login con "sin acceso".
  */
 export async function requireAnalyst(): Promise<Analyst> {
-  const { signedIn, mfaPending, analyst } = await resolveAnalyst();
-  if (mfaPending) redirect("/auth/mfa");
-  if (!analyst) redirect(signedIn ? "/login?error=forbidden" : "/login");
-  return analyst;
+  const s = await resolveAnalyst();
+  switch (s.state.kind) {
+    case "signed_out":
+      redirect(await loginPathFor(null));
+    case "mfa_pending":
+      redirect("/auth/mfa");
+    case "suspended":
+      redirect("/auth/suspended");
+    case "no_account":
+      redirect(`${await loginPathFor(null)}?error=forbidden`);
+    case "active":
+      return s.analyst!;
+  }
 }
 
 /**

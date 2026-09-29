@@ -14,6 +14,8 @@ const BY_CODE: Record<string, string> = {
   over_request_rate_limit: "errRateLimit",
   over_email_send_rate_limit: "errEmailRateLimit",
   user_banned: "errBanned",
+  // Invitación sin aceptar: todavía no eligió su contraseña.
+  email_not_confirmed: "errEmailNotConfirmed",
   weak_password: "errWeakPassword",
   same_password: "errSamePassword",
   insufficient_aal: "errNeedsMfa",

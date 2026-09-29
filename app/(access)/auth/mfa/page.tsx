@@ -1,6 +1,6 @@
 import { redirect } from "next/navigation";
 import { getTranslations } from "next-intl/server";
-import { getAuthState } from "@/lib/auth/admin";
+import { getAuthState, loginPathFor } from "@/lib/auth/admin";
 import { signOutAction } from "@/app/admin/actions";
 import { AuthHeading } from "@/components/auth/authUi";
 import { MfaForm } from "@/components/auth/MfaForm";
@@ -13,7 +13,9 @@ export const dynamic = "force-dynamic";
  */
 export default async function MfaPage() {
   const state = await getAuthState();
-  if (!state.signedIn) redirect("/login");
+  if (!state.signedIn) redirect(await loginPathFor(null));
+  // Ya pasó el código (o no tiene 2FA): /admin decide el resto (panel,
+  // suspendido o sin acceso).
   if (!state.mfaPending) redirect("/admin");
 
   const t = await getTranslations("auth");

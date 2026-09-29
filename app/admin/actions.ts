@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { notFound, redirect } from "next/navigation";
 import { after } from "next/server";
-import { requireAnalyst } from "@/lib/auth/admin";
+import { getAuthState, loginPathFor, requireAnalyst } from "@/lib/auth/admin";
 import {
   loadOwnedCheck,
   loadOwnedDocPath,
@@ -347,9 +347,12 @@ export async function getDocUrlAction(path: string): Promise<string | null> {
  * Cierra la sesión de ESTE dispositivo. El default de Supabase (`global`)
  * cerraba todas las sesiones de la cuenta; para eso está "Cerrar sesión en
  * otros dispositivos" en Seguridad.
+ *
+ * Vuelve al login de su rol (el admin a /admin/login), leído antes de salir.
  */
 export async function signOutAction() {
+  const destination = await loginPathFor((await getAuthState()).role);
   const supabase = await createServerSupabase();
   await supabase.auth.signOut({ scope: "local" });
-  redirect("/login");
+  redirect(destination);
 }

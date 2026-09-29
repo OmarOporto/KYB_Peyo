@@ -16,6 +16,7 @@ import {
   authInputCls,
 } from "@/components/auth/authUi";
 import type { Portal } from "@/lib/auth/accountRules";
+import { postLoginAction } from "@/app/(access)/actions";
 
 export function LoginForm({ portal }: { portal: Portal }) {
   const t = useTranslations("auth");
@@ -50,11 +51,24 @@ export function LoginForm({ portal }: { portal: Portal }) {
       return;
     }
 
-    // Con 2FA activado, la sesión recién creada es de nivel 1 (solo
-    // contraseña): falta el código antes de entrar al panel.
-    const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    const next = aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2" ? "/auth/mfa" : "/admin";
-    router.replace(next);
+    // El server decide el destino según la cuenta: el panel, el paso del
+    // código (2FA), la pantalla de suspendido… o nada, si la cuenta no es de
+    // este portal (cada rol entra por su propio login).
+    let outcome: Awaited<ReturnType<typeof postLoginAction>>;
+    try {
+      outcome = await postLoginAction(portal);
+    } catch {
+      outcome = { error: "forbidden" };
+    }
+    if ("error" in outcome) {
+      // Se cierra la sesión recién creada: por acá no entra.
+      await supabase.auth.signOut({ scope: "local" });
+      setLoading(false);
+      setError(t(outcome.error === "wrongPortal" ? "errWrongPortal" : "forbidden"));
+      turnstile.current?.reset();
+      return;
+    }
+    router.replace(outcome.next);
     router.refresh();
   }
 

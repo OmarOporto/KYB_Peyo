@@ -97,7 +97,17 @@
     "adminBadge": "Administración · Peyo KYB",
     "adminTag": "Admin",
     "adminLoginTitle": "Acceso de administración",
-    "adminLoginSubtitle": "Solo para administradores de la plataforma."
+    "adminLoginSubtitle": "Solo para administradores de la plataforma.",
+    "errWrongPortal": "Esta cuenta no puede ingresar por este acceso. Usá el acceso que te indicó administración.",
+    "errEmailNotConfirmed": "Tu cuenta todavía no está activada: abrí el link de invitación que te llegó por correo.",
+    "suspendedTitle": "Cuenta suspendida",
+    "suspendedBody": "Tu cuenta fue suspendida y por ahora no podés ingresar al panel.",
+    "suspendedOrgTitle": "Organización suspendida",
+    "suspendedOrgBody": "La cuenta de {org} fue suspendida y por ahora no podés ingresar al panel.",
+    "suspendedContact": "Por favor, contactá a administración:",
+    "suspendedNoContact": "Administración de Peyo",
+    "suspendedAs": "Sesión iniciada como {email}.",
+    "signOut": "Cerrar sesión"
   },
   "nav": {
     "requests": "Solicitudes",

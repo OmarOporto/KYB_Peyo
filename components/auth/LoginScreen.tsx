@@ -22,9 +22,10 @@ export async function LoginScreen({
   // Con sesión y acceso ya no hay nada que hacer acá. Se pregunta por el
   // ANALISTA y no solo por el usuario: alguien autenticado sin fila en
   // `analysts` rebotaba entre /admin y el login sin ver ningún mensaje.
-  const state = await getAuthState();
-  if (state.mfaPending) redirect("/auth/mfa");
-  if (state.analyst) redirect("/admin");
+  const { state } = await getAuthState();
+  if (state.kind === "mfa_pending") redirect("/auth/mfa");
+  if (state.kind === "suspended") redirect("/auth/suspended");
+  if (state.kind === "active") redirect("/admin");
 
   const t = await getTranslations("auth");
   const admin = portal === "admin";
