@@ -10,7 +10,8 @@ import { OriginBadge } from "@/components/admin/OriginBadge";
 import { StatusBadge } from "@/components/admin/StatusBadge";
 import { resolveText, type LocalizedText } from "@/lib/forms/definition";
 import type { KybStatus } from "@/lib/kyb/types";
-import { RequestsToolbar } from "./RequestsToolbar";
+import { RequestsToolbar, type FormOption } from "./RequestsToolbar";
+import { FORM_NONE } from "./requestFilters";
 import { requireAnalyst } from "@/lib/auth/admin";
 
 export const dynamic = "force-dynamic";
@@ -32,6 +33,14 @@ function isStatus(v: string | undefined): v is KybStatus {
   return !!v && (STATUSES as string[]).includes(v);
 }
 
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
+/** `form` de la URL: un uuid, `none` o nada. Un uuid mal formado haría fallar la consulta. */
+function parseFormFilter(v: string | undefined): string {
+  if (!v) return "";
+  return v === FORM_NONE || UUID_RE.test(v) ? v : "";
+}
+
 type RequestRow = {
   id: string;
   external_ref: string;
@@ -43,6 +52,19 @@ type RequestRow = {
   /** `form_definition->title` del snapshot: sobrevive al borrado del formulario. */
   snapshot_title: LocalizedText | null;
   form: { name: string } | null;
+};
+
+/** Una solicitud lista para pintar, igual en la tabla y en las tarjetas. */
+type RequestItem = {
+  id: string;
+  href: string;
+  status: string;
+  ref: string;
+  api: boolean;
+  client: string | null;
+  form: { name: string; meta: string | null; muted: boolean; hint: string };
+  date: string;
+  time: string;
 };
 
 const PUBLIC_PREFIX = "public:";
@@ -73,12 +95,13 @@ async function clientLabels(keyIds: string[]): Promise<Map<string, string>> {
 
 /** Query string preservando filtros, para los enlaces de paginación. */
 function buildQuery(
-  base: { q: string; status: string; from: string; to: string },
+  base: { q: string; status: string; form: string; from: string; to: string },
   page: number,
 ): string {
   const params = new URLSearchParams();
   if (base.q) params.set("q", base.q);
   if (base.status) params.set("status", base.status);
+  if (base.form) params.set("form", base.form);
   if (base.from) params.set("from", base.from);
   if (base.to) params.set("to", base.to);
   if (page > 1) params.set("page", String(page));
@@ -92,6 +115,7 @@ export default async function AdminHome({
   searchParams: Promise<{
     q?: string;
     status?: string;
+    form?: string;
     from?: string;
     to?: string;
     page?: string;
@@ -106,13 +130,14 @@ export default async function AdminHome({
 
   const q = (sp.q ?? "").trim();
   const status = isStatus(sp.status) ? sp.status : "";
+  const form = parseFormFilter(sp.form);
   const from = sp.from ?? "";
   const to = sp.to ?? "";
   const page = Math.max(1, Number.parseInt(sp.page ?? "1", 10) || 1);
   const offset = (page - 1) * PAGE_SIZE;
 
-  const filters = { q, status, from, to };
-  const hasFilters = Boolean(q || status || from || to);
+  const filters = { q, status, form, from, to };
+  const hasFilters = Boolean(q || status || form || from || to);
 
   const supabase = await createServerSupabase();
   // El formulario sale del join por `form_id` (nombre vigente). Si se eliminó,
@@ -126,6 +151,8 @@ export default async function AdminHome({
 
   if (q) query = query.ilike("external_ref", `%${q}%`);
   if (status) query = query.eq("status", status);
+  if (form === FORM_NONE) query = query.is("form_id", null);
+  else if (form) query = query.eq("form_id", form);
   if (from) query = query.gte("created_at", from);
   if (to) {
     // `to` es una fecha (YYYY-MM-DD); incluir el día completo → límite exclusivo al día siguiente.
@@ -134,9 +161,16 @@ export default async function AdminHome({
     query = query.lt("created_at", next.toISOString());
   }
 
-  const { data: requests, count } = await query
-    .order("created_at", { ascending: false })
-    .range(offset, offset + PAGE_SIZE - 1);
+  const [{ data: requests, count }, { data: formRows }] = await Promise.all([
+    query.order("created_at", { ascending: false }).range(offset, offset + PAGE_SIZE - 1),
+    // Opciones del filtro: todos, archivados incluidos (tienen solicitudes).
+    supabase.from("forms").select("id, name, status").order("name"),
+  ]);
+  const formOptions: FormOption[] = (formRows ?? []).map((f) => ({
+    id: f.id as string,
+    name: f.name as string,
+    archived: f.status === "archived",
+  }));
 
   const total = count ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -153,7 +187,7 @@ export default async function AdminHome({
    * solicitud nunca tuvo formulario fijado (API antigua → el publicado por
    * defecto, que puede haber cambiado desde entonces).
    */
-  function formCell(r: RequestRow) {
+  function formCell(r: RequestRow): RequestItem["form"] {
     if (r.form) {
       return {
         name: r.form.name,
@@ -175,122 +209,172 @@ export default async function AdminHome({
     return { name: t("formDefault"), meta: null, muted: true, hint: t("formDefaultHint") };
   }
 
+  const items: RequestItem[] = rows.map((r) => {
+    const api = Boolean(r.api_key_id);
+    const created = new Date(r.created_at);
+    return {
+      id: r.id,
+      href: `/admin/requests/${r.id}`,
+      status: r.status,
+      ref: displayRef(r.external_ref, api),
+      api,
+      client: r.api_key_id ? (labels.get(r.api_key_id) ?? null) : null,
+      form: formCell(r),
+      date: created.toLocaleDateString(locale, { dateStyle: "medium" }),
+      time: created.toLocaleTimeString(locale, { timeStyle: "short" }),
+    };
+  });
+
+  const origin = (it: RequestItem) => (
+    <span className="flex min-w-0 items-center gap-1.5">
+      <OriginBadge api={it.api} label={it.api ? t("originApi") : t("originWeb")} />
+      {it.client && (
+        <span className="truncate text-xs text-muted" title={it.client}>
+          {it.client}
+        </span>
+      )}
+    </span>
+  );
+
   return (
-    <main className="mx-auto w-full max-w-6xl p-6">
+    <main className="mx-auto w-full max-w-6xl p-4 sm:p-6">
       <header className="mb-5">
         <h1 className="font-display text-2xl font-bold text-foreground">
           {t("requestsTitle")}
         </h1>
-        <p className="mt-0.5 text-sm text-muted">{t("resultsCount", { count: total })}</p>
+        <p className="mt-0.5 text-sm text-muted">
+          {t("resultsCount", { count: total })}
+          {hasFilters && (
+            <>
+              <span aria-hidden> · </span>
+              <Link href="/admin" className="font-medium text-brand hover:underline">
+                {t("clearFilters")}
+              </Link>
+            </>
+          )}
+        </p>
       </header>
 
-      <RequestsToolbar current={filters} />
+      <RequestsToolbar current={filters} forms={formOptions} />
 
-      <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          {/* `table-fixed` + anchos por columna: un texto largo (referencia de
-              la API, nombre del cliente o del formulario) se trunca con
-              tooltip en vez de empujar las otras columnas. Por debajo del
-              `min-w` la tabla scrollea en horizontal en lugar de aplastarse. */}
-          <table className="w-full min-w-190 table-fixed text-left text-sm">
-            <colgroup>
-              <col className="w-[34%]" />
-              <col className="w-[30%]" />
-              <col className="w-[18%]" />
-              <col className="w-[18%]" />
-            </colgroup>
-            <thead className="bg-surface-2 text-muted">
-              <tr>
-                <th className="px-4 py-2.5 font-medium">{t("company")}</th>
-                <th className="px-4 py-2.5 font-medium">{t("form")}</th>
-                <th className="px-4 py-2.5 font-medium">{t("status")}</th>
-                <th className="px-4 py-2.5 font-medium">{t("created")}</th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((r) => {
-                const client = r.api_key_id ? labels.get(r.api_key_id) : null;
-                const api = Boolean(r.api_key_id);
-                const ref = displayRef(r.external_ref, api);
-                const form = formCell(r);
-                const created = new Date(r.created_at);
-                return (
-                  <ClickableRow key={r.id} href={`/admin/requests/${r.id}`}>
-                    <td className="px-4 py-3">
-                      {/* La fila entera navega, pero el enlace real es lo que
-                          la hace accesible: foco por teclado y abrir en
-                          pestaña nueva. */}
-                      <Link
-                        href={`/admin/requests/${r.id}`}
-                        title={ref}
-                        className="block truncate rounded font-mono font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+      {/* Container query y no breakpoint de viewport: el ancho disponible
+          depende también de si el sidebar está plegado. */}
+      <Card className="@container overflow-hidden">
+        {items.length === 0 ? (
+          <div className="flex flex-col items-center gap-2 px-4 py-14 text-center">
+            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-2 text-muted">
+              <Inbox size={20} aria-hidden />
+            </span>
+            <p className="text-sm text-muted">
+              {hasFilters ? t("noResults") : t("noRequests")}
+            </p>
+            {hasFilters && (
+              <Link href="/admin" className="text-sm font-medium text-brand hover:underline">
+                {t("clearFilters")}
+              </Link>
+            )}
+          </div>
+        ) : (
+          <>
+            {/* Angosto: tarjetas apiladas. Cuatro columnas no entran sin
+                scroll horizontal, que en móvil nadie descubre. */}
+            <ul className="divide-y divide-border @2xl:hidden">
+              {items.map((it) => (
+                <li key={it.id}>
+                  <Link
+                    href={it.href}
+                    className="block px-4 py-3 outline-none transition-colors hover:bg-surface-2 focus-visible:bg-surface-2"
+                  >
+                    <span className="flex items-start justify-between gap-3">
+                      <span
+                        className="min-w-0 truncate font-mono text-sm font-medium text-foreground"
+                        title={it.ref}
                       >
-                        {ref}
-                      </Link>
-                      <span className="mt-1 flex min-w-0 items-center gap-1.5">
-                        <OriginBadge
-                          api={api}
-                          label={api ? t("originApi") : t("originWeb")}
-                        />
-                        {client && (
-                          <span className="truncate text-xs text-muted" title={client}>
-                            {client}
+                        {it.ref}
+                      </span>
+                      <StatusBadge status={it.status} />
+                    </span>
+                    <span className="mt-1 block">{origin(it)}</span>
+                    <span className="mt-2 flex items-baseline justify-between gap-3 text-xs">
+                      <span
+                        className={`min-w-0 truncate ${it.form.muted ? "text-muted" : "text-foreground"}`}
+                        title={it.form.hint}
+                      >
+                        {it.form.name}
+                        {it.form.meta && <span className="text-muted"> · {it.form.meta}</span>}
+                      </span>
+                      <span className="shrink-0 whitespace-nowrap text-muted">
+                        {it.date} · {it.time}
+                      </span>
+                    </span>
+                  </Link>
+                </li>
+              ))}
+            </ul>
+
+            <div className="hidden overflow-x-auto @2xl:block">
+              {/* `table-fixed`: Estado y Creado tienen ancho fijo y Solicitud y
+                  Formulario se reparten el resto. Un texto largo (referencia de
+                  la API, cliente o formulario) se trunca con tooltip en vez de
+                  empujar las otras columnas. */}
+              <table className="w-full min-w-165 table-fixed text-left text-sm">
+                <colgroup>
+                  <col />
+                  <col />
+                  <col className="w-44" />
+                  <col className="w-36" />
+                </colgroup>
+                <thead className="bg-surface-2 text-muted">
+                  <tr>
+                    <th className="px-4 py-2.5 font-medium">{t("company")}</th>
+                    <th className="px-4 py-2.5 font-medium">{t("form")}</th>
+                    <th className="px-4 py-2.5 font-medium">{t("status")}</th>
+                    <th className="px-4 py-2.5 font-medium">{t("created")}</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((it) => (
+                    <ClickableRow key={it.id} href={it.href}>
+                      <td className="px-4 py-3">
+                        {/* La fila entera navega, pero el enlace real es lo que
+                            la hace accesible: foco por teclado y abrir en
+                            pestaña nueva. */}
+                        <Link
+                          href={it.href}
+                          title={it.ref}
+                          className="block truncate rounded font-mono font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                        >
+                          {it.ref}
+                        </Link>
+                        <span className="mt-1 block">{origin(it)}</span>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span
+                          className={`block truncate ${it.form.muted ? "text-muted" : "text-foreground"}`}
+                          title={it.form.hint}
+                        >
+                          {it.form.name}
+                        </span>
+                        {it.form.meta && (
+                          <span className="mt-0.5 block truncate text-xs text-muted">
+                            {it.form.meta}
                           </span>
                         )}
-                      </span>
-                    </td>
-                    <td className="px-4 py-3">
-                      <span
-                        className={`block truncate ${form.muted ? "text-muted" : "text-foreground"}`}
-                        title={form.hint}
-                      >
-                        {form.name}
-                      </span>
-                      {form.meta && (
-                        <span className="mt-0.5 block truncate text-xs text-muted">
-                          {form.meta}
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-4 py-3">
-                      <StatusBadge status={r.status} />
-                    </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
-                      <span className="block text-foreground">
-                        {created.toLocaleDateString(locale, { dateStyle: "medium" })}
-                      </span>
-                      <span className="mt-0.5 block text-xs text-muted">
-                        {created.toLocaleTimeString(locale, { timeStyle: "short" })}
-                      </span>
-                    </td>
-                  </ClickableRow>
-                );
-              })}
-              {rows.length === 0 && (
-                <tr>
-                  <td colSpan={4} className="px-4 py-14">
-                    <div className="flex flex-col items-center gap-2 text-center">
-                      <span className="flex h-11 w-11 items-center justify-center rounded-full bg-surface-2 text-muted">
-                        <Inbox size={20} aria-hidden />
-                      </span>
-                      <p className="text-sm text-muted">
-                        {hasFilters ? t("noResults") : t("noRequests")}
-                      </p>
-                      {hasFilters && (
-                        <Link
-                          href="/admin"
-                          className="text-sm font-medium text-brand hover:underline"
-                        >
-                          {t("clearFilters")}
-                        </Link>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <StatusBadge status={it.status} />
+                      </td>
+                      <td className="px-4 py-3 whitespace-nowrap">
+                        <span className="block text-foreground">{it.date}</span>
+                        <span className="mt-0.5 block text-xs text-muted">{it.time}</span>
+                      </td>
+                    </ClickableRow>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </>
+        )}
       </Card>
 
       {totalPages > 1 && (
