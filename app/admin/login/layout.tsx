@@ -1,10 +1,10 @@
 import { AuthShell } from "@/components/auth/AuthShell";
 
 /**
- * Todas las pantallas de acceso (/admin/login, /forgot, /reset, /confirm,
- * /mfa) comparten el marco. Están fuera de `(dash)` a propósito: se ven sin
- * sesión, y el proxy deja pasar todo lo que empieza con /admin/login.
+ * Login de administración (/admin/login), separado del de usuarios (/login).
+ * Las pantallas compartidas (recuperar contraseña, 2FA, confirmar links) viven
+ * en /auth/*. El proxy deja pasar exactamente /admin/login sin sesión.
  */
-export default function LoginLayout({ children }: { children: React.ReactNode }) {
-  return <AuthShell>{children}</AuthShell>;
+export default function AdminLoginLayout({ children }: { children: React.ReactNode }) {
+  return <AuthShell variant="admin">{children}</AuthShell>;
 }

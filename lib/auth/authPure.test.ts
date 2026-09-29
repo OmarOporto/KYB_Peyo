@@ -51,7 +51,7 @@ test("parseConfirmLink acepta solo los tipos de nuestras plantillas", () => {
 });
 
 test("confirmDestination: el destino lo decide el tipo (sin redirección abierta)", () => {
-  assert.equal(confirmDestination("recovery"), "/admin/login/reset");
-  assert.equal(confirmDestination("invite"), "/admin/login/reset?invite=1");
+  assert.equal(confirmDestination("recovery"), "/auth/reset");
+  assert.equal(confirmDestination("invite"), "/auth/reset?invite=1");
   assert.equal(confirmDestination("email_change"), "/admin/security?email=changed");
 });

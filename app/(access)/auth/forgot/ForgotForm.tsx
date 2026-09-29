@@ -10,7 +10,7 @@ import { AuthAlert, AuthLabel, authButtonCls, authInputCls } from "@/components/
 
 /**
  * Pide el correo de recuperación. El link lo arma nuestra plantilla
- * (supabase/templates/recovery.html) y lleva a /admin/login/confirm.
+ * (supabase/templates/recovery.html) y lleva a /auth/confirm.
  */
 export function ForgotForm() {
   const t = useTranslations("auth");

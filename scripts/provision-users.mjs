@@ -175,7 +175,7 @@ async function apply() {
       } else {
         const { data, error } = await supabase.auth.admin.inviteUserByEmail(email, {
           data: { full_name: u.fullName ?? null, locale: u.locale ?? "es" },
-          redirectTo: `${appUrl}/admin/login/reset?invite=1`,
+          redirectTo: `${appUrl}/auth/reset?invite=1`,
         });
         if (error) fail(`invitar ${email}: ${error.message}`);
         authUser = data.user;
@@ -256,7 +256,7 @@ async function recoveryLink(email) {
   const tokenHash = data.properties?.hashed_token;
   console.log(
     "Link para definir contraseña (es un secreto: mandalo solo a esa persona; vence en 1 h):\n" +
-      `${appUrl}/admin/login/confirm?token_hash=${tokenHash}&type=recovery`,
+      `${appUrl}/auth/confirm?token_hash=${tokenHash}&type=recovery`,
   );
 }
 

@@ -10,8 +10,17 @@ import { ThemeToggle } from "@/components/ThemeToggle";
  * Escritorio: panel de marca a la izquierda con el degradé del informe
  * (globals.css) y el formulario amplio a la derecha. Móvil: el panel se
  * esconde y el logo va arriba del formulario.
+ *
+ * `variant="admin"`: el login de administración (/admin/login) se distingue a
+ * simple vista del de usuarios (/login).
  */
-export async function AuthShell({ children }: { children: React.ReactNode }) {
+export async function AuthShell({
+  children,
+  variant = "user",
+}: {
+  children: React.ReactNode;
+  variant?: "user" | "admin";
+}) {
   const t = await getTranslations("auth");
   const year = new Date().getFullYear();
 
@@ -34,18 +43,18 @@ export async function AuthShell({ children }: { children: React.ReactNode }) {
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute -bottom-40 -left-24 h-[28rem] w-[28rem] rounded-full bg-brand/40 blur-3xl"
+          className="pointer-events-none absolute -bottom-40 -left-24 h-112 w-112 rounded-full bg-brand/40 blur-3xl"
         />
         <div
           aria-hidden
-          className="pointer-events-none absolute inset-0 opacity-[0.07] [background-image:radial-gradient(white_1px,transparent_1px)] [background-size:22px_22px]"
+          className="pointer-events-none absolute inset-0 opacity-[0.07] bg-[radial-gradient(white_1px,transparent_1px)] bg-size-[22px_22px]"
         />
 
         <Brand size="lg" className="relative self-start bg-white/95 shadow-lg shadow-black/20" />
 
         <div className="relative max-w-lg">
           <span className="inline-block rounded-full border border-white/20 bg-white/10 px-3 py-1 text-xs font-medium tracking-wide text-white/90">
-            {t("badge")}
+            {variant === "admin" ? t("adminBadge") : t("badge")}
           </span>
           <h2 className="mt-5 font-display text-4xl leading-tight font-extrabold xl:text-5xl">
             {t("heroLine1")}
@@ -76,7 +85,14 @@ export async function AuthShell({ children }: { children: React.ReactNode }) {
 
       <div className="flex min-w-0 flex-1 flex-col">
         <div className="flex items-center justify-between gap-3 p-4 sm:p-6">
-          <Brand size="md" className="lg:invisible" />
+          <span className="flex items-center gap-2">
+            <Brand size="md" className="lg:invisible" />
+            {variant === "admin" && (
+              <span className="rounded-md bg-brand/10 px-2 py-1 text-xs font-semibold tracking-wide text-brand uppercase lg:hidden">
+                {t("adminTag")}
+              </span>
+            )}
+          </span>
           <div className="flex items-center gap-2">
             <LanguageSwitcher />
             <ThemeToggle />

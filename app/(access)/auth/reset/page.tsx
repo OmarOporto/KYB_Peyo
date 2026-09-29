@@ -9,7 +9,7 @@ export const dynamic = "force-dynamic";
 
 /**
  * Nueva contraseña. Se llega desde el link del correo de recuperación o de
- * invitación (/admin/login/confirm deja la sesión en cookies). Sin sesión, el
+ * invitación (/auth/confirm deja la sesión en cookies). Sin sesión, el
  * link ya se usó o venció.
  *
  * Con 2FA activo el link del correo solo da una sesión aal1: se pide el código
@@ -30,7 +30,7 @@ export default async function ResetPasswordPage({
       <>
         <AuthHeading title={t("confirmErrorTitle")} />
         <AuthAlert tone="danger">{t("resetNoSession")}</AuthAlert>
-        <Link href="/admin/login/forgot" className="font-medium text-brand hover:underline">
+        <Link href="/auth/forgot" className="font-medium text-brand hover:underline">
           {t("requestNewLink")}
         </Link>
       </>

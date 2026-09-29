@@ -28,6 +28,13 @@ export function loginPath(portal: Portal): "/admin/login" | "/login" {
   return portal === "admin" ? "/admin/login" : "/login";
 }
 
+/**
+ * Cookie (httpOnly) con el portal por el que entró la última vez. Es solo una
+ * pista para mandar a cada uno a su login cuando vence la sesión; no da
+ * permisos.
+ */
+export const PORTAL_COOKIE = "kyb_portal";
+
 /** Cualquier cosa que no sea exactamente "admin" es el portal de usuarios. */
 export function parsePortal(value: unknown): Portal {
   return value === "admin" ? "admin" : "user";

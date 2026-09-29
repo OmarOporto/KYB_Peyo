@@ -21,7 +21,7 @@ export default async function Home() {
         </h1>
         <p className="max-w-xl text-lg text-muted">{t("subtitle")}</p>
         <div className="flex gap-3">
-          <Link href="/admin">
+          <Link href="/login">
             <Button>{t("reviewPanel")}</Button>
           </Link>
         </div>

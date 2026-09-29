@@ -2,12 +2,12 @@ import { LoginScreen } from "@/components/auth/LoginScreen";
 
 export const dynamic = "force-dynamic";
 
-/** Login de administración: solo acepta cuentas con rol admin. */
-export default async function AdminLoginPage({
+/** Login de usuarios (clientes). El admin entra por /admin/login. */
+export default async function UserLoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ error?: string; reset?: string }>;
 }) {
   const { error, reset } = await searchParams;
-  return <LoginScreen portal="admin" error={error} reset={reset} />;
+  return <LoginScreen portal="user" error={error} reset={reset} />;
 }

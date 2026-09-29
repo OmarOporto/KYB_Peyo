@@ -39,16 +39,16 @@ const nextConfig: NextConfig = {
   async headers() {
     return [
       { source: "/:path*", headers: SECURITY_HEADERS },
-      {
-        // Pantallas de acceso: /admin/login/confirm lleva el token_hash del
-        // correo en la URL. Mismo trato que /f: sin referer, caché ni índice.
-        source: "/admin/login/:path*",
+      // Pantallas de acceso: /auth/confirm lleva el token_hash del correo en
+      // la URL. Mismo trato que /f: sin referer, caché ni índice.
+      ...["/login", "/admin/login", "/auth/:path*"].map((source) => ({
+        source,
         headers: [
           { key: "Referrer-Policy", value: "no-referrer" },
           { key: "Cache-Control", value: "no-store" },
           { key: "X-Robots-Tag", value: "noindex, nofollow" },
         ],
-      },
+      })),
       {
         // La página del solicitante lleva el token en la URL: evitar fuga por
         // referer, caché e indexado.

@@ -97,13 +97,13 @@ export async function getAnalyst(): Promise<Analyst | null> {
 }
 
 /**
- * Exige un analista autenticado; redirige a /admin/login si no lo hay, o al
+ * Exige un analista autenticado; redirige al login si no lo hay, o al
  * paso del código si tiene 2FA y todavía no lo pasó.
  */
 export async function requireAnalyst(): Promise<Analyst> {
   const { signedIn, mfaPending, analyst } = await resolveAnalyst();
-  if (mfaPending) redirect("/admin/login/mfa");
-  if (!analyst) redirect(signedIn ? "/admin/login?error=forbidden" : "/admin/login");
+  if (mfaPending) redirect("/auth/mfa");
+  if (!analyst) redirect(signedIn ? "/login?error=forbidden" : "/login");
   return analyst;
 }
 

@@ -15,8 +15,9 @@ import {
   authButtonCls,
   authInputCls,
 } from "@/components/auth/authUi";
+import type { Portal } from "@/lib/auth/accountRules";
 
-export function LoginForm() {
+export function LoginForm({ portal }: { portal: Portal }) {
   const t = useTranslations("auth");
   const router = useRouter();
   const [email, setEmail] = useState("");
@@ -52,7 +53,7 @@ export function LoginForm() {
     // Con 2FA activado, la sesión recién creada es de nivel 1 (solo
     // contraseña): falta el código antes de entrar al panel.
     const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel();
-    const next = aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2" ? "/admin/login/mfa" : "/admin";
+    const next = aal?.nextLevel === "aal2" && aal.currentLevel !== "aal2" ? "/auth/mfa" : "/admin";
     router.replace(next);
     router.refresh();
   }
@@ -81,7 +82,8 @@ export function LoginForm() {
           htmlFor="password"
           aside={
             <Link
-              href="/admin/login/forgot"
+              // `?p=admin`: el "volver" de esa pantalla regresa a este login.
+              href={portal === "admin" ? "/auth/forgot?p=admin" : "/auth/forgot"}
               className="text-sm font-medium text-brand hover:underline"
             >
               {t("forgotLink")}

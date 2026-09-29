@@ -93,7 +93,11 @@
     "mfaCode": "Verification code",
     "mfaVerify": "Verify",
     "mfaLostDevice": "Lost access to your app? Ask the administrator to reset your two-step verification.",
-    "resetMfaSubtitle": "Your account has two-step verification: enter the code before choosing the new password."
+    "resetMfaSubtitle": "Your account has two-step verification: enter the code before choosing the new password.",
+    "adminBadge": "Administration · Peyo KYB",
+    "adminTag": "Admin",
+    "adminLoginTitle": "Administrator sign in",
+    "adminLoginSubtitle": "For platform administrators only."
   },
   "nav": {
     "requests": "Requests",

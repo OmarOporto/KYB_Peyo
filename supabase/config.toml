@@ -160,7 +160,7 @@ site_url = "http://localhost:3000"
 # The public URL that Auth serves on. Defaults to the API external URL with `/auth/v1` appended.
 # external_url = ""
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-# Los links de los correos (plantillas de abajo) llevan a /admin/login/confirm.
+# Los links de los correos (plantillas de abajo) llevan a /auth/confirm.
 additional_redirect_urls = ["http://localhost:3000/**", "http://127.0.0.1:3000/**"]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
@@ -256,7 +256,7 @@ otp_expiry = 3600
 # admin_email = "admin@email.com"
 # sender_name = "Admin"
 
-# Plantillas propias. Los links usan `token_hash` y van a /admin/login/confirm
+# Plantillas propias. Los links usan `token_hash` y van a /auth/confirm
 # (no el `{{ .ConfirmationURL }}` por defecto): así funcionan en cualquier
 # navegador y los verifica el server. En producción se pegan en el dashboard.
 [auth.email.template.invite]

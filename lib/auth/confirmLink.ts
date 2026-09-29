@@ -1,5 +1,5 @@
 /**
- * Links de los correos de Auth: `/admin/login/confirm?token_hash=…&type=…`
+ * Links de los correos de Auth: `/auth/confirm?token_hash=…&type=…`
  * (ver supabase/templates/).
  *
  * Solo se aceptan los tres tipos que mandan nuestras plantillas, y el destino
@@ -28,9 +28,9 @@ export function parseConfirmLink(params: {
 export function confirmDestination(type: ConfirmType): string {
   switch (type) {
     case "recovery":
-      return "/admin/login/reset";
+      return "/auth/reset";
     case "invite":
-      return "/admin/login/reset?invite=1";
+      return "/auth/reset?invite=1";
     case "email_change":
       return "/admin/security?email=changed";
   }

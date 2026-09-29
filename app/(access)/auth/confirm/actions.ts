@@ -16,7 +16,7 @@ export async function confirmLinkAction(formData: FormData) {
     token_hash: formData.get("token_hash")?.toString(),
     type: formData.get("type")?.toString(),
   });
-  if (!link) redirect("/admin/login/confirm?error=invalid");
+  if (!link) redirect("/auth/confirm?error=invalid");
 
   const supabase = await createServerSupabase();
   const { data, error } = await supabase.auth.verifyOtp({
@@ -24,13 +24,13 @@ export async function confirmLinkAction(formData: FormData) {
     token_hash: link.tokenHash,
   });
   if (error) {
-    redirect(`/admin/login/confirm?error=${error.code === "otp_expired" ? "expired" : "invalid"}`);
+    redirect(`/auth/confirm?error=${error.code === "otp_expired" ? "expired" : "invalid"}`);
   }
 
   // Cambio de email con doble confirmación: el primer link (de cualquiera de
   // las dos direcciones) se acepta sin cambiar nada todavía.
   if (link.type === "email_change" && !data.session) {
-    redirect("/admin/login/confirm?pending=email");
+    redirect("/auth/confirm?pending=email");
   }
 
   redirect(confirmDestination(link.type));

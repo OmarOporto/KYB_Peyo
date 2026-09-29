@@ -93,7 +93,11 @@
     "mfaCode": "Código de verificación",
     "mfaVerify": "Verificar",
     "mfaLostDevice": "¿Perdiste el acceso a tu app? Pedile al administrador que restablezca tu verificación en dos pasos.",
-    "resetMfaSubtitle": "Tu cuenta tiene verificación en dos pasos: ingresá el código antes de elegir la nueva contraseña."
+    "resetMfaSubtitle": "Tu cuenta tiene verificación en dos pasos: ingresá el código antes de elegir la nueva contraseña.",
+    "adminBadge": "Administración · Peyo KYB",
+    "adminTag": "Admin",
+    "adminLoginTitle": "Acceso de administración",
+    "adminLoginSubtitle": "Solo para administradores de la plataforma."
   },
   "nav": {
     "requests": "Solicitudes",

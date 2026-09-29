@@ -13,7 +13,7 @@ export const dynamic = "force-dynamic";
  */
 export default async function MfaPage() {
   const state = await getAuthState();
-  if (!state.signedIn) redirect("/admin/login");
+  if (!state.signedIn) redirect("/login");
   if (!state.mfaPending) redirect("/admin");
 
   const t = await getTranslations("auth");

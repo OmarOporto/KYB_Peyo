@@ -40,7 +40,7 @@ export default async function ConfirmPage({
         <AuthAlert tone="danger">
           {sp.error === "expired" ? t("errLinkExpired") : t("confirmInvalid")}
         </AuthAlert>
-        <Link href="/admin/login/forgot" className="font-medium text-brand hover:underline">
+        <Link href="/auth/forgot" className="font-medium text-brand hover:underline">
           {t("requestNewLink")}
         </Link>
       </>

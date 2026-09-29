@@ -351,5 +351,5 @@ export async function getDocUrlAction(path: string): Promise<string | null> {
 export async function signOutAction() {
   const supabase = await createServerSupabase();
   await supabase.auth.signOut({ scope: "local" });
-  redirect("/admin/login");
+  redirect("/login");
 }
