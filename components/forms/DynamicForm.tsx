@@ -1,6 +1,15 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
+import { Maximize2 } from "lucide-react";
 import {
   resolveText,
   type Field,
@@ -19,6 +28,7 @@ import { countryOptions } from "@/lib/forms/countries";
 import { downscaleImage } from "@/lib/forms/imageCompress";
 import { Card } from "@/components/ui/Card";
 import { Button } from "@/components/ui/Button";
+import { ImageLightbox } from "./ImageLightbox";
 
 export type FileRef = { path: string; filename: string };
 /** Resultado de una subida: la referencia, o el motivo del fallo para mostrarlo. */
@@ -67,6 +77,9 @@ export interface DynamicFormProps {
     redirecting?: string;
     correctionBanner?: string;
     readOnlyNotice?: string;
+    /** Botón de las imágenes de ayuda y cierre del visor en grande. */
+    expandImage?: string;
+    closeImage?: string;
   };
 }
 
@@ -95,6 +108,8 @@ const DEFAULT_LABELS: Required<NonNullable<DynamicFormProps["labels"]>> = {
   correctionBanner:
     "Corrige las preguntas señaladas. Las respuestas anteriores son solo de lectura.",
   readOnlyNotice: "Respuestas anteriores (solo lectura).",
+  expandImage: "Ver imagen en grande",
+  closeImage: "Cerrar",
 };
 
 /** Bloque de preguntas: un `note` abre un bloque nuevo y actúa como su título. */
@@ -130,6 +145,10 @@ export function DynamicForm({
   labels,
 }: DynamicFormProps) {
   const L = { ...DEFAULT_LABELS, ...labels };
+  const imageLabels = useMemo(
+    () => ({ expand: L.expandImage, close: L.closeImage }),
+    [L.expandImage, L.closeImage],
+  );
   // El autosave/borrador aplica también en corrección (el solicitante re-guarda
   // mientras corrige); solo `preview` queda fuera.
   const isLive = mode === "live" || mode === "correction";
@@ -421,112 +440,114 @@ export function DynamicForm({
   const barCls = sticky ? "sticky z-20 -mx-6 bg-background px-6" : "";
 
   return (
-    <div className="pb-2">
-      {isCorrection && (
-        <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
-          {L.correctionBanner}
-        </div>
-      )}
+    <ImageLabelsContext.Provider value={imageLabels}>
+      <div className="pb-2">
+        {isCorrection && (
+          <div className="mb-4 rounded-lg border border-warning/40 bg-warning/10 p-3 text-sm text-foreground">
+            {L.correctionBanner}
+          </div>
+        )}
 
-      <div className={`${barCls} top-0 border-b border-border py-3`}>
-        <div className="mb-2 flex items-baseline justify-between gap-3">
-          <h2 className="font-display text-lg font-bold text-foreground">
-            {resolveText(current.title, locale) || `#${stepIdx + 1}`}
-          </h2>
-          {isLive && (
-            <span
-              className={`shrink-0 text-xs ${saveState === "error" ? "text-danger" : "text-muted"}`}
-            >
-              {saveState === "saving"
-                ? L.saving
-                : saveState === "saved"
-                  ? L.saved
-                  : saveState === "error"
-                    ? L.saveError
-                    : ""}
+        <div className={`${barCls} top-0 border-b border-border py-3`}>
+          <div className="mb-2 flex items-baseline justify-between gap-3">
+            <h2 className="font-display text-lg font-bold text-foreground">
+              {resolveText(current.title, locale) || `#${stepIdx + 1}`}
+            </h2>
+            {isLive && (
+              <span
+                className={`shrink-0 text-xs ${saveState === "error" ? "text-danger" : "text-muted"}`}
+              >
+                {saveState === "saving"
+                  ? L.saving
+                  : saveState === "saved"
+                    ? L.saved
+                    : saveState === "error"
+                      ? L.saveError
+                      : ""}
+              </span>
+            )}
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
+              <div
+                className="h-1.5 rounded-full bg-linear-to-r from-brand to-accent transition-all"
+                style={{ width: `${progress}%` }}
+              />
+            </div>
+            <span className="shrink-0 text-xs tabular-nums text-muted">
+              {stepIdx + 1}/{visSecs.length}
             </span>
+          </div>
+        </div>
+
+        {current.description && (
+          <p className="mt-4 text-sm text-muted">
+            {resolveText(current.description, locale)}
+          </p>
+        )}
+        {readOnlyNow && (
+          <p className="mt-2 text-xs font-medium text-muted">{L.readOnlyNotice}</p>
+        )}
+
+        {/* Una card por pregunta: `space-y-8` separa bloques, `space-y-4` preguntas. */}
+        <div className="mt-6 space-y-8">
+          {groups.map((g, gi) => (
+            <section key={g.header?.id ?? `g${gi}`} className="space-y-4">
+              {g.header && <GroupHeader field={g.header} locale={locale} />}
+              {g.fields.map((f) => {
+                const marked = isCorrection && noteByKey.has(f.key);
+                const state = errors[f.key]
+                  ? "border-danger/50 ring-1 ring-danger/20"
+                  : marked
+                    ? "border-warning/50 ring-1 ring-warning/20"
+                    : "border-border";
+                return (
+                  <div key={f.id} data-field={f.key} className={`${QUESTION_CARD} ${state}`}>
+                    <FieldInput
+                      field={f}
+                      locale={locale}
+                      value={answers[f.key]}
+                      error={errors[f.key]}
+                      disabled={readOnlyNow}
+                      note={isCorrection ? noteByKey.get(f.key) : undefined}
+                      markedRequired={marked}
+                      onChange={(v) => setAnswer(f.key, v)}
+                      onUploadFile={onUploadFile}
+                      onDeleteFile={onDeleteFile}
+                    />
+                  </div>
+                );
+              })}
+            </section>
+          ))}
+          {fields.length === 0 && <p className="text-sm text-muted">—</p>}
+        </div>
+
+        {submitError && <p className="mt-4 text-sm text-danger">{submitError}</p>}
+
+        <div
+          className={`${barCls} bottom-0 mt-6 flex items-center justify-between gap-3 border-t border-border py-4`}
+        >
+          <Button
+            type="button"
+            variant="ghost"
+            disabled={stack.length === 0}
+            onClick={goBack}
+          >
+            ← {L.back}
+          </Button>
+          {isLast ? (
+            <Button type="button" onClick={submit} disabled={submitting}>
+              {submitting ? L.submitting : L.submit}
+            </Button>
+          ) : (
+            <Button type="button" onClick={goNext}>
+              {L.continue} →
+            </Button>
           )}
         </div>
-        <div className="flex items-center gap-3">
-          <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-surface-2">
-            <div
-              className="h-1.5 rounded-full bg-linear-to-r from-brand to-accent transition-all"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <span className="shrink-0 text-xs tabular-nums text-muted">
-            {stepIdx + 1}/{visSecs.length}
-          </span>
-        </div>
       </div>
-
-      {current.description && (
-        <p className="mt-4 text-sm text-muted">
-          {resolveText(current.description, locale)}
-        </p>
-      )}
-      {readOnlyNow && (
-        <p className="mt-2 text-xs font-medium text-muted">{L.readOnlyNotice}</p>
-      )}
-
-      {/* Una card por pregunta: `space-y-8` separa bloques, `space-y-4` preguntas. */}
-      <div className="mt-6 space-y-8">
-        {groups.map((g, gi) => (
-          <section key={g.header?.id ?? `g${gi}`} className="space-y-4">
-            {g.header && <GroupHeader field={g.header} locale={locale} />}
-            {g.fields.map((f) => {
-              const marked = isCorrection && noteByKey.has(f.key);
-              const state = errors[f.key]
-                ? "border-danger/50 ring-1 ring-danger/20"
-                : marked
-                  ? "border-warning/50 ring-1 ring-warning/20"
-                  : "border-border";
-              return (
-                <div key={f.id} data-field={f.key} className={`${QUESTION_CARD} ${state}`}>
-                  <FieldInput
-                    field={f}
-                    locale={locale}
-                    value={answers[f.key]}
-                    error={errors[f.key]}
-                    disabled={readOnlyNow}
-                    note={isCorrection ? noteByKey.get(f.key) : undefined}
-                    markedRequired={marked}
-                    onChange={(v) => setAnswer(f.key, v)}
-                    onUploadFile={onUploadFile}
-                    onDeleteFile={onDeleteFile}
-                  />
-                </div>
-              );
-            })}
-          </section>
-        ))}
-        {fields.length === 0 && <p className="text-sm text-muted">—</p>}
-      </div>
-
-      {submitError && <p className="mt-4 text-sm text-danger">{submitError}</p>}
-
-      <div
-        className={`${barCls} bottom-0 mt-6 flex items-center justify-between gap-3 border-t border-border py-4`}
-      >
-        <Button
-          type="button"
-          variant="ghost"
-          disabled={stack.length === 0}
-          onClick={goBack}
-        >
-          ← {L.back}
-        </Button>
-        {isLast ? (
-          <Button type="button" onClick={submit} disabled={submitting}>
-            {submitting ? L.submitting : L.submit}
-          </Button>
-        ) : (
-          <Button type="button" onClick={goNext}>
-            {L.continue} →
-          </Button>
-        )}
-      </div>
-    </div>
+    </ImageLabelsContext.Provider>
   );
 }
 
@@ -584,6 +605,7 @@ function FieldInput({
       {field.image && (
         <HelpImage
           src={field.image}
+          caption={label}
           wrapperClassName={`mb-2 block ${imgCls.wrap}`}
           className={`${imgCls.img} rounded-lg border border-border`}
         />
@@ -613,6 +635,8 @@ function FieldInput({
               {o.image && (
                 <HelpImage
                   src={o.image}
+                  caption={resolveText(o.label, locale)}
+                  compact
                   wrapperClassName="shrink-0"
                   className="h-12 w-12 rounded border border-border object-cover"
                 />
@@ -643,6 +667,8 @@ function FieldInput({
                 {o.image && (
                   <HelpImage
                     src={o.image}
+                    caption={resolveText(o.label, locale)}
+                    compact
                     wrapperClassName="shrink-0"
                     className="h-12 w-12 rounded border border-border object-cover"
                   />
@@ -737,6 +763,7 @@ function GroupHeader({ field, locale }: { field: Field; locale: string }) {
       {field.image && (
         <HelpImage
           src={field.image}
+          caption={label}
           wrapperClassName={`mt-2 block ${imgCls.wrap}`}
           className={`${imgCls.img} rounded-lg border border-border`}
         />
@@ -765,21 +792,75 @@ function helpImageCls(size?: ImageSize) {
   return HELP_IMAGE_SIZE[size ?? "md"];
 }
 
-/** Imagen de ayuda (pregunta u opción). Clickeable para verla en grande. */
+/**
+ * Textos del visor de imágenes. Por contexto y no por props: las imágenes están
+ * varios componentes más abajo (pregunta, opción, encabezado de bloque).
+ */
+const ImageLabelsContext = createContext({
+  expand: DEFAULT_LABELS.expandImage,
+  close: DEFAULT_LABELS.closeImage,
+});
+
+/**
+ * Imagen de ayuda (pregunta u opción). Tocarla la abre en grande dentro del
+ * mismo formulario (antes abría una pestaña nueva y la persona salía del
+ * formulario). El ícono de la esquina avisa que se puede agrandar: en
+ * dispositivos con mouse aparece al pasar por encima; en táctiles, siempre.
+ */
 function HelpImage({
   src,
+  caption,
   className,
-  wrapperClassName,
+  wrapperClassName = "",
+  compact = false,
 }: {
   src: string;
+  /** Texto que acompaña a la imagen en grande (pregunta u opción). */
+  caption?: string;
   className: string;
   wrapperClassName?: string;
+  /** Miniatura de opción: ícono más chico. */
+  compact?: boolean;
 }) {
+  const labels = useContext(ImageLabelsContext);
+  const [open, setOpen] = useState(false);
+  const trigger = useRef<HTMLButtonElement>(null);
+  // Al cerrar, el foco vuelve a la miniatura (teclado y lector de pantalla
+  // siguen donde estaban).
+  const close = useCallback(() => {
+    setOpen(false);
+    trigger.current?.focus();
+  }, []);
   return (
-    <a href={src} target="_blank" rel="noopener" className={wrapperClassName}>
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src={src} alt="" className={className} />
-    </a>
+    <>
+      <button
+        ref={trigger}
+        type="button"
+        onClick={(e) => {
+          // Dentro del <label> de una opción: agrandar no la marca.
+          e.preventDefault();
+          e.stopPropagation();
+          setOpen(true);
+        }}
+        aria-label={labels.expand}
+        title={labels.expand}
+        className={`group relative cursor-zoom-in rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-brand/40 ${wrapperClassName}`}
+      >
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={src} alt="" className={className} />
+        <span
+          aria-hidden
+          className={`pointer-events-none absolute flex items-center justify-center rounded-md bg-surface/90 text-foreground shadow-sm ring-1 ring-border transition-opacity group-hover:opacity-100 group-focus-visible:opacity-100 [@media(hover:hover)]:opacity-0 ${
+            compact ? "right-0.5 bottom-0.5 h-5 w-5" : "top-2 right-2 h-8 w-8"
+          }`}
+        >
+          <Maximize2 size={compact ? 11 : 16} />
+        </span>
+      </button>
+      {open && (
+        <ImageLightbox src={src} caption={caption} closeLabel={labels.close} onClose={close} />
+      )}
+    </>
   );
 }
 

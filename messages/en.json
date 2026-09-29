@@ -678,7 +678,9 @@
       "boFullName": "Full name",
       "boDocumentId": "Document",
       "boOwnershipPct": "Ownership %"
-    }
+    },
+    "expandImage": "View larger image",
+    "closeImage": "Close"
   },
   "didit": {
     "title": "DIDIT forms",

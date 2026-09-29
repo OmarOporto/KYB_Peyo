@@ -678,7 +678,9 @@
       "boFullName": "Nombre completo",
       "boDocumentId": "Documento",
       "boOwnershipPct": "% de participación"
-    }
+    },
+    "expandImage": "Ver imagen en grande",
+    "closeImage": "Cerrar"
   },
   "didit": {
     "title": "Formularios DIDIT",

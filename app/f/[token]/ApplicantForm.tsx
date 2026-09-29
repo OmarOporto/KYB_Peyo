@@ -121,6 +121,8 @@ export function ApplicantForm({
         redirecting: t("redirecting"),
         correctionBanner: t("correctionBanner"),
         readOnlyNotice: t("readOnlyNotice"),
+        expandImage: t("expandImage"),
+        closeImage: t("closeImage"),
       }}
     />
   );
