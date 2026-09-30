@@ -547,6 +547,7 @@
     "kybAutoDetect": "Automatic (by key name)",
     "kybNoCountryWarning": "The form has no country question. Add one (country type) or pick it here — without a country the registry validation cannot run.",
     "kybDuplicateWarning": "An earlier question already carries the company validation: only the first one in the form runs. Remove this review or the other one.",
+    "kybRegNumberIsNumber": "The registration number question is a Number field: it drops leading zeros and may not match the registry. Change it to Short text.",
     "minLenLabel": "Min. characters",
     "maxLenLabel": "Max. characters",
     "minValueLabel": "Min. value",

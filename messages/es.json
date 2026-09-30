@@ -547,6 +547,7 @@
     "kybAutoDetect": "Automático (por nombre de key)",
     "kybNoCountryWarning": "El formulario no tiene pregunta de país. Agrégala (tipo país) o selecciónala aquí — sin país la validación registral no corre.",
     "kybDuplicateWarning": "Otra pregunta anterior ya tiene la validación de empresa: solo se ejecuta la primera del formulario. Quita esta revisión o la otra.",
+    "kybRegNumberIsNumber": "La pregunta del n.º de registro es de tipo Número: pierde los ceros a la izquierda y puede no coincidir con el registro. Cámbiala a Texto corto.",
     "minLenLabel": "Mín. caracteres",
     "maxLenLabel": "Máx. caracteres",
     "minValueLabel": "Mín. valor",

@@ -1305,7 +1305,7 @@ function DiditReviewEditor({
   imageFields: { key: string; label: string }[];
   /** Candidatas para el binding explícito de kyb_registry. */
   kybCountryFields: { key: string; label: string }[];
-  kybRegNumberFields: { key: string; label: string }[];
+  kybRegNumberFields: { key: string; label: string; type: FieldType }[];
   /** ¿El form puede resolver el país sin binding (tipo país o convención de key)? */
   hasCountryCandidate: boolean;
   /** Key de la PRIMERA pregunta del form etiquetada kyb_registry (o null). */
@@ -1323,7 +1323,12 @@ function DiditReviewEditor({
   // cualquier tag adicional queda inerte → advertir.
   const kybDuplicate =
     current === "kyb_registry" && kybFirstTaggedKey !== null && kybFirstTaggedKey !== field.key;
-  const healthy = compatible && kybCountryOk && !kybDuplicate;
+  // Un campo `number` se guarda como número: pierde los ceros a la izquierda
+  // del n.º de registro y deja de coincidir con el del registro mercantil.
+  const kybRegNumberIsNumber =
+    current === "kyb_registry" &&
+    kybRegNumberFields.find((f) => f.key === field.review?.kybRegNumberKey)?.type === "number";
+  const healthy = compatible && kybCountryOk && !kybDuplicate && !kybRegNumberIsNumber;
 
   return (
     <div className="relative flex items-center gap-1">
@@ -1498,6 +1503,9 @@ function DiditReviewEditor({
                 )}
                 {kybDuplicate && (
                   <p className="mt-1 px-1 text-[10px] text-danger">{t("kybDuplicateWarning")}</p>
+                )}
+                {kybRegNumberIsNumber && (
+                  <p className="mt-1 px-1 text-[10px] text-danger">{t("kybRegNumberIsNumber")}</p>
                 )}
               </div>
             )}
@@ -1681,7 +1689,7 @@ function FieldCard({
                   (k.field.type === "short_text" || k.field.type === "number") &&
                   k.key !== field.key,
               )
-              .map((k) => ({ key: k.key, label: k.label }))}
+              .map((k) => ({ key: k.key, label: k.label, type: k.field.type }))}
             hasCountryCandidate={allFieldKeys.some(
               (k) =>
                 k.field.type === "country" ||
