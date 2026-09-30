@@ -219,8 +219,10 @@ web3 = 30
 # clave secreta de PRUEBA de Cloudflare (siempre pasa) en supabase/.env:
 #   SUPABASE_AUTH_CAPTCHA_SECRET=1x0000000000000000000000000000000AA
 # En producción el secret real se carga en el dashboard (nunca `config push`).
+# TEMPORAL (2026-09-30): apagado para calzar con el login sin captcha
+# (components/auth/LoginForm.tsx, LOGIN_CAPTCHA). Volver a `true` junto con él.
 [auth.captcha]
-enabled = true
+enabled = false
 provider = "turnstile"
 secret = "env(SUPABASE_AUTH_CAPTCHA_SECRET)"
 

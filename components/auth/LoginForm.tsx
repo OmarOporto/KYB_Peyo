@@ -18,6 +18,13 @@ import {
 import type { Portal } from "@/lib/auth/accountRules";
 import { postLoginAction } from "@/app/(access)/actions";
 
+// TEMPORAL (2026-09-30): captcha apagado en el login. En producción la site key
+// publicada es inválida (Turnstile responde 400020) y el botón nunca se
+// habilitaba. Supabase Auth de producción no exige captcha hoy, así que el
+// login funciona sin token. Para reactivarlo: volver a `true` DESPUÉS de cargar
+// en Vercel la Site Key correcta (24 caracteres) y redesplegar.
+const LOGIN_CAPTCHA = false;
+
 export function LoginForm({ portal }: { portal: Portal }) {
   const t = useTranslations("auth");
   const router = useRouter();
@@ -27,7 +34,7 @@ export function LoginForm({ portal }: { portal: Portal }) {
   const [loading, setLoading] = useState(false);
   const [captcha, setCaptcha] = useState<string | null>(null);
   const turnstile = useRef<TurnstileHandle>(null);
-  const needsCaptcha = turnstileEnabled();
+  const needsCaptcha = LOGIN_CAPTCHA && turnstileEnabled();
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
@@ -115,7 +122,7 @@ export function LoginForm({ portal }: { portal: Portal }) {
         />
       </div>
 
-      <Turnstile ref={turnstile} onToken={setCaptcha} />
+      {LOGIN_CAPTCHA && <Turnstile ref={turnstile} onToken={setCaptcha} />}
 
       <button
         type="submit"
