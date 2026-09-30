@@ -1,10 +1,12 @@
+// Extensión explícita: lib/didit/plan.ts importa este módulo y se prueba con
+// `node --test --experimental-strip-types`, cuyo resolutor de ESM la exige.
 import type {
   Condition,
   Field,
   FormDefinition,
   Section,
-} from "./definition";
-import { SUBMIT } from "./definition";
+} from "./definition.ts";
+import { SUBMIT } from "./definition.ts";
 
 export type Answers = Record<string, unknown>;
 

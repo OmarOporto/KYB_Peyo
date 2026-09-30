@@ -761,7 +761,7 @@ export async function runVerifications(
       );
       if (!rows.length && skip.size === 0) {
         console.warn(
-          `[AML] request=${requestId} DIDIT no produjo checks: el formulario no tiene campos con revisión DIDIT (field.review.provider="didit")`,
+          `[AML] request=${requestId} DIDIT no produjo checks: ninguna pregunta con revisión DIDIT fue recorrida con su archivo o dato (ver la línea "plan:")`,
         );
       }
     } else {
