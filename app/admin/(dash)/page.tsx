@@ -53,6 +53,9 @@ type RequestRow = {
   form_id: string | null;
   form_revision: number | null;
   org_id: string;
+  /** Respuestas a las preguntas marcadas como título y email (0029). */
+  subject_title: string | null;
+  contact_email: string | null;
   /** `form_definition->title` del snapshot: sobrevive al borrado del formulario. */
   snapshot_title: LocalizedText | null;
   form: { name: string } | null;
@@ -64,6 +67,9 @@ type RequestItem = {
   href: string;
   status: string;
   ref: string;
+  /** Nombre de la solicitud (pregunta marcada como título); sin él se muestra la ref. */
+  title: string | null;
+  email: string | null;
   api: boolean;
   client: string | null;
   /** Nombre de la org dueña: solo en la pestaña "Todas" del admin. */
@@ -72,6 +78,22 @@ type RequestItem = {
   date: string;
   time: string;
 };
+
+/**
+ * Segunda línea de la celda: con nombre, la referencia pasa acá (en mono); el
+ * email va siempre que exista. Sin ninguno de los dos no se pinta nada.
+ */
+function RefLine({ it }: { it: RequestItem }) {
+  if (!it.title && !it.email) return null;
+  const text = [it.title ? it.ref : null, it.email].filter(Boolean).join(" · ");
+  return (
+    <span className="mt-0.5 block truncate text-xs text-muted" title={text}>
+      {it.title && <span className="font-mono">{it.ref}</span>}
+      {it.title && it.email && " · "}
+      {it.email}
+    </span>
+  );
+}
 
 const PUBLIC_PREFIX = "public:";
 
@@ -143,12 +165,24 @@ export default async function AdminHome({
   let query = supabase
     .from("kyb_requests")
     .select(
-      "id, external_ref, status, created_at, api_key_id, form_id, form_revision, org_id, snapshot_title:form_definition->title, form:forms(name)",
+      "id, external_ref, status, created_at, api_key_id, form_id, form_revision, org_id, subject_title, contact_email, snapshot_title:form_definition->title, form:forms(name)",
       { count: "exact" },
     );
 
   if (scope) query = query.eq("org_id", scope);
-  if (q) query = query.ilike("external_ref", `%${q}%`);
+  if (q) {
+    // Nombre, email o referencia. Dentro de `or()` las comas, los paréntesis y
+    // las comillas son sintaxis de PostgREST: se quitan del término. Si no
+    // queda nada, se busca el texto tal cual solo en la referencia.
+    const term = q.replace(/[,()"\\*%]/g, "").trim();
+    query = term
+      ? query.or(
+          ["external_ref", "subject_title", "contact_email"]
+            .map((col) => `${col}.ilike.*${term}*`)
+            .join(","),
+        )
+      : query.ilike("external_ref", `%${q}%`);
+  }
   if (status) query = query.eq("status", status);
   if (form === FORM_NONE) query = query.is("form_id", null);
   else if (form) query = query.eq("form_id", form);
@@ -220,6 +254,8 @@ export default async function AdminHome({
       href: `/admin/requests/${r.id}`,
       status: r.status,
       ref: displayRef(r.external_ref, api),
+      title: r.subject_title || null,
+      email: r.contact_email || null,
       api,
       client: r.api_key_id ? (labels.get(r.api_key_id) ?? null) : null,
       // En una pestaña concreta la org es obvia; en "Todas" hace falta.
@@ -311,13 +347,14 @@ export default async function AdminHome({
                   >
                     <span className="flex items-start justify-between gap-3">
                       <span
-                        className="min-w-0 truncate font-mono text-sm font-medium text-foreground"
-                        title={it.ref}
+                        className={`min-w-0 truncate text-sm font-medium text-foreground ${it.title ? "" : "font-mono"}`}
+                        title={it.title ?? it.ref}
                       >
-                        {it.ref}
+                        {it.title ?? it.ref}
                       </span>
                       <StatusBadge status={it.status} />
                     </span>
+                    <RefLine it={it} />
                     <span className="mt-1 block">{origin(it)}</span>
                     <span className="mt-2 flex items-baseline justify-between gap-3 text-xs">
                       <span
@@ -365,11 +402,12 @@ export default async function AdminHome({
                             pestaña nueva. */}
                         <Link
                           href={it.href}
-                          title={it.ref}
-                          className="block truncate rounded font-mono font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30"
+                          title={it.title ?? it.ref}
+                          className={`block truncate rounded font-medium text-foreground outline-none transition-colors hover:text-brand focus-visible:ring-2 focus-visible:ring-brand/30 ${it.title ? "" : "font-mono"}`}
                         >
-                          {it.ref}
+                          {it.title ?? it.ref}
                         </Link>
+                        <RefLine it={it} />
                         <span className="mt-1 block">{origin(it)}</span>
                       </td>
                       <td className="px-4 py-3">

@@ -173,9 +173,12 @@ export default async function RequestReport({
 
   const req = request as Record<string, unknown>;
   const externalRef = String(req.external_ref ?? id);
-  // Título del documento: el nombre que traen las verificaciones y, si ninguna
-  // lo trae, la referencia de la solicitud.
-  const subject = subjectName(checks) ?? externalRef;
+  // Respuestas a las preguntas marcadas en el formulario (0029_request_summary).
+  const subjectTitle = typeof req.subject_title === "string" ? req.subject_title : null;
+  const contactEmail = typeof req.contact_email === "string" ? req.contact_email : null;
+  // Título del documento: la pregunta marcada como título; si no hay, el nombre
+  // que traen las verificaciones; y si tampoco, la referencia de la solicitud.
+  const subject = subjectTitle || subjectName(checks) || externalRef;
 
   return (
     <main className="print-doc mx-auto w-full max-w-3xl p-6">
@@ -229,6 +232,13 @@ export default async function RequestReport({
               ) : null}
             </Meta>
           )}
+          {contactEmail ? (
+            <Meta label={tR("contactEmail")}>
+              <a href={`mailto:${contactEmail}`} className="text-brand hover:underline">
+                {contactEmail}
+              </a>
+            </Meta>
+          ) : null}
           <Meta label={tR("createdAt")}>{fmtDate(req.created_at)}</Meta>
           <Meta label={tR("submittedAt")}>{fmtDate(req.submitted_at)}</Meta>
           {req.decided_at ? (

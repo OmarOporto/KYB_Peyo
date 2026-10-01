@@ -136,7 +136,8 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
 {
   "data": [
     { "id": "…", "externalRef": "emp-123", "status": "under_review",
-      "decision": null, "createdAt": "…", "submittedAt": "…", "decidedAt": null }
+      "decision": null, "subjectTitle": "Pythas Holdings", "contactEmail": "ops@pythas.com",
+      "createdAt": "…", "submittedAt": "…", "decidedAt": null }
   ],
   "limit": 20, "offset": 0, "total": 42
 }
@@ -152,6 +153,7 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
   "status": "under_review", "decision": null,
   "reason": null, "corrections": null,
   "formId": "…", "formRevision": 7,
+  "subjectTitle": "Pythas Holdings", "contactEmail": "ops@pythas.com",
   "expiresAt": "2026-08-01T12:00:00.000Z",
   "createdAt": "…", "submittedAt": "…", "decidedAt": null,
   "aml": [
@@ -169,6 +171,12 @@ Query params: `status`, `external_ref`, `limit` (def 20, máx 100), `offset` (de
 - `formId` / `formRevision`: el formulario y la **revisión** con los que se creó la
   solicitud. Úsalos para elegir el mapeo de campos correcto (§4.9). `formRevision` es
   `null` en solicitudes anteriores a que existiera el campo.
+- `subjectTitle` / `contactEmail`: respuestas a las preguntas que el formulario
+  marca como **título** de la solicitud (p. ej. la razón social) y como **email de
+  contacto**. Son `null` si el formulario no marca esa pregunta, si la persona no
+  la respondió o no pasó por ella (pregunta condicional), o si la solicitud aún no
+  tiene respuestas. Durante el llenado se van rellenando con el borrador; el valor
+  definitivo queda al enviar. Trátalos como opcionales.
 - `expiresAt`: vencimiento del link de invitación vigente (ISO), o `null`.
 - `aml[]`: un elemento por verificación. Además de los checks por persona, puede
   incluir la **validación registral de empresa** (`feature: "kyb_registry"`).
@@ -452,6 +460,9 @@ x-kyb-signature: v1=<hex>
 Body (JSON): el mismo shape que `GET /:id` + `event`, `event_id`, `sent_at`. Incluye
 `expires_at` (vencimiento del link vigente; en snake_case dentro del webhook) y
 `form_revision` (§4.9), además de `reason` y `corrections` según el evento.
+También trae `subject_title` y `contact_email` (los `subjectTitle`/`contactEmail`
+de §4.3), que pueden ser `null` o faltar en eventos generados antes de que
+existieran: trátalos como opcionales.
 
 ### Verificación de la firma (obligatoria)
 `<hex> = HMAC-SHA256(WEBHOOK_SECRET, `x-kyb-timestamp` + "." + <body-crudo>)`

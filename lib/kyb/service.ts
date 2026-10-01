@@ -8,10 +8,12 @@ import { buildAmlSubject } from "@/lib/aml/mapping";
 import { dispatchDiditReviews, type DiditCheckRow } from "@/lib/didit/verify";
 import { recordCheckCharge } from "@/lib/didit/costs";
 import { notifyClient } from "@/lib/kyb/webhook";
-import { resolveRequestDefinition } from "@/lib/forms/store";
+import { getFormById, resolveRequestDefinition } from "@/lib/forms/store";
 import { pickRequestForm, type FormCandidate, type FormChoice } from "@/lib/forms/formChoice";
 import { dropForeignFileRefs, isOwnedPath } from "@/lib/kyb/storagePaths";
 import { reachableFields } from "@/lib/forms/logic";
+import { formDefinitionSchema, type FormDefinition } from "@/lib/forms/definition";
+import { resolveRequestSummary, type RequestSummary } from "@/lib/forms/internalFields";
 import { fileRefsOf } from "@/lib/forms/answers";
 import { FORM_VERSION } from "@/lib/forms/schema";
 import type {
@@ -417,10 +419,127 @@ async function setStatus(
   });
 }
 
-/** Guarda el borrador del formulario (autosave). */
+// ============================================================
+// Título y email de contacto (columnas de 0029_request_summary)
+// ============================================================
+
+type SummarySource = {
+  form_id?: string | null;
+  form_definition?: unknown;
+  org_id: string;
+};
+
+/**
+ * Formulario vivo de la solicitud, del que se lee la marca de hoy. Sin copia
+ * congelada válida, la definición de la solicitud ya ES el formulario vivo.
+ */
+async function liveDefinitionFor(
+  req: SummarySource,
+  requestDef: FormDefinition,
+): Promise<FormDefinition | null> {
+  if (!req.form_id || !formDefinitionSchema.safeParse(req.form_definition).success) {
+    return requestDef;
+  }
+  return (await getFormById(req.form_id))?.definition ?? null;
+}
+
+/**
+ * Título y email de contacto según las respuestas (ver resolveRequestSummary).
+ * `null` en solicitudes legacy, sin formulario dinámico: ahí no hay marca que
+ * leer y `resolveRequestDefinition` caería a un formulario con otras claves.
+ */
+export async function computeRequestSummary(
+  req: SummarySource,
+  answers: Record<string, unknown>,
+  requestDef?: FormDefinition | null,
+): Promise<RequestSummary | null> {
+  if (!req.form_definition && !req.form_id) return null;
+  const def =
+    requestDef ??
+    (await resolveRequestDefinition(req.form_definition, req.form_id, req.org_id));
+  if (!def) return null;
+  return resolveRequestSummary(def, answers, await liveDefinitionFor(req, def));
+}
+
+function summaryColumns(s: RequestSummary) {
+  return { subject_title: s.subjectTitle, contact_email: s.contactEmail };
+}
+
+/**
+ * Recalcula el título y el email de TODAS las solicitudes de un formulario.
+ * Se corre al cambiar su marca, y hace de backfill la primera vez. Es
+ * autoritativo (puede dejar `null`) y solo escribe las filas que cambian.
+ */
+export async function refreshFormRequestsSummary(
+  formId: string,
+  liveDef: FormDefinition,
+): Promise<number> {
+  const supabase = createServiceClient();
+  // Página chica: los ids van en la URL del `in(...)` de las respuestas.
+  const PAGE = 100;
+  let updated = 0;
+  for (let from = 0; ; from += PAGE) {
+    const { data: rows, error } = await supabase
+      .from("kyb_requests")
+      .select("id, form_definition, subject_title, contact_email")
+      .eq("form_id", formId)
+      .order("created_at")
+      .order("id")
+      .range(from, from + PAGE - 1);
+    if (error) throw new Error(error.message);
+    if (!rows?.length) break;
+
+    const { data: responses, error: respError } = await supabase
+      .from("kyb_form_responses")
+      .select("request_id, data")
+      .in(
+        "request_id",
+        rows.map((r) => r.id),
+      );
+    if (respError) throw new Error(respError.message);
+    const answersOf = new Map(
+      (responses ?? []).map((r) => [r.request_id as string, (r.data ?? {}) as Record<string, unknown>]),
+    );
+
+    const changed = rows.flatMap((r) => {
+      const snapshot = formDefinitionSchema.safeParse(r.form_definition);
+      const s = resolveRequestSummary(
+        snapshot.success ? snapshot.data : liveDef,
+        answersOf.get(r.id) ?? {},
+        liveDef,
+      );
+      return s.subjectTitle === r.subject_title && s.contactEmail === r.contact_email
+        ? []
+        : [{ id: r.id as string, s }];
+    });
+    for (let i = 0; i < changed.length; i += 20) {
+      await Promise.all(
+        changed.slice(i, i + 20).map(async ({ id, s }) => {
+          const { error: upError } = await supabase
+            .from("kyb_requests")
+            .update(summaryColumns(s))
+            .eq("id", id);
+          if (upError) throw new Error(upError.message);
+        }),
+      );
+    }
+    updated += changed.length;
+    if (rows.length < PAGE) break;
+  }
+  return updated;
+}
+
+/**
+ * Guarda el borrador del formulario (autosave).
+ *
+ * `summary` (título y email ya calculados) solo RELLENA: un valor `null` no
+ * borra el guardado, para que la lista no pierda el nombre mientras la persona
+ * escribe o corrige. El envío es el que deja el valor definitivo.
+ */
 export async function saveDraft(
   requestId: string,
   data: Record<string, unknown>,
+  summary?: RequestSummary | null,
 ) {
   const supabase = createServiceClient();
   await supabase
@@ -430,6 +549,15 @@ export async function saveDraft(
       { request_id: requestId, data: dropForeignFileRefs(data, requestId), form_version: FORM_VERSION },
       { onConflict: "request_id" },
     );
+
+  if (summary) {
+    const fill = Object.fromEntries(
+      Object.entries(summaryColumns(summary)).filter(([, v]) => v != null),
+    );
+    if (Object.keys(fill).length > 0) {
+      await supabase.from("kyb_requests").update(fill).eq("id", requestId);
+    }
+  }
 
   // created -> in_progress en el primer guardado.
   const { data: req } = await supabase
@@ -592,6 +720,8 @@ export async function submitRequest(
   // propio (snapshot o form_id): en el legacy `resolveRequestDefinition` caería al
   // form publicado por defecto —con otras keys— y borraría respuestas válidas.
   let toSave = dropForeignFileRefs(data, requestId);
+  // Título y email definitivos, de las respuestas ya podadas. `null` en legacy.
+  let summary: RequestSummary | null = null;
   const isDynamic =
     !!(req as { form_definition?: unknown }).form_definition ||
     !!(req as { form_id?: string | null }).form_id;
@@ -606,6 +736,7 @@ export async function submitRequest(
       toSave = Object.fromEntries(
         Object.entries(toSave).filter(([k]) => keep.has(k)),
       );
+      summary = await computeRequestSummary(req as SummarySource, toSave, definition);
     }
   }
 
@@ -624,6 +755,7 @@ export async function submitRequest(
       status: "submitted",
       submitted_at: new Date().toISOString(),
       corrections: null,
+      ...(summary ? summaryColumns(summary) : {}),
     })
     .eq("id", requestId);
   await logAudit({

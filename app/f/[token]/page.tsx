@@ -3,6 +3,7 @@ import { getRequestByToken } from "@/lib/kyb/service";
 import { createServiceClient } from "@/lib/supabase/service";
 import { getFormForRequest, resolveRequestDefinition } from "@/lib/forms/store";
 import { reachableSections } from "@/lib/forms/logic";
+import { publicDefinition } from "@/lib/forms/internalFields";
 import { emptyForm } from "@/lib/forms/schema";
 import type { KybCorrections } from "@/lib/kyb/types";
 import { AppHeader } from "@/components/AppHeader";
@@ -91,7 +92,8 @@ export default async function FormPage({
           <main className="mx-auto w-full max-w-2xl flex-1 p-6">
             <ApplicantForm
               token={token}
-              definition={definition}
+              // Sin la configuración interna (título/email): el solicitante no la ve.
+              definition={publicDefinition(definition)}
               locale={locale}
               initialAnswers={savedData}
               returnUrl={(req as { return_url?: string | null }).return_url ?? undefined}
@@ -121,7 +123,7 @@ export default async function FormPage({
         <main className="mx-auto w-full max-w-2xl flex-1 p-6">
           <ApplicantForm
             token={token}
-            definition={form.definition}
+            definition={publicDefinition(form.definition)}
             locale={locale}
             initialAnswers={savedData}
             returnUrl={(req as { return_url?: string | null }).return_url ?? undefined}

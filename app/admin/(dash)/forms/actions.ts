@@ -12,6 +12,8 @@ import {
   resolveText,
 } from "@/lib/forms/definition";
 import { isGoogleFormExport, fromGoogleForm } from "@/lib/forms/import-google";
+import { normalizeInternalFields } from "@/lib/forms/internalFields";
+import { refreshFormRequestsSummary } from "@/lib/kyb/service";
 
 /**
  * Motivo por el que se rechazó archivar/eliminar. Se devuelve como CÓDIGO (no
@@ -70,21 +72,36 @@ export async function saveForm(
   payload: { name: string; definition: unknown },
 ): Promise<Result> {
   const analyst = await requireAnalyst();
-  if (!(await loadOwnedForm(analyst, id))) return NOT_FOUND;
+  const current = await loadOwnedForm(analyst, id, "id, definition");
+  if (!current) return NOT_FOUND;
   const parsed = formDefinitionSchema.safeParse(payload.definition);
   if (!parsed.success) {
     return { ok: false, error: "La definición del formulario no es válida." };
   }
+  // El builder ya normaliza; esto cubre a quien llame al action sin pasar por él.
+  const definition = normalizeInternalFields(parsed.data);
   const supabase = createServiceClient();
   const { error } = await supabase
     .from("forms")
     .update({
       name: payload.name?.trim() || "Formulario",
-      definition: parsed.data,
+      definition,
       updated_at: new Date().toISOString(),
     })
     .eq("id", id);
   if (error) return { ok: false, error: error.message };
+
+  // Si cambió qué pregunta da el título o el email, se recalculan sus
+  // solicitudes (también las anteriores: es el backfill). Un fallo acá no
+  // deshace el guardado, que ya ocurrió; se reintenta en el próximo cambio.
+  const before = (current.definition as { internalFields?: unknown } | null)?.internalFields;
+  if (JSON.stringify(before ?? null) !== JSON.stringify(definition.internalFields ?? null)) {
+    try {
+      await refreshFormRequestsSummary(id, definition);
+    } catch (e) {
+      console.error(`[saveForm] no se pudo recalcular el título de las solicitudes form=${id}`, e);
+    }
+  }
   revalidatePath("/admin/forms");
   revalidatePath(`/admin/forms/${id}/edit`);
   return { ok: true };
@@ -154,7 +171,7 @@ export async function duplicateForm(id: string) {
       status: "draft",
       source: data.source,
       source_ref: data.source_ref,
-      definition: parsed.data,
+      definition: normalizeInternalFields(parsed.data),
     })
     .select("id")
     .single();
@@ -348,7 +365,7 @@ export async function importFormJson(json: string, orgId?: string | null): Promi
       name: resolveText(parsed.data.title, "es") || "Formulario importado",
       status: "draft",
       source: "manual",
-      definition: parsed.data,
+      definition: normalizeInternalFields(parsed.data),
     })
     .select("id")
     .single();

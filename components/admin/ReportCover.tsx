@@ -16,7 +16,10 @@ export async function ReportCover({
   status,
   checks,
 }: {
-  /** Nombre detectado de las verificaciones, o la referencia como respaldo. */
+  /**
+   * La respuesta a la pregunta marcada como título; si no hay, el nombre que
+   * detectan las verificaciones; y si tampoco, la referencia.
+   */
   subject: string;
   externalRef: string;
   requestId: string;

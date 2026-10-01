@@ -9,7 +9,7 @@ import {
   useRef,
   useState,
 } from "react";
-import { Maximize2 } from "lucide-react";
+import { EyeOff, Maximize2 } from "lucide-react";
 import {
   resolveText,
   type Field,
@@ -52,6 +52,12 @@ export interface DynamicFormProps {
   onSubmit?: (answers: Answers) => Promise<{ ok: boolean; error?: string }>;
   /** Si se pasa, tras enviar se redirige el navegador a esta URL (app del cliente). */
   returnUrl?: string;
+  /**
+   * Solo el preview del builder: id de pregunta → nombre de su rol interno
+   * (título / email de contacto), que se muestra junto a la etiqueta. Las
+   * páginas del solicitante no lo pasan nunca.
+   */
+  internalMarks?: Record<string, string>;
   labels?: {
     back: string;
     continue: string;
@@ -142,6 +148,7 @@ export function DynamicForm({
   onDeleteFile,
   onSubmit,
   returnUrl,
+  internalMarks,
   labels,
 }: DynamicFormProps) {
   const L = { ...DEFAULT_LABELS, ...labels };
@@ -511,6 +518,7 @@ export function DynamicForm({
                       disabled={readOnlyNow}
                       note={isCorrection ? noteByKey.get(f.key) : undefined}
                       markedRequired={marked}
+                      internalMark={mode === "preview" ? internalMarks?.[f.id] : undefined}
                       onChange={(v) => setAnswer(f.key, v)}
                       onUploadFile={onUploadFile}
                       onDeleteFile={onDeleteFile}
@@ -570,6 +578,7 @@ function FieldInput({
   disabled = false,
   note,
   markedRequired = false,
+  internalMark,
   onChange,
   onUploadFile,
   onDeleteFile,
@@ -581,6 +590,8 @@ function FieldInput({
   disabled?: boolean;
   note?: string;
   markedRequired?: boolean;
+  /** Rol interno de la pregunta; solo llega en el preview del builder. */
+  internalMark?: string;
   onChange: (v: unknown) => void;
   onUploadFile?: (file: File, field: Field) => Promise<UploadResult>;
   onDeleteFile?: (path: string) => Promise<boolean>;
@@ -596,6 +607,12 @@ function FieldInput({
       <label className="mb-1 block text-sm font-medium text-foreground">
         {label || "—"}
         {(field.required || markedRequired) && <span className="text-danger"> *</span>}
+        {internalMark && (
+          <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-brand px-2 py-0.5 align-middle text-[10px] font-semibold text-white">
+            <EyeOff size={10} aria-hidden />
+            {internalMark}
+          </span>
+        )}
       </label>
       {note !== undefined && (
         <p className="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs text-foreground">

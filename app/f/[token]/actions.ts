@@ -3,6 +3,7 @@
 import { randomUUID } from "crypto";
 import { after } from "next/server";
 import {
+  computeRequestSummary,
   getRequestByToken,
   saveDraft,
   submitRequest,
@@ -19,6 +20,7 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { documentPath, isOwnedPath, mimeAllowed } from "@/lib/kyb/storagePaths";
 import { kybSubmitSchema } from "@/lib/forms/schema";
 import { resolveRequestDefinition } from "@/lib/forms/store";
+import type { FormDefinition } from "@/lib/forms/definition";
 import { reachableFields } from "@/lib/forms/logic";
 import { buildZod } from "@/lib/forms/validation";
 
@@ -57,13 +59,14 @@ export async function saveDraftAction(
   // a mitad de carga. Lo que sí se puede es acotarlo: solo claves que el
   // formulario declara, y un tamaño máximo.
   let toSave = data;
+  let definition: FormDefinition | null = null;
   const formId = (r.req as { form_id?: string | null }).form_id ?? null;
   const snapshot = (r.req as { form_definition?: unknown }).form_definition;
   // Mismo guard que `submitRequest`: en una solicitud legacy (sin snapshot ni
   // form_id) `resolveRequestDefinition` caería al formulario publicado por
   // defecto, con otras claves, y podaría respuestas válidas.
   if (snapshot || formId) {
-    const definition = await resolveRequestDefinition(snapshot, formId, r.req.org_id);
+    definition = await resolveRequestDefinition(snapshot, formId, r.req.org_id);
     if (definition) {
       const known = new Set(
         definition.sections.flatMap((s) => s.fields).map((f) => f.key),
@@ -80,7 +83,11 @@ export async function saveDraftAction(
   }
 
   try {
-    await saveDraft(r.req.id, toSave);
+    // Título y email para la lista del panel desde el primer borrador.
+    const summary = definition
+      ? await computeRequestSummary(r.req, toSave, definition)
+      : null;
+    await saveDraft(r.req.id, toSave, summary);
     return { ok: true };
   } catch (e) {
     console.error("[saveDraftAction] falló", e);

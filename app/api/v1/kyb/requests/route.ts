@@ -42,7 +42,7 @@ export async function GET(req: NextRequest) {
   let query = supabase
     .from("kyb_requests")
     .select(
-      "id, external_ref, status, decision, created_at, submitted_at, decided_at",
+      "id, external_ref, status, decision, subject_title, contact_email, created_at, submitted_at, decided_at",
       { count: "exact" },
     )
     .eq("api_key_id", g.keyId)
@@ -58,6 +58,8 @@ export async function GET(req: NextRequest) {
       externalRef: r.external_ref,
       status: r.status,
       decision: r.decision,
+      subjectTitle: r.subject_title ?? null,
+      contactEmail: r.contact_email ?? null,
       createdAt: r.created_at,
       submittedAt: r.submitted_at,
       decidedAt: r.decided_at,

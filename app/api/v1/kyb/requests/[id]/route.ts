@@ -24,7 +24,7 @@ export async function GET(
   const { data: request } = await supabase
     .from("kyb_requests")
     .select(
-      "id, external_ref, status, decision, decision_reason, corrections, form_id, form_revision, created_at, submitted_at, decided_at, token_expires_at",
+      "id, external_ref, status, decision, decision_reason, corrections, form_id, form_revision, subject_title, contact_email, created_at, submitted_at, decided_at, token_expires_at",
     )
     .eq("id", id)
     .eq("api_key_id", g.keyId)
@@ -51,6 +51,10 @@ export async function GET(
     // Revisión del formulario con la que se creó la solicitud. `null` en
     // solicitudes anteriores a la migración 0018.
     formRevision: request.form_revision ?? null,
+    // Respuestas a las preguntas que el formulario marca como título y como
+    // email de contacto. `null` si no hay marca o aún no se respondió.
+    subjectTitle: request.subject_title ?? null,
+    contactEmail: request.contact_email ?? null,
     expiresAt: request.token_expires_at ?? null,
     createdAt: request.created_at,
     submittedAt: request.submitted_at,

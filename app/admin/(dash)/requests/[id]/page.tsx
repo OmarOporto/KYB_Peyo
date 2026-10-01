@@ -298,8 +298,9 @@ export default async function RequestDetail({
           {/* El estado es un atributo de la solicitud, no una acción: vive junto
               al título y deja el lado derecho libre para lo accionable. */}
           <div className="flex flex-wrap items-center gap-2">
+            {/* La respuesta a la pregunta marcada como título; sin ella, la ref. */}
             <h1 className="font-display text-2xl font-bold text-foreground">
-              {request.external_ref}
+              {request.subject_title || request.external_ref}
             </h1>
             <StatusBadge status={request.status} />
             {/* El admin ve solicitudes de todas las orgs: de quién es y un
@@ -313,7 +314,21 @@ export default async function RequestDetail({
               </Link>
             )}
           </div>
-          <p className="mt-0.5 text-xs text-muted">ID: {request.id}</p>
+          <p className="mt-0.5 text-xs text-muted">
+            {request.subject_title ? `${t("refShort")} ${request.external_ref} · ` : ""}ID:{" "}
+            {request.id}
+          </p>
+          {request.contact_email && (
+            <p className="mt-0.5 text-sm">
+              <span className="text-muted">{t("contactEmail")}: </span>
+              <a
+                href={`mailto:${request.contact_email}`}
+                className="text-brand hover:underline"
+              >
+                {request.contact_email}
+              </a>
+            </p>
+          )}
         </div>
         {/* `outline` y no `primary`: las acciones primarias de la página
             (Aprobar/Rechazar) son success/danger y están más abajo. */}

@@ -65,7 +65,7 @@ export async function notifyClient(
     const { data: req } = await supabase
       .from("kyb_requests")
       .select(
-        "id, external_ref, status, decision, decision_reason, corrections, webhook_endpoint_id, form_revision, created_at, submitted_at, decided_at, token_expires_at",
+        "id, external_ref, status, decision, decision_reason, corrections, webhook_endpoint_id, form_revision, subject_title, contact_email, created_at, submitted_at, decided_at, token_expires_at",
       )
       .eq("id", requestId)
       .maybeSingle();
@@ -93,6 +93,9 @@ export async function notifyClient(
       reason: req.decision_reason ?? null,
       corrections: req.corrections ?? null,
       form_revision: req.form_revision ?? null,
+      // Preguntas marcadas como título y email de contacto (ver GET /:id).
+      subject_title: req.subject_title ?? null,
+      contact_email: req.contact_email ?? null,
       expires_at: req.token_expires_at ?? null,
       created_at: req.created_at,
       submitted_at: req.submitted_at,

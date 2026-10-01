@@ -284,6 +284,30 @@ export type I18nMeta = z.infer<typeof i18nMetaSchema>;
 
 export const formMetaSchema = z.object({ i18n: i18nMetaSchema.optional() });
 
+// ------------------------------------------------------------
+// Preguntas de uso interno: la respuesta de una da el título de la solicitud
+// (informe, panel, API) y la de otra el email de contacto. Se guardan por `id`
+// de pregunta (el `key` es editable en el builder). Es configuración INTERNA:
+// el solicitante nunca la ve (ver `publicDefinition` en ./internalFields.ts).
+// Sin refinamientos acá a propósito: una definición vieja que no los cumpla
+// fallaría el parse y `resolveRequestDefinition` caería al formulario vivo.
+// Los invariantes los impone `normalizeInternalFields`.
+// ------------------------------------------------------------
+export const INTERNAL_ROLES = ["title", "contactEmail"] as const;
+export type InternalRole = (typeof INTERNAL_ROLES)[number];
+
+/** Tipos de pregunta que puede tener cada rol interno. */
+export const INTERNAL_FIELD_TYPES: Record<InternalRole, FieldType[]> = {
+  title: ["short_text"],
+  contactEmail: ["email"],
+};
+
+export const internalFieldsSchema = z.object({
+  title: z.string().optional(),
+  contactEmail: z.string().optional(),
+});
+export type InternalFields = z.infer<typeof internalFieldsSchema>;
+
 export const formDefinitionSchema = z.object({
   version: z.literal(1).default(1),
   title: localizedTextSchema,
@@ -291,6 +315,7 @@ export const formDefinitionSchema = z.object({
   defaultLocale: z.string().default("es"),
   sections: z.array(sectionSchema),
   meta: formMetaSchema.optional(),
+  internalFields: internalFieldsSchema.optional(),
 });
 export type FormDefinition = z.infer<typeof formDefinitionSchema>;
 

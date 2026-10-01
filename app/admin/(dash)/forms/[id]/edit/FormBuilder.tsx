@@ -3,9 +3,11 @@
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useTranslations } from "next-intl";
+import { EyeOff } from "lucide-react";
 import {
   FIELD_TYPES,
   DIDIT_FEATURES,
+  INTERNAL_ROLES,
   DIDIT_FEATURE_COMPAT,
   getLoc,
   isChoiceType,
@@ -22,9 +24,18 @@ import {
   type FieldType,
   type FormDefinition,
   type FormStatus,
+  type InternalFields,
+  type InternalRole,
   type LocalizedText,
   type Section,
 } from "@/lib/forms/definition";
+import {
+  internalRoleFor,
+  internalRoleOf,
+  mayBeSkipped,
+  normalizeInternalFields,
+  setInternalRole,
+} from "@/lib/forms/internalFields";
 import {
   applyTranslations,
   coverage,
@@ -213,6 +224,9 @@ export function FormBuilder({
     setDef((prev) => {
       const d = structuredClone(prev);
       mut(d);
+      // Tras CUALQUIER cambio: borrar la pregunta marcada, cambiarle el tipo o
+      // desmarcar "Obligatoria" no deja los roles internos en un estado inválido.
+      normalizeInternalFields(d);
       return d;
     });
   }
@@ -510,6 +524,20 @@ export function FormBuilder({
     setActiveSection(to);
   }
 
+  // Preguntas con rol interno: su sección y etiqueta (resumen de la tarjeta de
+  // identidad) y la marca que muestra el preview. El solicitante no ve ninguna.
+  const internalRefs = INTERNAL_ROLES.flatMap((role) => {
+    const id = def.internalFields?.[role];
+    for (const [si, s] of def.sections.entries()) {
+      const f = s.fields.find((x) => x.id === id);
+      if (f) return [{ role, id: f.id, si, label: resolveText(f.label, locale) || f.key }];
+    }
+    return [];
+  });
+  const internalMarks = Object.fromEntries(
+    internalRefs.map((r) => [r.id, t(`internalRole_${r.role}`)]),
+  );
+
   const allFieldKeys = def.sections.flatMap((s) =>
     s.fields.map((f) => ({ key: f.key, label: resolveText(f.label, locale) || f.key, field: f })),
   );
@@ -681,7 +709,12 @@ export function FormBuilder({
           <h2 className="mb-4 font-display text-2xl font-bold text-foreground">
             {resolveText(def.title, locale)}
           </h2>
-          <DynamicForm definition={def} locale={locale} mode="preview" />
+          <DynamicForm
+            definition={def}
+            locale={locale}
+            mode="preview"
+            internalMarks={internalMarks}
+          />
         </div>
       ) : (
         <div className="space-y-4">
@@ -729,6 +762,37 @@ export function FormBuilder({
                 <AutoTag show={i18nCtx.isAuto(PATH_TITLE)} tip={t("autoTip")} />
               </div>
               <p className="mt-1 text-xs text-muted">{t("publicTitleHint")}</p>
+            </div>
+            {/* Roles internos: qué pregunta da el título y cuál el email de
+                contacto. Clic → la sección de la pregunta. */}
+            <div className="border-t border-border pt-3 md:col-span-2">
+              <p className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <span className="inline-flex items-center gap-1 font-medium text-foreground">
+                  <EyeOff size={14} aria-hidden />
+                  {t("internalUse")}
+                </span>
+                {INTERNAL_ROLES.map((role) => {
+                  const ref = internalRefs.find((r) => r.role === role);
+                  return (
+                    <span key={role} className="min-w-0 text-muted">
+                      {t(`internalRole_${role}`)}:{" "}
+                      {ref ? (
+                        <button
+                          type="button"
+                          className="max-w-[16rem] truncate align-bottom font-medium text-brand hover:underline"
+                          title={ref.label}
+                          onClick={() => setActiveSection(ref.si)}
+                        >
+                          {ref.label}
+                        </button>
+                      ) : (
+                        <span className="italic">{t("internalNone")}</span>
+                      )}
+                    </span>
+                  );
+                })}
+              </p>
+              <p className="mt-1 text-xs text-muted">{t("internalUseHint")}</p>
             </div>
           </div>
 
@@ -813,6 +877,7 @@ export function FormBuilder({
               locale={locale}
               allFieldKeys={allFieldKeys}
               sections={def.sections}
+              internalFields={def.internalFields}
               t={t}
               update={update}
               onMove={moveSection}
@@ -1121,6 +1186,7 @@ function SectionCard({
   locale,
   allFieldKeys,
   sections,
+  internalFields,
   t,
   update,
   onMove,
@@ -1133,6 +1199,7 @@ function SectionCard({
   locale: string;
   allFieldKeys: KeyInfo[];
   sections: Section[];
+  internalFields: InternalFields | undefined;
   t: TFn;
   update: (mut: (d: FormDefinition) => void) => void;
   onMove: (from: number, to: number) => void;
@@ -1234,6 +1301,8 @@ function SectionCard({
               askConfirm={askConfirm}
               i18n={i18n}
               sectionId={section.id}
+              role={internalRoleOf(internalFields, field.id)}
+              skippable={mayBeSkipped(sections, index, field)}
             />
             {/* Insertar una pregunta justo debajo de esta */}
             <AddFieldSelect
@@ -1528,6 +1597,8 @@ function FieldCard({
   askConfirm,
   i18n,
   sectionId,
+  role,
+  skippable,
 }: {
   field: Field;
   si: number;
@@ -1540,6 +1611,10 @@ function FieldCard({
   askConfirm: (message: string) => Promise<boolean>;
   i18n: I18nCtx;
   sectionId: string;
+  /** Rol interno de la pregunta (título / email de contacto), si lo tiene. */
+  role: InternalRole | null;
+  /** La pregunta puede quedar sin responder (ver mayBeSkipped). */
+  skippable: boolean;
 }) {
   const mut = (fn: (f: Field) => void) =>
     update((d) => fn(d.sections[si].fields[fi]));
@@ -1561,8 +1636,12 @@ function FieldCard({
   const helpPath = fieldPath(sectionId, field.id, "help");
 
   return (
-    <div className="rounded-xl border border-border bg-surface p-3 shadow-sm">
-      <div className="mb-2 flex items-center gap-2">
+    <div
+      className={`rounded-xl border bg-surface p-3 shadow-sm ${
+        role ? "border-brand/60 ring-1 ring-brand/20" : "border-border"
+      }`}
+    >
+      <div className="mb-2 flex flex-wrap items-center gap-2">
         <select
           className={smallInput}
           value={field.type}
@@ -1574,11 +1653,16 @@ function FieldCard({
             </option>
           ))}
         </select>
-        <label className="flex items-center gap-1 text-xs text-muted">
+        {/* Con rol interno es obligatoria siempre (normalizeInternalFields). */}
+        <label
+          className="flex items-center gap-1 text-xs text-muted"
+          title={role ? t("internalRequiredLocked") : undefined}
+        >
           <input
             type="checkbox"
             className="accent-brand"
-            checked={field.required}
+            checked={field.required || role !== null}
+            disabled={role !== null}
             onChange={(e) => mut((f) => (f.required = e.target.checked))}
           />
           {t("required")}
@@ -1711,6 +1795,7 @@ function FieldCard({
             }
           />
         )}
+        <InternalRoleToggle field={field} role={role} t={t} update={update} />
         <div className="ml-auto flex items-center gap-1">
           <IconBtn
             label="↑"
@@ -1744,6 +1829,12 @@ function FieldCard({
           />
         </div>
       </div>
+
+      {role && skippable && (
+        <p className="mb-2 rounded-lg border border-warning/40 bg-warning/10 px-2.5 py-1.5 text-xs text-foreground">
+          {t(`internalSkippable_${role}`)}
+        </p>
+      )}
 
       <div className="relative">
         <input
@@ -1833,6 +1924,48 @@ function FieldCard({
         onChange={(c) => mut((f) => (f.visibleIf = c))}
       />
     </div>
+  );
+}
+
+// ---------- Rol interno de la pregunta (título / email de contacto) ----------
+
+/**
+ * Chip para marcar la pregunta como título o email de contacto de la
+ * solicitud. Solo aparece en los tipos que pueden tener el rol, y marcarla en
+ * una quita la marca de la que lo tenía (un rol, una pregunta).
+ */
+function InternalRoleToggle({
+  field,
+  role,
+  t,
+  update,
+}: {
+  field: Field;
+  role: InternalRole | null;
+  t: TFn;
+  update: (mut: (d: FormDefinition) => void) => void;
+}) {
+  const candidate = internalRoleFor(field.type);
+  if (!candidate) return null;
+  const active = role === candidate;
+  const label = t(`internalRole_${candidate}`);
+  return (
+    <span className="flex items-center gap-1">
+      <button
+        type="button"
+        aria-pressed={active}
+        onClick={() => update((d) => setInternalRole(d, candidate, active ? null : field.id))}
+        className={`inline-flex items-center gap-1 rounded-full border px-2 py-0.5 text-xs font-medium ${
+          active
+            ? "border-brand bg-brand text-white"
+            : "border-dashed border-border bg-surface text-muted hover:bg-surface-2"
+        }`}
+      >
+        <EyeOff size={12} aria-hidden />
+        {active ? label : `+ ${label}`}
+      </button>
+      {active && <InfoTip text={t(`internalRoleTip_${candidate}`)} />}
+    </span>
   );
 }
 
